@@ -626,8 +626,8 @@
 }
 
 .mockup-window {
-  height: 600px;
-  max-height: 600px;
+  height: auto;
+  max-height: none;
   background-color: var(--bg-card);
   border: 1px solid var(--border-light);
   border-radius: var(--radius-xl);
@@ -5561,18 +5561,14 @@ select.calc-numeric-input.calc-select-input:hover {
 /* Responsif adaptif bila layar perangkat mengecil */
 @media (max-width: 992px) {
   .mockup-window {
-    height: 520px;
-    max-height: 520px;
+    height: auto;
+    max-height: none;
   }
 }
 
 @media (max-width: 768px) {
   .mockup-window {
-    height: 480px;
-    max-height: 480px;
-  }
-
-  .mockup-dashboard-viewport .full-dashboard-sidebar {
-    width: 220px !important;
+    height: auto;
+    max-height: none;
   }
 }

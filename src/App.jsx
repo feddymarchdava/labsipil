@@ -2476,10 +2476,10 @@ export default function App() {
           </div>
         </section>
 
-        {/* ================= 3. INTERACTIVE DASHBOARD PREVIEW ================= */}
+        {/* ================= 3. DASHBOARD PREVIEW SCREENSHOT ================= */}
         <section className="preview-section">
           <div className="container">
-            <div className="mockup-window h-[600px] overflow-hidden rounded-2xl shadow-2xl flex flex-col" aria-label="Mockup Preview Dasbor LabSipil">
+            <div className="mockup-window h-auto overflow-hidden rounded-2xl shadow-2xl flex flex-col border border-slate-200/80 bg-white" aria-label="Mockup Preview Dasbor LabSipil">
               {/* Window Title Bar (Macbook style) */}
               <div className="mockup-header h-[45px] shrink-0">
                 <div className="window-controls">
@@ -2492,249 +2492,22 @@ export default function App() {
                     <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
                     <path d="M7 11V7a5 5 0 0 1 10 0v4" />
                   </svg>
-                  <span className="url-text">https://web-labsipil.vercel.app/</span>
+                  <span className="url-text">https://labsipil.vercel.app/</span>
                 </div>
                 <div className="system-status">
                   <span className="status-indicator"></span>
-                  <span>Sistem Online • Sinkronisasi Data ({totalSavedCount} Data)</span>
+                  <span>Sistem Online • Monitoring Pengujian</span>
                 </div>
               </div>
 
-              {/* Area Dalam Mockup (Sidebar & Konten) */}
-              <div className="mockup-dashboard-viewport flex h-[calc(100%-45px)] w-full overflow-hidden">
-                <div className="full-dashboard-layout flex h-full w-full min-h-0 overflow-hidden">
-                  {/* Sidebar Kiri LabSipil Asli */}
-                  <aside className="full-dashboard-sidebar h-full overflow-y-auto shrink-0">
-                    <div className="sidebar-top-section">
-                      <div className="sidebar-brand-btn flex items-center gap-3">
-                        <img 
-                          src="/logo-l.png" 
-                          alt="LabSipil Icon" 
-                          className="sidebar-brand-icon h-11 w-auto object-contain brightness-0 invert" 
-                          style={{ filter: 'brightness(0) invert(1)' }}
-                        />
-                        <div className="sidebar-brand-text flex flex-col text-left">
-                          <span className="sidebar-brand-name text-xl font-bold leading-tight">
-                            <span className="text-white">Lab</span>
-                            <span className="text-blue-500">Sipil</span>
-                          </span>
-                          <span className="sidebar-brand-sub text-[10px] text-gray-400 font-semibold tracking-wider uppercase">
-                            SISTEM PENGOLAHAN DATA
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Area Navigasi Accordion Menu Dinamis Asli */}
-                      <div className="sidebar-accordion-wrapper">
-                        <div className="sidebar-nav-item active">
-                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <rect x="3" y="3" width="7" height="7" />
-                            <rect x="14" y="3" width="7" height="7" />
-                            <rect x="14" y="14" width="7" height="7" />
-                            <rect x="3" y="14" width="7" height="7" />
-                          </svg>
-                          <span>Dashboard Utama</span>
-                        </div>
-
-                        <div className="sidebar-accordion-groups">
-                          {sidebarGroups.map((group) => (
-                            <div key={group.groupId} className="sidebar-group-box">
-                              <div className="sidebar-group-heading">
-                                <span>{group.groupTitle}</span>
-                              </div>
-                              <div className="sidebar-chapters-accordion">
-                                {group.chapters.map((chapter) => (
-                                  <div key={chapter.chapterId} className="sidebar-chapter-block">
-                                    <div className="sidebar-chapter-header-btn">
-                                      <span className="chapter-header-title">{chapter.title}</span>
-                                      <svg 
-                                        className="chapter-chevron-icon" 
-                                        width="14" 
-                                        height="14" 
-                                        viewBox="0 0 24 24" 
-                                        fill="none" 
-                                        stroke="currentColor" 
-                                        strokeWidth="2.5" 
-                                        strokeLinecap="round" 
-                                        strokeLinejoin="round"
-                                      >
-                                        <polyline points="9 18 15 12 9 6" />
-                                      </svg>
-                                    </div>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="sidebar-bottom-section">
-                      <div className="btn-back-landing">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                          <line x1="19" y1="12" x2="5" y2="12" />
-                          <polyline points="12 19 5 12 12 5" />
-                        </svg>
-                        <span>Kembali ke Beranda</span>
-                      </div>
-                    </div>
-                  </aside>
-
-                  {/* Konten Utama Dasbor Asli */}
-                  <div className="full-dashboard-main h-full overflow-y-auto flex-1 min-w-0">
-                    {/* Topbar Dasbor */}
-                    <header className="dashboard-topbar">
-                      <div className="topbar-title-group">
-                        <h1 className="dashboard-heading">Monitoring Pengujian Praktikum</h1>
-                      </div>
-                      <div className="topbar-status-group">
-                        <div className="system-live-badge">
-                          <span className="live-pulsing-dot"></span>
-                          <span>Sistem Online</span>
-                        </div>
-                      </div>
-                    </header>
-
-                    <div className="dashboard-content-area">
-                      {/* Metrik Bento Grid (3 Kolom Proporsional Asli) */}
-                      <div className="bento-metrics-container">
-                        <div className="bento-card">
-                          <div className="bento-card-top">
-                            <span className="bento-card-label">Total Pengujian Tersimpan</span>
-                            <span className="bento-card-tag positive">Aktif</span>
-                          </div>
-                          <div className="bento-card-number-row">
-                            <strong className="bento-card-number">{totalSavedCount}</strong>
-                            <span className="bento-card-unit">Data Uji</span>
-                          </div>
-                          <span className="bento-card-sub">Seluruh berkas pengujian terekam</span>
-                        </div>
-
-                        <div className="bento-card">
-                          <div className="bento-card-top">
-                            <span className="bento-card-label">Modul Bahan Bangunan</span>
-                            <span className="bento-card-tag neutral">Lab Bahan</span>
-                          </div>
-                          <div className="bento-card-number-row">
-                            <strong className="bento-card-number">{bahanCount}</strong>
-                            <span className="bento-card-unit">Catatan</span>
-                          </div>
-                          <span className="bento-card-sub">Agregat, beton, kayu, dan baja</span>
-                        </div>
-
-                        <div className="bento-card">
-                          <div className="bento-card-top">
-                            <span className="bento-card-label">Modul Mekanika Tanah</span>
-                            <span className="bento-card-tag neutral">Lab Geoteknik</span>
-                          </div>
-                          <div className="bento-card-number-row">
-                            <strong className="bento-card-number">{tanahCount}</strong>
-                            <span className="bento-card-unit">Catatan</span>
-                          </div>
-                          <span className="bento-card-sub">Sondir, fisik, gradasi, & proctor</span>
-                        </div>
-
-                        <div className="bento-card">
-                          <div className="bento-card-top">
-                            <span className="bento-card-label">Modul Mekanika Fluida</span>
-                            <span className="bento-card-tag neutral">Lab Fluida</span>
-                          </div>
-                          <div className="bento-card-number-row">
-                            <strong className="bento-card-number">{fluidaCount}</strong>
-                            <span className="bento-card-unit">Catatan</span>
-                          </div>
-                          <span className="bento-card-sub">Sifat fluida, reynolds, & debit</span>
-                        </div>
-                      </div>
-
-                      {/* Panel Riwayat & Ringkasan Data Pengujian Masuk Asli */}
-                      <div className="records-panel">
-                        <div className="records-panel-header">
-                          <div className="records-panel-title-group">
-                            <h3>Riwayat & Ringkasan Data Pengujian Masuk</h3>
-                            <p>Database pengujian praktikum tersimpan otomatis di browser lokal (localStorage).</p>
-                          </div>
-
-                          <div className="records-panel-controls">
-                            <input
-                              type="text"
-                              readOnly
-                              tabIndex={-1}
-                              className="records-search-input"
-                              placeholder="Cari ID, nama pengujian, standar..."
-                              value=""
-                            />
-                            <select className="records-filter-select" disabled tabIndex={-1} value="all">
-                              <option value="all">Semua Laboratorium</option>
-                            </select>
-                            <div className="btn-add-record">
-                              <Plus size={16} strokeWidth={2.5} />
-                              <span>Simpan Data Uji Baru</span>
-                            </div>
-                            <div className="btn-reset-sample">
-                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                                <polyline points="1 4 1 10 7 10" />
-                                <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
-                              </svg>
-                              <span>Reset Contoh</span>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Tabel Data Asli */}
-                        <div className="records-table-wrapper">
-                          <table className="records-table">
-                            <thead>
-                              <tr>
-                                <th style={{ width: '90px' }}>Kode/ID Uji</th>
-                                <th>Nama Pengujian</th>
-                                <th>Kategori Bab</th>
-                                <th>Standar SNI / ASTM</th>
-                                <th>Ringkasan Hasil Utama</th>
-                                <th>Waktu Input</th>
-                                <th style={{ textAlign: 'center', width: '180px' }}>Aksi</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {savedTests.slice(0, 5).map((item) => (
-                                <tr key={item.id}>
-                                  <td>
-                                    <span className="table-code-chip">{item.id}</span>
-                                  </td>
-                                  <td>
-                                    <span className="table-test-name">{item.name}</span>
-                                  </td>
-                                  <td>
-                                    <span className="table-category-text">{item.category}</span>
-                                  </td>
-                                  <td>
-                                    <span className="table-standard-chip">{item.standard}</span>
-                                  </td>
-                                  <td>
-                                    <span className={`table-result-chip ${getTestChipClass(item)}`}>
-                                      {formatScientificInText(item.summary)}
-                                    </span>
-                                  </td>
-                                  <td>
-                                    <span className="table-time-text">{item.time}</span>
-                                  </td>
-                                  <td>
-                                    <div className="table-actions-cell">
-                                      <span className="btn-tbl-calc">Hitung</span>
-                                      <span className="btn-tbl-view">Lihat</span>
-                                      <span className="btn-tbl-delete">Hapus</span>
-                                    </div>
-                                  </td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
+              {/* Gambar Screenshot Dashboard Statis */}
+              <div className="w-full overflow-hidden bg-slate-50 flex items-center justify-center">
+                <img 
+                  src="/dashboard-preview.png" 
+                  alt="Preview Dasbor Aplikasi LabSipil" 
+                  className="w-full h-auto object-cover rounded-b-xl"
+                  loading="lazy"
+                />
               </div>
             </div>
           </div>
