@@ -224,6 +224,28 @@ export function formatScientificInText(text, decimals = null) {
   })
 }
 
+/**
+ * Format label ukuran lubang ayakan sesuai konvensi standar SNI 03-1968 / ASTM:
+ * (0.15 mm, 0.30 mm, 0.60 mm, 1.18 mm, 2.36 mm, 4.75 mm, 9.5 mm, dll.)
+ */
+export function formatSieveLabel(size) {
+  const num = Number(size)
+  if (isNaN(num)) return String(size)
+  if (Math.abs(num - 0.15) < 0.02) return '0.15 mm'
+  if (Math.abs(num - 0.30) < 0.02) return '0.30 mm'
+  if (Math.abs(num - 0.60) < 0.02) return '0.60 mm'
+  if (Math.abs(num - 1.18) < 0.02) return '1.18 mm'
+  if (Math.abs(num - 2.36) < 0.02) return '2.36 mm'
+  if (Math.abs(num - 4.75) < 0.05) return '4.75 mm'
+  if (Math.abs(num - 9.50) < 0.05) return '9.5 mm'
+  if (Math.abs(num - 12.5) < 0.05) return '12.5 mm'
+  if (Math.abs(num - 19.0) < 0.05) return '19.0 mm'
+  if (Math.abs(num - 25.0) < 0.05) return '25.0 mm'
+  if (Math.abs(num - 37.5) < 0.05) return '37.5 mm'
+  if (Math.abs(num - 50.0) < 0.05) return '50.0 mm'
+  return `${num} mm`
+}
+
 // =========================================================================
 // REGISTRY PARAMETER & RUMUS PERHITUNGAN UNTUK 31 MODUL PENGUJIAN
 // =========================================================================
@@ -824,7 +846,7 @@ export const calculatorRegistry = {
         { id: 5, size: 0.60,  label: 'No. 30 (0.60 mm)',  weight: 140 },
         { id: 6, size: 0.30,  label: 'No. 50 (0.30 mm)',  weight: 100 },
         { id: 7, size: 0.15,  label: 'No. 100 (0.15 mm)', weight: 50 },
-        { id: 8, size: 0,     label: 'Pan Penampung',     weight: 20, isPan: true },
+        { id: 8, size: 0,     label: 'Pan Penampung (Dasar)', weight: 20, isPan: true },
       ],
     },
     fields: [],
@@ -840,7 +862,7 @@ export const calculatorRegistry = {
             { id: 5, size: 0.60,  label: 'No. 30 (0.60 mm)',  weight: Number(inputs.s060 || 140) },
             { id: 6, size: 0.30,  label: 'No. 50 (0.30 mm)',  weight: Number(inputs.s030 || 100) },
             { id: 7, size: 0.15,  label: 'No. 100 (0.15 mm)', weight: Number(inputs.s015 || 50) },
-            { id: 8, size: 0,     label: 'Pan Penampung',     weight: Number(inputs.pan || 20), isPan: true },
+            { id: 8, size: 0,     label: 'Pan Penampung (Dasar)', weight: Number(inputs.pan || 20), isPan: true },
           ]
 
       const nonPanSieves = rawSieves.filter(
@@ -971,8 +993,8 @@ export const calculatorRegistry = {
       // 3. S-Curve Recharts: Urutkan dari ukuran terkecil ke terbesar (Ascending)
       const sortedAsc = [...sieveCalculations].sort((a, b) => a.size - b.size)
       const sieves = sortedAsc.map((s) => s.size)
-      const sieveLabels = sortedAsc.map((s) => `${s.size} mm`)
-      const sieveNames = sortedAsc.map((s) => s.label || `${s.size} mm`)
+      const sieveLabels = sortedAsc.map((s) => formatSieveLabel(s.size))
+      const sieveNames = sortedAsc.map((s) => s.label || formatSieveLabel(s.size))
       const actualPassing = sortedAsc.map((s) => s.cumPassingRounded)
 
       // Hitung batas amplop untuk setiap saringan aktif berdasarkan zona terpilih
@@ -980,23 +1002,26 @@ export const calculatorRegistry = {
       const baList = []
       const bbList = []
       sortedAsc.forEach((s) => {
-        const matchedKey = Object.keys(activeZoneLookup).find((k) => Math.abs(Number(k) - s.size) < 0.05)
+        let bb = 0
+        let ba = 100
+        const matchedKey = Object.keys(activeZoneLookup).find((k) => Math.abs(Number(k) - Number(s.size)) < 0.15)
         if (matchedKey) {
-          const [bb, ba] = activeZoneLookup[matchedKey]
-          bbList.push(bb)
-          baList.push(ba)
+          [bb, ba] = activeZoneLookup[matchedKey]
+        } else if (Number(s.size) >= 9.5) {
+          bb = 100
+          ba = 100
+        } else if (Number(s.size) >= 4.75) {
+          bb = zoneNum === 4 ? 95 : 90
+          ba = 100
+        } else if (Number(s.size) < 0.15) {
+          bb = 0
+          ba = 10
         } else {
-          if (s.size > 9.5) {
-            bbList.push(100)
-            baList.push(100)
-          } else if (s.size < 0.15) {
-            bbList.push(0)
-            baList.push(10)
-          } else {
-            bbList.push(0)
-            baList.push(100)
-          }
+          bb = 0
+          ba = 100
         }
+        bbList.push(bb)
+        baList.push(ba)
       })
 
       const isWithinBounds = actualPassing.every(
@@ -1041,7 +1066,7 @@ export const calculatorRegistry = {
         conclusion: isValid
           ? `Nilai Fineness Modulus (FM) = ${fm.toFixed(2)} tergolong dalam ${zone}. Memenuhi spesifikasi standar SNI 03-1968-1990 untuk agregat halus beton struktural (rentang 2.20 - 3.20).`
           : `Nilai Fineness Modulus (FM) = ${fm.toFixed(2)} berada di luar rentang SNI 03-1968-1990 (syarat FM beton: 2.20 - 3.20). Pasir ${fm < 2.2 ? 'terlalu halus' : 'terlalu kasar'} sehingga perlu pencampuran pasir lain.`,
-        summaryString: `FM = ${fm.toFixed(2)} (${zone}, ${isValid ? 'Memenuhi Standar' : 'Perlu Evaluasi'})`,
+        summaryString: `FM = ${fm.toFixed(2)} [${zone}] • ${isValid ? 'Memenuhi Standar' : 'Perlu Evaluasi'}`,
       }
     },
   },
@@ -1666,7 +1691,7 @@ export const calculatorRegistry = {
         { id: 9,  size: 0.60, label: 'No. 30 (0.60 mm)', weight: 0 },
         { id: 10, size: 0.30, label: 'No. 50 (0.30 mm)', weight: 0 },
         { id: 11, size: 0.15, label: 'No. 100 (0.15 mm)', weight: 0 },
-        { id: 12, size: 0,    label: 'Pan Penampung', weight: 30, isPan: true },
+        { id: 12, size: 0,    label: 'Pan Penampung (Dasar)', weight: 30, isPan: true },
       ],
     },
     fields: [],
@@ -1686,7 +1711,7 @@ export const calculatorRegistry = {
             { id: 9,  size: 0.60, label: 'No. 30 (0.60 mm)', weight: Number(inputs.s060 || 0) },
             { id: 10, size: 0.30, label: 'No. 50 (0.30 mm)', weight: Number(inputs.s030 || 0) },
             { id: 11, size: 0.15, label: 'No. 100 (0.15 mm)', weight: Number(inputs.s015 || 0) },
-            { id: 12, size: 0,    label: 'Pan Penampung', weight: Number(inputs.pan || 30), isPan: true },
+            { id: 12, size: 0,    label: 'Pan Penampung (Dasar)', weight: Number(inputs.pan || 30), isPan: true },
           ]
 
       const nonPanSieves = rawSieves.filter(
@@ -1802,7 +1827,7 @@ export const calculatorRegistry = {
       // 3. S-Curve Recharts: Urutkan dari ukuran terkecil ke terbesar (Ascending)
       const sortedAsc = [...sieveCalculations].sort((a, b) => a.size - b.size)
       const sieves = sortedAsc.map((s) => s.size)
-      const sieveLabels = sortedAsc.map((s) => `${s.size} mm`)
+      const sieveLabels = sortedAsc.map((s) => formatSieveLabel(s.size))
       const sieveNames = sortedAsc.map((s) => s.label || `${s.size} mm`)
       const actualPassing = sortedAsc.map((s) => s.cumPassingRounded)
 
@@ -1901,7 +1926,7 @@ export const calculatorRegistry = {
         conclusion: isValid 
           ? `Gradasi kerikil memiliki ukuran butir nominal maksimum ${nominalMax} dengan persentase lolos ayakan No. 4 sebesar ${lolosPct.toFixed(2)}% (≤ 10%). Memenuhi spesifikasi SNI 03-1968-1990 dan ASTM C-33 untuk agregat kasar beton.`
           : `Persentase lolos ayakan No. 4 sebesar ${lolosPct.toFixed(2)}% melebihi batas toleransi 10%. Kerikil mengandung terlalu banyak fraksi halus yang dapat memicu pemborosan semen.`,
-        summaryString: `Ukuran Butir Maks = ${nominalMax}, Lolos #4 = ${lolosPct.toFixed(1)}% (${isValid ? 'Memenuhi Standar' : 'Perlu Evaluasi'})`,
+        summaryString: `Ukuran Butir Maks ${nominalMax} • Lolos #4: ${lolosPct.toFixed(1)}% [${isValid ? 'Memenuhi Standar' : 'Perlu Evaluasi'}]`,
       }
     },
   },

@@ -262,14 +262,56 @@ export default function TestCalculatorPanel({
   }
 
   // Data saringan dinamis untuk modul analisis gradasi (Agregat Kasar Bab 2 & Halus Bab 1)
-  const currentSieves = testConfig.hasDynamicSieveTable
+  const rawSievesList = testConfig.hasDynamicSieveTable
     ? (Array.isArray(inputs.sieves) && inputs.sieves.length > 0 ? inputs.sieves : (testConfig.initialInputs?.sieves || []))
     : []
 
-  const handleSieveChange = (index, key, val) => {
+  // Normalisasi sieves: Pastikan hanya ada tepat 1 baris Pan di urutan paling akhir
+  const currentSieves = useMemo(() => {
+    if (!testConfig.hasDynamicSieveTable || rawSievesList.length === 0) return []
+    const nonPanList = []
+    let foundPan = null
+
+    for (const item of rawSievesList) {
+      const isItemPan = item.isPan === true || String(item.label || '').toLowerCase().includes('pan')
+      if (isItemPan) {
+        if (!foundPan) {
+          foundPan = {
+            ...item,
+            id: item.id || 999,
+            size: 0,
+            label: 'Pan Penampung (Dasar)',
+            isPan: true,
+          }
+        }
+      } else {
+        nonPanList.push({
+          ...item,
+          isPan: false,
+        })
+      }
+    }
+
+    if (!foundPan) {
+      foundPan = {
+        id: 999,
+        size: 0,
+        label: 'Pan Penampung (Dasar)',
+        weight: 0,
+        isPan: true,
+      }
+    }
+
+    return [...nonPanList, foundPan]
+  }, [testConfig.hasDynamicSieveTable, rawSievesList])
+
+  const handleSieveChange = (index, keyOrObj, val) => {
     const updated = currentSieves.map((s, idx) => {
       if (idx === index) {
-        return { ...s, [key]: val }
+        if (typeof keyOrObj === 'object' && keyOrObj !== null) {
+          return { ...s, ...keyOrObj }
+        }
+        return { ...s, [keyOrObj]: val }
       }
       return s
     })
@@ -278,32 +320,33 @@ export default function TestCalculatorPanel({
   }
 
   const handleAddSieve = () => {
-    const panIndex = currentSieves.findIndex((s) => s.isPan || Number(s.size) === 0 || String(s.label || '').toLowerCase().includes('pan'))
+    const nonPanList = currentSieves.filter((s) => !s.isPan)
+    const panItem = currentSieves.find((s) => s.isPan) || { id: 999, size: 0, label: 'Pan Penampung (Dasar)', weight: 0, isPan: true }
     const nextId = currentSieves.length > 0
       ? Math.max(...currentSieves.map((s) => Number(s.id) || 0)) + 1
       : 1
+    const defaultPreset = testConfig.isCoarse
+      ? { label: '1/2" (12.5 mm)', size: 12.5 }
+      : { label: 'No. 8 (2.36 mm)', size: 2.36 }
     const newSieve = {
       id: nextId,
-      size: testConfig.isCoarse ? 10.0 : 0.5,
-      label: testConfig.isCoarse ? 'Saringan Baru (10 mm)' : 'Saringan Baru (0.5 mm)',
+      size: defaultPreset.size,
+      label: defaultPreset.label,
       weight: 0,
+      isPan: false,
     }
-    let updated
-    if (panIndex !== -1) {
-      updated = [
-        ...currentSieves.slice(0, panIndex),
-        newSieve,
-        ...currentSieves.slice(panIndex),
-      ]
-    } else {
-      updated = [...currentSieves, newSieve]
-    }
+    const updated = [...nonPanList, newSieve, panItem]
     handleInputChange('sieves', updated)
     if (sieveAlert) setSieveAlert(null)
   }
 
   const handleRemoveSieve = (index) => {
-    const nonPanCount = currentSieves.filter((s) => !s.isPan && Number(s.size) > 0 && !String(s.label || '').toLowerCase().includes('pan')).length
+    const targetSieve = currentSieves[index]
+    if (targetSieve?.isPan) {
+      setSieveAlert('Pan Penampung (Dasar) adalah wadah permanen dan tidak dapat dihapus.')
+      return
+    }
+    const nonPanCount = currentSieves.filter((s) => !s.isPan).length
     if (nonPanCount <= 1) {
       setSieveAlert('Minimal harus ada 1 ukuran saringan selain Pan Penampung! Tidak dapat menghapus seluruh saringan.')
       return
@@ -795,7 +838,9 @@ export default function TestCalculatorPanel({
                 >
                   <span className="calc-metric-label">{res.label}</span>
                   <div className="calc-metric-val-row">
-                    <strong className="calc-metric-number">{formatScientificInText(res.value)}</strong>
+                    <strong className={`calc-metric-number ${String(res.value || '').length > 12 ? 'calc-metric-text-sm' : ''}`}>
+                      {formatScientificInText(res.value)}
+                    </strong>
                     {res.unit && <span className="calc-metric-unit">{res.unit}</span>}
                   </div>
                 </div>
@@ -942,7 +987,7 @@ function DynamicSieveTable({
   sieveAlert,
   onKeyDown,
 }) {
-  const nonPanCount = sieves.filter((s) => !s.isPan && Number(s.size) > 0 && !String(s.label || '').toLowerCase().includes('pan')).length
+  const nonPanCount = sieves.filter((s) => !s.isPan).length
   const totalWeight = sieves.reduce((sum, s) => sum + (s.weight !== undefined && s.weight !== '' ? Number(s.weight) : 0), 0)
 
   return (
@@ -986,20 +1031,23 @@ function DynamicSieveTable({
         <table className="calc-custom-input-table">
           <thead>
             <tr>
-              <th style={{ width: '55px', textAlign: 'center' }}>No.</th>
-              <th>Label Saringan</th>
-              <th style={{ width: '160px' }}>
+              <th style={{ width: '50px', textAlign: 'center' }}>No.</th>
+              <th style={{ minWidth: '180px' }}>Label Saringan (Standar SNI)</th>
+              <th style={{ width: '130px', minWidth: '120px' }}>
                 Ukuran Saringan <span className="th-unit">mm</span>
               </th>
-              <th style={{ width: '170px' }}>
+              <th style={{ width: '140px', minWidth: '130px' }}>
                 Berat Tertahan <span className="th-unit">gram</span>
               </th>
-              <th style={{ width: '65px', textAlign: 'center' }}>Aksi</th>
+              <th style={{ width: '60px', textAlign: 'center' }}>Aksi</th>
             </tr>
           </thead>
           <tbody>
             {sieves.map((sieve, index) => {
-              const isPan = sieve.isPan || Number(sieve.size) === 0 || String(sieve.label || '').toLowerCase().includes('pan')
+              const isPan = Boolean(sieve.isPan)
+              const matchedPreset = STANDARD_SIEVE_PRESETS.find(
+                (p) => p.label === sieve.label || Math.abs(p.size - Number(sieve.size)) < 0.01
+              )
 
               return (
                 <tr key={sieve.id || index} className={isPan ? 'sieve-pan-row' : ''}>
@@ -1015,27 +1063,27 @@ function DynamicSieveTable({
                         <span className="sieve-pan-subtitle">Fraksi butiran paling halus lolos ayakan terbawah</span>
                       </div>
                     ) : (
-                      <div className="sieve-label-input-group">
-                        <input
-                          type="text"
-                          className="calc-table-text-input"
-                          placeholder="Label Saringan (misal 3/4&quot;)"
-                          value={sieve.label || ''}
-                          onChange={(e) => onSieveChange(index, 'label', e.target.value)}
-                        />
+                      <div className="sieve-label-select-wrap">
                         <select
                           className="calc-sieve-preset-select"
-                          value=""
+                          value={matchedPreset ? matchedPreset.label : 'custom'}
                           onChange={(e) => {
-                            const preset = STANDARD_SIEVE_PRESETS.find((p) => p.label === e.target.value)
-                            if (preset) {
-                              onSieveChange(index, 'label', preset.label)
-                              onSieveChange(index, 'size', preset.size)
+                            const chosenVal = e.target.value
+                            const chosenPreset = STANDARD_SIEVE_PRESETS.find((p) => p.label === chosenVal)
+                            if (chosenPreset) {
+                              onSieveChange(index, {
+                                label: chosenPreset.label,
+                                size: chosenPreset.size,
+                              })
                             }
                           }}
                           title="Pilih ukuran standar ASTM / SNI"
                         >
-                          <option value="" disabled>Pilih Standar</option>
+                          {!matchedPreset && (
+                            <option value="custom">
+                              {sieve.label || `Kustom (${sieve.size} mm)`}
+                            </option>
+                          )}
                           {STANDARD_SIEVE_PRESETS.map((p) => (
                             <option key={p.label} value={p.label}>
                               {p.label}
@@ -1060,7 +1108,12 @@ function DynamicSieveTable({
                           onKeyDown={(e) => onKeyDown(e, 'size')}
                           onChange={(e) => {
                             const val = e.target.value
-                            onSieveChange(index, 'size', val === '' ? '' : parseFloat(val) || 0)
+                            const numVal = val === '' ? '' : parseFloat(val) || 0
+                            const matched = STANDARD_SIEVE_PRESETS.find((p) => Math.abs(p.size - numVal) < 0.01)
+                            onSieveChange(index, {
+                              size: numVal,
+                              label: matched ? matched.label : (val === '' ? '' : `${val} mm`),
+                            })
                           }}
                         />
                         <span className="calc-table-cell-unit">mm</span>
@@ -1288,11 +1341,15 @@ function GradationCurveChart({ chartData }) {
               dataKey="size"
               type="number"
               scale="log"
-              domain={['auto', 'auto']}
+              domain={sieves.length > 0 ? [sieves[0], sieves[sieves.length - 1]] : ['auto', 'auto']}
               ticks={sieves}
+              interval={0}
+              allowDataOverflow={true}
               tickFormatter={(val) => {
-                const pt = chartDataPoints.find((p) => Math.abs((p.size ?? p.sieveSize) - val) < 0.05)
-                return pt ? pt.sieveLabel : val
+                const pt = chartDataPoints.find(
+                  (p) => Math.abs((p.size ?? p.sieveSize) - val) < 0.02 || Math.abs((p.size ?? p.sieveSize) - val) / (val || 1) < 0.05
+                )
+                return pt ? pt.sieveLabel : ''
               }}
               stroke="#64748B"
               fontSize={11}

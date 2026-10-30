@@ -917,7 +917,18 @@ const initialSavedTests = [
     summary: 'FM = 2.85 (Zona II)',
     status: 'Valid',
     time: 'Kemarin, 14:15 WIB',
-    inputs: { s95: 0, s475: 25, s236: 75, s118: 120, s060: 150, s030: 80, s015: 35, pan: 15 },
+    inputs: {
+      sieves: [
+        { id: 1, size: 9.5,   label: '3/8" (9.5 mm)',     weight: 0 },
+        { id: 2, size: 4.75,  label: 'No. 4 (4.75 mm)',   weight: 25 },
+        { id: 3, size: 2.36,  label: 'No. 8 (2.36 mm)',   weight: 75 },
+        { id: 4, size: 1.18,  label: 'No. 16 (1.18 mm)',  weight: 120 },
+        { id: 5, size: 0.60,  label: 'No. 30 (0.60 mm)',  weight: 150 },
+        { id: 6, size: 0.30,  label: 'No. 50 (0.30 mm)',  weight: 80 },
+        { id: 7, size: 0.15,  label: 'No. 100 (0.15 mm)', weight: 35 },
+        { id: 8, size: 0,     label: 'Pan Penampung (Dasar)', weight: 15, isPan: true },
+      ],
+    },
     notes: 'Gradasi pasir memenuhi syarat zona II agregat halus untuk campuran beton struktural SNI.',
   },
   {
@@ -1739,6 +1750,7 @@ export default function App() {
   const totalSavedCount = savedTests.length
   const bahanCount = savedTests.filter((t) => t.lab === 'Bahan Bangunan' || t.category.includes('Bahan Bangunan')).length
   const tanahCount = savedTests.filter((t) => t.lab === 'Mekanika Tanah' || t.category.includes('Mekanika Tanah')).length
+  const fluidaCount = savedTests.filter((t) => t.lab === 'Mekanika Fluida' || t.category.includes('Mekanika Fluida') || t.category.includes('Fluida')).length
 
   // =========================================================================
   // VIEW 1: DASBOR APLIKASI WEB PENUH (Saat isAppOpen === true)
@@ -1955,6 +1967,18 @@ export default function App() {
                   <span className="bento-card-unit">Catatan</span>
                 </div>
                 <span className="bento-card-sub">Sondir, fisik, gradasi, & proctor</span>
+              </div>
+
+              <div className="bento-card">
+                <div className="bento-card-top">
+                  <span className="bento-card-label">Modul Mekanika Fluida</span>
+                  <span className="bento-card-tag neutral">Lab Fluida</span>
+                </div>
+                <div className="bento-card-number-row">
+                  <strong className="bento-card-number">{fluidaCount}</strong>
+                  <span className="bento-card-unit">Catatan</span>
+                </div>
+                <span className="bento-card-sub">Sifat fluida, reynolds, & debit</span>
               </div>
             </div>
 
@@ -2455,9 +2479,9 @@ export default function App() {
         {/* ================= 3. INTERACTIVE DASHBOARD PREVIEW ================= */}
         <section className="preview-section">
           <div className="container">
-            <div className="mockup-window" aria-label="Mockup Preview Dasbor LabSipil">
+            <div className="mockup-window h-[600px] overflow-hidden rounded-2xl shadow-2xl flex flex-col" aria-label="Mockup Preview Dasbor LabSipil">
               {/* Window Title Bar (Macbook style) */}
-              <div className="mockup-header">
+              <div className="mockup-header h-[45px] shrink-0">
                 <div className="window-controls">
                   <span className="win-dot dot-close"></span>
                   <span className="win-dot dot-min"></span>
@@ -2468,7 +2492,7 @@ export default function App() {
                     <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
                     <path d="M7 11V7a5 5 0 0 1 10 0v4" />
                   </svg>
-                  <span className="url-text">app.labsipil.id/dashboard/praktikum</span>
+                  <span className="url-text">https://web-labsipil.vercel.app/</span>
                 </div>
                 <div className="system-status">
                   <span className="status-indicator"></span>
@@ -2476,16 +2500,11 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Area Tampilan Asli Dashboard Utama yang Terkunci (Read-Only) */}
-              <div 
-                className="mockup-dashboard-viewport" 
-                style={{ pointerEvents: 'none', userSelect: 'none' }}
-                aria-hidden="true"
-              >
-                <div className="mockup-dashboard-canvas">
-                  <div className="full-dashboard-layout">
-                    {/* Sidebar Kiri LabSipil Asli */}
-                    <aside className="full-dashboard-sidebar">
+              {/* Area Dalam Mockup (Sidebar & Konten) */}
+              <div className="mockup-dashboard-viewport flex h-[calc(100%-45px)] w-full overflow-hidden">
+                <div className="full-dashboard-layout flex h-full w-full min-h-0 overflow-hidden">
+                  {/* Sidebar Kiri LabSipil Asli */}
+                  <aside className="full-dashboard-sidebar h-full overflow-y-auto shrink-0">
                     <div className="sidebar-top-section">
                       <div className="sidebar-brand-btn flex items-center gap-3">
                         <img 
@@ -2563,7 +2582,7 @@ export default function App() {
                   </aside>
 
                   {/* Konten Utama Dasbor Asli */}
-                  <div className="full-dashboard-main">
+                  <div className="full-dashboard-main h-full overflow-y-auto flex-1 min-w-0">
                     {/* Topbar Dasbor */}
                     <header className="dashboard-topbar">
                       <div className="topbar-title-group">
@@ -2615,6 +2634,18 @@ export default function App() {
                           </div>
                           <span className="bento-card-sub">Sondir, fisik, gradasi, & proctor</span>
                         </div>
+
+                        <div className="bento-card">
+                          <div className="bento-card-top">
+                            <span className="bento-card-label">Modul Mekanika Fluida</span>
+                            <span className="bento-card-tag neutral">Lab Fluida</span>
+                          </div>
+                          <div className="bento-card-number-row">
+                            <strong className="bento-card-number">{fluidaCount}</strong>
+                            <span className="bento-card-unit">Catatan</span>
+                          </div>
+                          <span className="bento-card-sub">Sifat fluida, reynolds, & debit</span>
+                        </div>
                       </div>
 
                       {/* Panel Riwayat & Ringkasan Data Pengujian Masuk Asli */}
@@ -2622,7 +2653,7 @@ export default function App() {
                         <div className="records-panel-header">
                           <div className="records-panel-title-group">
                             <h3>Riwayat & Ringkasan Data Pengujian Masuk</h3>
-                            <p>Database pengujian praktikum tersimpan otomatis di browser secara lokal (localStorage) • Dapat ditambah, dicek, atau dihapus.</p>
+                            <p>Database pengujian praktikum tersimpan otomatis di browser lokal (localStorage).</p>
                           </div>
 
                           <div className="records-panel-controls">
@@ -2707,8 +2738,7 @@ export default function App() {
               </div>
             </div>
           </div>
-        </div>
-      </section>
+        </section>
 
         {/* ================= 4. BARIS 4 KEUNGGULAN SINGKAT & DARK FEATURE BANNER ================= */}
         <section className="keunggulan-section">

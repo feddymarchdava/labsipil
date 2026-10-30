@@ -626,26 +626,30 @@
 }
 
 .mockup-window {
+  height: 600px;
+  max-height: 600px;
   background-color: var(--bg-card);
   border: 1px solid var(--border-light);
   border-radius: var(--radius-xl);
   box-shadow: var(--shadow-mockup);
   overflow: hidden;
   transition: transform 0.3s ease;
-  pointer-events: none;
-  user-select: none;
   cursor: default;
+  display: flex;
+  flex-direction: column;
 }
 
 /* Header Mockup Jendela */
 .mockup-header {
-  height: 2.85rem;
+  height: 45px;
+  min-height: 45px;
   background-color: #F8FAFC;
   border-bottom: 1px solid var(--border-light);
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 0 1.25rem;
+  flex-shrink: 0;
 }
 
 .window-controls {
@@ -2560,11 +2564,23 @@
   flex: 1;
 }
 
-/* Bento Metrics Grid (3 Kolom Proporsional) */
+/* Bento Metrics Grid (4 Kolom Proporsional - Selaras dengan 3 Lab) */
 .bento-metrics-container {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 1.5rem;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1.25rem;
+}
+
+@media (max-width: 1100px) {
+  .bento-metrics-container {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .bento-metrics-container {
+    grid-template-columns: 1fr;
+  }
 }
 
 .bento-card {
@@ -4024,12 +4040,22 @@
   display: flex;
   align-items: baseline;
   gap: 0.4rem;
+  flex-wrap: wrap;
 }
 
 .calc-metric-number {
   font-size: 1.35rem;
   font-weight: 900;
   color: var(--text-heading);
+  line-height: 1.25;
+}
+
+.calc-metric-number.calc-metric-text-sm {
+  font-size: 1.05rem !important;
+  font-weight: 800;
+  line-height: 1.35;
+  word-break: break-word;
+  white-space: normal;
 }
 
 .calc-metric-badge.highlight-box .calc-metric-number {
@@ -4500,9 +4526,10 @@ select.calc-numeric-input.calc-select-input:hover {
 
 .calc-table-numeric-input {
   width: 100%;
+  min-width: 100px;
   max-width: 180px;
   height: 42px;
-  padding: 0.45rem 0.75rem;
+  padding: 0.5rem 0.8rem;
   font-size: 0.95rem;
   font-weight: 600;
   border: 1.5px solid #CBD5E1;
@@ -5058,30 +5085,40 @@ select.calc-numeric-input.calc-select-input:hover {
   font-weight: 800;
 }
 
-.sieve-label-input-group {
+.sieve-label-input-group,
+.sieve-label-select-wrap {
+  width: 100%;
   display: flex;
   align-items: center;
-  gap: 0.5rem;
 }
 
 .calc-sieve-preset-select {
-  height: 40px;
-  padding: 0 0.5rem;
-  font-size: 0.8rem;
+  width: 100%;
+  min-width: 180px;
+  max-width: 100%;
+  height: 42px;
+  padding: 0 0.85rem;
+  font-size: 0.88rem;
   font-weight: 600;
-  color: #334155;
-  background-color: #F8FAFC;
+  color: #1E293B;
+  background-color: #FFFFFF;
   border: 1.5px solid #CBD5E1;
   border-radius: var(--radius-sm);
   cursor: pointer;
   outline: none;
   transition: all 0.2s ease;
-  max-width: 130px;
+  font-family: inherit;
+}
+
+.calc-sieve-preset-select:hover {
+  border-color: #94A3B8;
+  background-color: #F8FAFC;
 }
 
 .calc-sieve-preset-select:focus {
   border-color: var(--accent-primary);
   background-color: #FFFFFF;
+  box-shadow: 0 0 0 3px rgba(36, 120, 212, 0.15);
 }
 
 .calc-table-text-input {
@@ -5264,78 +5301,55 @@ select.calc-numeric-input.calc-select-input:hover {
 }
 
 /* -------------------------------------------------------------------------- */
-/* Dashboard Mockup Viewport & Canvas Scaling (Landing Page Hero Mockup)      */
+/* Dashboard Mockup Viewport & Layout (Landing Page Hero Mockup)              */
 /* -------------------------------------------------------------------------- */
 .mockup-dashboard-viewport {
-  --mockup-scale: 0.64;
   position: relative;
   width: 100%;
-  height: 580px;
-  max-height: 580px;
+  height: calc(100% - 45px);
+  max-height: calc(100% - 45px);
+  display: flex;
+  flex: 1;
   overflow: hidden;
   border-bottom-left-radius: inherit;
   border-bottom-right-radius: inherit;
-  pointer-events: none !important;
-  user-select: none !important;
-  background-color: var(--bg-secondary);
-}
-
-.mockup-dashboard-viewport * {
-  pointer-events: none !important;
-  user-select: none !important;
-}
-
-/* Sembunyikan seluruh scrollbar vertikal/horizontal di dalam mockup agar bersih */
-.mockup-dashboard-viewport,
-.mockup-dashboard-viewport .full-dashboard-sidebar,
-.mockup-dashboard-viewport .sidebar-accordion-wrapper,
-.mockup-dashboard-viewport .full-dashboard-main,
-.mockup-dashboard-viewport .dashboard-content-area,
-.mockup-dashboard-viewport .records-table-wrapper {
-  scrollbar-width: none !important;
-  -ms-overflow-style: none !important;
-}
-
-.mockup-dashboard-viewport::-webkit-scrollbar,
-.mockup-dashboard-viewport .full-dashboard-sidebar::-webkit-scrollbar,
-.mockup-dashboard-viewport .sidebar-accordion-wrapper::-webkit-scrollbar,
-.mockup-dashboard-viewport .full-dashboard-main::-webkit-scrollbar,
-.mockup-dashboard-viewport .dashboard-content-area::-webkit-scrollbar,
-.mockup-dashboard-viewport .records-table-wrapper::-webkit-scrollbar {
-  display: none !important;
-  width: 0 !important;
-  height: 0 !important;
-}
-
-/* Kanvas Internal Lebar Rasio Scale Presisi:
-   width = calc(100% / scale), height = calc(100% / scale), transform = scale(...)
-   Sisi kanan pas 100% mengisi bingkai tanpa celah abu-abu di samping */
-.mockup-dashboard-canvas {
-  width: calc(100% / var(--mockup-scale, 0.64));
-  height: calc(100% / var(--mockup-scale, 0.64));
-  transform: scale(var(--mockup-scale, 0.64));
-  transform-origin: top left;
   background-color: var(--bg-secondary);
 }
 
 .mockup-dashboard-viewport .full-dashboard-layout {
-  min-height: auto;
-  width: 100% !important;
+  min-height: 0 !important;
   height: 100% !important;
+  max-height: 100% !important;
+  width: 100% !important;
   display: flex !important;
   flex-direction: row !important;
+  overflow: hidden !important;
   background-color: var(--bg-secondary);
 }
 
 .mockup-dashboard-viewport .full-dashboard-sidebar {
-  width: 295px;
-  flex-shrink: 0;
-  position: relative;
+  width: 280px !important;
+  height: 100% !important;
+  max-height: 100% !important;
+  flex-shrink: 0 !important;
+  position: relative !important;
+  top: 0 !important;
   display: flex !important;
   flex-direction: column !important;
-  justify-content: space-between;
-  border-right: 1px solid rgba(255, 255, 255, 0.08);
-  background-color: var(--sidebar-dark);
+  justify-content: space-between !important;
+  border-right: 1px solid rgba(255, 255, 255, 0.08) !important;
+  background-color: var(--sidebar-dark) !important;
+  overflow-y: auto !important;
+  scrollbar-width: thin !important;
+  scrollbar-color: rgba(255, 255, 255, 0.22) transparent !important;
+}
+
+.mockup-dashboard-viewport .full-dashboard-sidebar::-webkit-scrollbar {
+  width: 5px;
+}
+.mockup-dashboard-viewport .full-dashboard-sidebar::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
 }
 
 .mockup-dashboard-viewport .sidebar-top-section {
@@ -5343,11 +5357,33 @@ select.calc-numeric-input.calc-select-input:hover {
   flex-direction: column;
 }
 
-/* Biarkan seluruh bab (Bahan Bangunan & Mekanika Tanah) tampil utuh tanpa terpotong */
 .mockup-dashboard-viewport .sidebar-accordion-wrapper {
   max-height: none !important;
   overflow: visible !important;
   padding-right: 0 !important;
+}
+
+.mockup-dashboard-viewport .sidebar-accordion-groups {
+  gap: 0.65rem !important;
+}
+
+.mockup-dashboard-viewport .sidebar-group-box {
+  gap: 0.2rem !important;
+}
+
+.mockup-dashboard-viewport .sidebar-group-heading {
+  padding: 0.2rem 0.5rem 0.1rem !important;
+  font-size: 0.62rem !important;
+}
+
+.mockup-dashboard-viewport .sidebar-chapter-header-btn {
+  padding: 0.38rem 0.65rem !important;
+  font-size: 0.74rem !important;
+}
+
+.mockup-dashboard-viewport .sidebar-nav-item {
+  padding: 0.5rem 0.75rem !important;
+  font-size: 0.8rem !important;
 }
 
 .mockup-dashboard-viewport .sidebar-bottom-section {
@@ -5357,40 +5393,59 @@ select.calc-numeric-input.calc-select-input:hover {
 }
 
 .mockup-dashboard-viewport .full-dashboard-main {
-  flex: 1;
-  min-width: 0;
+  flex: 1 1 0% !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  height: 100% !important;
+  max-height: 100% !important;
   display: flex !important;
   flex-direction: column !important;
-  background-color: var(--bg-secondary);
+  background-color: var(--bg-secondary) !important;
+  overflow-y: auto !important;
+  scrollbar-width: thin !important;
+  scrollbar-color: rgba(100, 116, 139, 0.28) transparent !important;
+}
+
+.mockup-dashboard-viewport .full-dashboard-main::-webkit-scrollbar {
+  width: 6px;
+}
+.mockup-dashboard-viewport .full-dashboard-main::-webkit-scrollbar-thumb {
+  background: rgba(100, 116, 139, 0.25);
+  border-radius: 4px;
 }
 
 .mockup-dashboard-viewport .dashboard-topbar {
-  padding: 1.5rem 2.25rem;
+  padding: 1.15rem 2rem;
   display: flex;
   justify-content: space-between;
   align-items: center;
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background-color: #FFFFFF;
+  border-bottom: 1px solid var(--border-light);
 }
 
 .mockup-dashboard-viewport .dashboard-content-area {
-  padding: 2.25rem;
+  padding: 1.75rem 2rem 3rem;
   display: flex;
   flex-direction: column;
-  gap: 1.75rem;
+  gap: 1.5rem;
   flex: 1;
 }
 
 .mockup-dashboard-viewport .bento-metrics-container {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
-  gap: 1.5rem;
+  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  gap: 1rem !important;
 }
 
 .mockup-dashboard-viewport .bento-card {
-  padding: 1.35rem 1.25rem;
+  padding: 1.15rem 1.1rem;
 }
 
 .mockup-dashboard-viewport .records-panel {
-  padding: 1.75rem;
+  padding: 1.5rem;
   background-color: #FFFFFF;
   border: 1px solid var(--border-light);
   border-radius: var(--radius-lg);
@@ -5459,7 +5514,7 @@ select.calc-numeric-input.calc-select-input:hover {
 /* Tabel Berada Rapi di Dalam Batas Kartu Putih Tanpa Tembus Border */
 .mockup-dashboard-viewport .records-table-wrapper {
   width: 100% !important;
-  overflow: hidden !important;
+  overflow-x: auto !important;
   border-radius: var(--radius-md);
   border: 1px solid var(--border-light);
   background-color: #FFFFFF;
@@ -5504,22 +5559,20 @@ select.calc-numeric-input.calc-select-input:hover {
 }
 
 /* Responsif adaptif bila layar perangkat mengecil */
-@media (max-width: 1200px) {
-  .mockup-dashboard-viewport {
-    --mockup-scale: 0.60;
-  }
-}
-
 @media (max-width: 992px) {
-  .mockup-dashboard-viewport {
-    --mockup-scale: 0.52;
+  .mockup-window {
+    height: 520px;
+    max-height: 520px;
   }
 }
 
 @media (max-width: 768px) {
-  .mockup-dashboard-viewport {
-    --mockup-scale: 0.42;
+  .mockup-window {
     height: 480px;
     max-height: 480px;
+  }
+
+  .mockup-dashboard-viewport .full-dashboard-sidebar {
+    width: 220px !important;
   }
 }
