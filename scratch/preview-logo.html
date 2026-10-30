@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    body {
+      font-family: sans-serif;
+      margin: 20px;
+    }
+    .dark-bg {
+      background: #12345A;
+      padding: 30px;
+      margin-bottom: 20px;
+      border-radius: 8px;
+    }
+    .light-bg {
+      background: #FFFFFF;
+      padding: 30px;
+      margin-bottom: 20px;
+      border: 1px solid #E2E8F0;
+      border-radius: 8px;
+    }
+    /* Variant 1: Original image with drop shadow on dark */
+    .footer-logo-test1 {
+      height: 60px;
+      object-fit: contain;
+      filter: drop-shadow(0 0 1.5px rgba(255,255,255,0.95)) drop-shadow(0 2px 8px rgba(36,120,212,0.5));
+    }
+    /* Variant 2: Navbar logo with contrast */
+    .navbar-logo-test {
+      height: 64px;
+      object-fit: contain;
+      image-rendering: -webkit-optimize-contrast;
+      filter: contrast(1.1);
+    }
+  </style>
+</head>
+<body>
+  <h3>Dark Footer Test:</h3>
+  <div class="dark-bg">
+    <img src="../public/logo labsipil baru.png" class="footer-logo-test1" />
+  </div>
+
+  <h3>Light Navbar Test:</h3>
+  <div class="light-bg">
+    <img src="../public/logo labsipil baru.png" class="navbar-logo-test" />
+  </div>
+</body>
+</html>
+
