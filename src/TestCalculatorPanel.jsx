@@ -25,6 +25,12 @@ export default function TestCalculatorPanel({
   const [savedNotification, setSavedNotification] = useState(false)
   const [lastSavedId, setLastSavedId] = useState(null)
   const [sieveAlert, setSieveAlert] = useState(null)
+  const [activeStepTab, setActiveStepTab] = useState(0)
+
+  // Reset tab index saat berganti modul pengujian
+  useMemo(() => {
+    setActiveStepTab(0)
+  }, [testConfig.id])
 
   // Daftar seluruh field yang aktif sesuai konfigurasi atau metode yang dipilih
   const allFields = typeof testConfig.getFields === 'function'
@@ -700,9 +706,45 @@ export default function TestCalculatorPanel({
               />
             )}
 
+            {/* Multi-Tab / Step Header (Khusus Modul seperti Uji Marshall) */}
+            {testConfig.fieldTabs && (
+              <div className="calc-step-tabs-container mb-4">
+                <div className="flex items-center gap-2 border-b border-slate-200 pb-2.5 overflow-x-auto">
+                  {testConfig.fieldTabs.map((tab, idx) => {
+                    const isActive = activeStepTab === idx
+                    return (
+                      <button
+                        key={tab.id}
+                        type="button"
+                        className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-sm font-semibold transition-all whitespace-nowrap cursor-pointer ${
+                          isActive 
+                            ? 'bg-blue-600 text-white shadow-sm ring-2 ring-blue-400/30' 
+                            : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                        }`}
+                        onClick={() => setActiveStepTab(idx)}
+                      >
+                        <span className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${
+                          isActive ? 'bg-white text-blue-600' : 'bg-slate-300 text-slate-700'
+                        }`}>
+                          {idx + 1}
+                        </span>
+                        <div className="flex flex-col text-left">
+                          <span className="leading-tight">{tab.label}</span>
+                          {tab.sub && <span className={`text-[10px] ${isActive ? 'text-blue-100' : 'text-slate-500'}`}>{tab.sub}</span>}
+                        </div>
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+
             {allFields && allFields.length > 0 && (
               <div className="calc-fields-list">
-                {allFields.map((field) => {
+                {(testConfig.fieldTabs 
+                  ? allFields.filter((f) => testConfig.fieldTabs[activeStepTab]?.fields.includes(f.key)) 
+                  : allFields
+                ).map((field) => {
                   const isFieldNegative = (
                     typeof inputs[field.key] === 'number' && inputs[field.key] < 0
                   ) || (
@@ -754,7 +796,7 @@ export default function TestCalculatorPanel({
                             <input
                               id={`field-${field.key}`}
                               type="number"
-                              min={field.min !== undefined ? field.min : 0}
+                              min={field.min !== undefined ? field.min : 0.01}
                               max={field.max !== undefined ? field.max : undefined}
                               step={field.step || 'any'}
                               readOnly={field.readOnly}
@@ -794,6 +836,31 @@ export default function TestCalculatorPanel({
                     </div>
                   )
                 })}
+              </div>
+            )}
+
+            {/* Navigasi Tombol Multi-Tab Berikutnya/Sebelumnya */}
+            {testConfig.fieldTabs && (
+              <div className="calc-tab-nav-buttons flex justify-between items-center mt-3 pt-3 border-t border-slate-200">
+                <button
+                  type="button"
+                  disabled={activeStepTab === 0}
+                  className="px-3.5 py-1.5 rounded-lg border border-slate-300 text-slate-700 text-sm font-medium hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  onClick={() => setActiveStepTab((prev) => Math.max(0, prev - 1))}
+                >
+                  ← Tab Sebelumnya
+                </button>
+                <span className="text-xs text-slate-500 font-semibold uppercase tracking-wider">
+                  Langkah {activeStepTab + 1} dari {testConfig.fieldTabs.length}
+                </span>
+                <button
+                  type="button"
+                  disabled={activeStepTab === testConfig.fieldTabs.length - 1}
+                  className="px-3.5 py-1.5 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors shadow-sm"
+                  onClick={() => setActiveStepTab((prev) => Math.min(testConfig.fieldTabs.length - 1, prev + 1))}
+                >
+                  Tab Berikutnya →
+                </button>
               </div>
             )}
 

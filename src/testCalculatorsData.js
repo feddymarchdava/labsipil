@@ -155,6 +155,82 @@ export const sidebarGroups = [
       },
     ],
   },
+  {
+    groupId: 'perkerasan',
+    groupTitle: 'PRAKTIKUM BAHAN PERKERASAN',
+    chapters: [
+      {
+        chapterId: 'bp-bab1',
+        title: 'Bab 1: Keausan Agregat (Los Angeles)',
+        items: [
+          { id: 'bp-1-1', title: 'Uji Keausan Agregat (Los Angeles)', standard: 'SNI 2417:2008' },
+        ],
+      },
+      {
+        chapterId: 'bp-bab2',
+        title: 'Bab 2: Penetrasi Aspal',
+        items: [
+          { id: 'bp-2-1', title: 'Uji Penetrasi Aspal', standard: 'SNI 2456:2011' },
+        ],
+      },
+      {
+        chapterId: 'bp-bab3',
+        title: 'Bab 3: Titik Lembek & Indeks Penetrasi (PI)',
+        items: [
+          { id: 'bp-3-1', title: 'Uji Titik Lembek & Indeks Penetrasi (PI)', standard: 'SNI 2434:2011' },
+        ],
+      },
+      {
+        chapterId: 'bp-bab4',
+        title: 'Bab 4: Berat Jenis Aspal Keras',
+        items: [
+          { id: 'bp-4-1', title: 'Uji Berat Jenis Aspal Keras', standard: 'SNI 2441:2011' },
+        ],
+      },
+      {
+        chapterId: 'bp-bab5',
+        title: 'Bab 5: Titik Nyala & Bakar (Cleveland)',
+        items: [
+          { id: 'bp-5-1', title: 'Uji Titik Nyala & Bakar (Cleveland)', standard: 'SNI 2433:2011' },
+        ],
+      },
+      {
+        chapterId: 'bp-bab6',
+        title: 'Bab 6: Daktilitas Aspal',
+        items: [
+          { id: 'bp-6-1', title: 'Uji Daktilitas Aspal', standard: 'SNI 2432:2011' },
+        ],
+      },
+      {
+        chapterId: 'bp-bab7',
+        title: 'Bab 7: Viskositas (Saybolt Furol)',
+        items: [
+          { id: 'bp-7-1', title: 'Uji Viskositas (Saybolt Furol)', standard: 'SNI 7729:2011' },
+        ],
+      },
+      {
+        chapterId: 'bp-bab8',
+        title: 'Bab 8: Job Mix Formula (JMF)',
+        items: [
+          { id: 'bp-8-1', title: 'Job Mix Formula (JMF)', standard: 'Spesifikasi Umum Bina Marga 2018' },
+        ],
+      },
+      {
+        chapterId: 'bp-bab9',
+        title: 'Bab 9: Uji Marshall Test',
+        items: [
+          { id: 'bp-9-1', title: 'Uji Marshall Test', standard: 'SNI 06-2489-1991' },
+        ],
+      },
+      {
+        chapterId: 'bp-bab10',
+        title: 'Bab 10: Ekstraksi Aspal (Sentrifus)',
+        items: [
+          { id: 'bp-10-1', title: 'Uji Ekstraksi Aspal (Sentrifus)', standard: 'SNI 03-6894-2002' },
+        ],
+      },
+    ],
+  },
 ]
 
 // =========================================================================
@@ -5653,6 +5729,1481 @@ export const calculatorRegistry = {
         verdictClass,
         conclusion: `Debit aktual volumetrik tangki terukur sebesar ${qAktualKgS.toFixed(3)} kg/s (${qAktualLpm.toFixed(2)} L/min), sedangkan Debit teoretis Venturi terhitung sebesar ${qTeoretisKgS.toFixed(3)} kg/s (selisih ${selisihDebit.toFixed(3)} kg/s, deviasi ${deviasiPct.toFixed(2)}%). Error pembacaan flowmeter ${absError.toFixed(2)}% (${status}). Head Loss Venturi = ${headLossVenturi.toFixed(3)} dan Orifice = ${headLossOrifice.toFixed(3)}. Hasil memenuhi SNI 03-2414-1991 dan panduan praktikum hidraulika.`,
         summaryString: `Q_akt = ${qAktualKgS.toFixed(3)} kg/s | Q_teor = ${qTeoretisKgS.toFixed(3)} kg/s | HL_v = ${headLossVenturi.toFixed(2)}`,
+      }
+    },
+  },
+
+  // =======================================================================
+  // PRAKTIKUM BAHAN PERKERASAN (10 MODUL SPESIFIK LAPORAN PRAKTIKUM)
+  // =======================================================================
+
+  // -----------------------------------------------------------------------
+  // PERKERASAN - BAB 1: UJI KEAUSAN AGREGAT (LOS ANGELES)
+  // -----------------------------------------------------------------------
+  'bp-1-1': {
+    id: 'bp-1-1',
+    code: 'LA-01',
+    codePrefix: 'LA',
+    name: 'Uji Keausan Agregat dengan Mesin Los Angeles',
+    lab: 'Bahan Perkerasan',
+    category: 'Bahan Perkerasan • Bab 1: Keausan Agregat',
+    standard: 'SNI 2417:2008 / Spesifikasi Umum Bina Marga 2018',
+    desc: 'Penentuan ketahanan agregat kasar terhadap degradasi/keausan akibat benturan mekanik dan abrasi di dalam silinder mesin Los Angeles bersama bola-bola baja.',
+    initialInputs: {
+      beratAwalA: 5000.0,
+      beratTertahanB: 3850.0,
+      gradasiTipe: 'B (11 Bola Baja)',
+    },
+    fields: [
+      {
+        key: 'gradasiTipe',
+        label: 'Tipe Gradasi Uji & Jumlah Bola Baja',
+        type: 'select',
+        desc: 'Standar fraksi ukuran agregat dan jumlah bola pembeban',
+        options: [
+          { value: 'A (12 Bola Baja)', label: 'Gradasi A (12 Bola Baja, 5000 gr)' },
+          { value: 'B (11 Bola Baja)', label: 'Gradasi B (11 Bola Baja, 5000 gr)' },
+          { value: 'C (8 Bola Baja)', label: 'Gradasi C (8 Bola Baja, 5000 gr)' },
+          { value: 'D (6 Bola Baja)', label: 'Gradasi D (6 Bola Baja, 5000 gr)' },
+        ],
+      },
+      {
+        key: 'beratAwalA',
+        label: 'Berat Benda Uji Semula (A)',
+        unit: 'gram',
+        desc: 'Massa sampel agregat kering oven sebelum pengujian (standar 5000 g)',
+        min: 0.01,
+        step: 0.1,
+        isParameterBesar: true,
+      },
+      {
+        key: 'beratTertahanB',
+        label: 'Berat Tertahan Saringan No. 12 (B)',
+        unit: 'gram',
+        desc: 'Massa agregat yang tertahan di atas saringan No. 12 (1.70 mm) setelah pencucian & pengeringan',
+        min: 0.01,
+        step: 0.1,
+        isParameterBesar: true,
+      },
+    ],
+    calculate: (inputs) => {
+      const a = Number(inputs.beratAwalA)
+      const b = Number(inputs.beratTertahanB)
+
+      if (isNaN(a) || isNaN(b) || a <= 0 || b <= 0) {
+        return {
+          results: [
+            { label: 'Keausan Agregat (LA)', value: '-', unit: '%' },
+            { label: 'Berat Lolos Saringan No. 12', value: '-', unit: 'gram' },
+            { label: 'Status Kelayakan Bina Marga', value: 'Input Tidak Valid', unit: '', highlight: true },
+          ],
+          formulaSteps: ['Input Berat Semula (A) dan Berat Tertahan Saringan No. 12 (B) harus berupa angka positif > 0.'],
+          isError: true,
+          status: 'Input Tidak Valid',
+          conclusion: 'Input berat agregat harus bernilai positif > 0.',
+          summaryString: 'Input Parameter Tidak Valid',
+        }
+      }
+
+      if (b > a) {
+        return {
+          results: [
+            { label: 'Keausan Agregat (LA)', value: '-', unit: '%' },
+            { label: 'Berat Lolos Saringan No. 12', value: '-', unit: 'gram' },
+            { label: 'Status Kelayakan Bina Marga', value: 'B > A Tidak Logis', unit: '', highlight: true },
+          ],
+          formulaSteps: [`Berat tertahan B (${b} g) tidak boleh lebih besar dari berat semula A (${a} g).`],
+          isError: true,
+          status: 'Data Tidak Logis',
+          conclusion: 'Berat tertahan saringan No. 12 setelah abrasi tidak boleh melebihi berat awal sampel sebelum pengujian.',
+          summaryString: 'B > A Tidak Valid',
+        }
+      }
+
+      const lolosNo12 = a - b
+      const keausan = ((a - b) / a) * 100
+      const isMemenuhi = keausan < 40.0
+
+      const status = isMemenuhi ? 'Memenuhi Standar' : 'Tidak Memenuhi Standar'
+      const verdictClass = isMemenuhi ? 'valid' : 'error'
+      const conclusion = isMemenuhi
+        ? `Nilai keausan agregat sebesar ${keausan.toFixed(2)}% memenuhi batas maksimum spesifikasi Bina Marga 2018 (Keausan < 40.0%). Agregat memiliki ketahanan mekanis yang prima dan layak digunakan untuk campuran lapis pondasi maupun lapis aus perkerasan jalan.`
+        : `Nilai keausan agregat sebesar ${keausan.toFixed(2)}% melebihi batas toleransi maksimum spesifikasi Bina Marga 2018 (Keausan < 40.0%). Agregat terlalu getas dan mudah hancur, sehingga TIDAK LAYAK untuk konstruksi perkerasan jalan raya.`
+
+      return {
+        results: [
+          { label: 'Keausan Agregat (LA)', value: `${keausan.toFixed(2)}%`, unit: '', highlight: true },
+          { label: 'Berat Lolos Saringan No. 12', value: lolosNo12.toFixed(1), unit: 'gram' },
+          { label: 'Batas Maksimum Spesifikasi', value: '40.0%', unit: '' },
+          { label: 'Status Kelayakan Perkerasan', value: status, unit: '', highlight: true },
+        ],
+        formulaSteps: [
+          `1. IDENTIFIKASI BERAT PENGUJIAN LOS ANGELES:`,
+          `   Berat Semula (A) = ${a.toFixed(1)} gram, Berat Tertahan No. 12 (B) = ${b.toFixed(1)} gram`,
+          `2. BERAT AGREGAT AUS / LOLOS NO. 12:`,
+          `   Berat Aus = A - B = ${a.toFixed(1)} - ${b.toFixed(1)} = ${lolosNo12.toFixed(1)} gram`,
+          `3. RUMUS NILAI KEAUSAN AGREGAT (LOS ANGELES ABRASION):`,
+          `   Keausan (%) = [(A - B) / A] × 100%`,
+          `   Keausan (%) = [(${a.toFixed(1)} - ${b.toFixed(1)}) / ${a.toFixed(1)}] × 100% = ${keausan.toFixed(2)}%`,
+          `4. EVALUASI SPESIFIKASI BINA MARGA 2018:`,
+          `   Batas Maksimum = 40.0% ➔ Hasil = ${keausan.toFixed(2)}% (${status})`,
+        ],
+        isError: false,
+        status,
+        verdictClass,
+        conclusion,
+        summaryString: `Keausan LA = ${keausan.toFixed(2)}% (${status})`,
+      }
+    },
+  },
+
+  // -----------------------------------------------------------------------
+  // PERKERASAN - BAB 2: UJI PENETRASI ASPAL (DENGAN FILTER OUTLIER)
+  // -----------------------------------------------------------------------
+  'bp-2-1': {
+    id: 'bp-2-1',
+    code: 'PEN-01',
+    codePrefix: 'PN',
+    name: 'Uji Penetrasi Aspal (Penetration Test & Outlier Filter)',
+    lab: 'Bahan Perkerasan',
+    category: 'Bahan Perkerasan • Bab 2: Penetrasi Aspal',
+    standard: 'SNI 2456:2011 / Spesifikasi Umum Bina Marga 2018',
+    desc: 'Pengukuran konsistensi dan kekerasan aspal pada suhu standar 25°C dengan beban jarum 100 gram selama 5 detik, dilengkapi algoritma eliminasi data pencilan (outlier) statistik rentang [P̄ - S, P̄ + S].',
+    initialInputs: {
+      p1: 64.0,
+      p2: 66.0,
+      p3: 65.0,
+      suhuUji: 25.0,
+      bebanJarum: 100.0,
+      waktuUji: 5.0,
+    },
+    fields: [
+      {
+        key: 'p1',
+        label: 'Nilai Penetrasi Titik 1 (P1)',
+        unit: '0.1 mm',
+        desc: 'Kedalaman jarum penetrasi titik uji 1 (satuan dmm)',
+        min: 0.01,
+        step: 0.1,
+        isParameterBesar: true,
+      },
+      {
+        key: 'p2',
+        label: 'Nilai Penetrasi Titik 2 (P2)',
+        unit: '0.1 mm',
+        desc: 'Kedalaman jarum penetrasi titik uji 2 (satuan dmm)',
+        min: 0.01,
+        step: 0.1,
+        isParameterBesar: true,
+      },
+      {
+        key: 'p3',
+        label: 'Nilai Penetrasi Titik 3 (P3)',
+        unit: '0.1 mm',
+        desc: 'Kedalaman jarum penetrasi titik uji 3 (satuan dmm)',
+        min: 0.01,
+        step: 0.1,
+        isParameterBesar: true,
+      },
+      {
+        key: 'suhuUji',
+        label: 'Suhu Pengkondisian Waterbath',
+        unit: '°C',
+        desc: 'Suhu perendaman sampel uji (standar 25.0°C)',
+        min: 0.01,
+        step: 0.1,
+      },
+      {
+        key: 'bebanJarum',
+        label: 'Total Beban Penetrasi',
+        unit: 'gram',
+        desc: 'Massa jarum beserta pembeban standar (100.0 gram)',
+        min: 0.01,
+        step: 1.0,
+      },
+      {
+        key: 'waktuUji',
+        label: 'Durasi Waktu Penetrasi',
+        unit: 'detik',
+        desc: 'Waktu penetrasi jarum (standar 5.0 detik)',
+        min: 0.01,
+        step: 0.1,
+      },
+    ],
+    calculate: (inputs) => {
+      const p1 = Number(inputs.p1)
+      const p2 = Number(inputs.p2)
+      const p3 = Number(inputs.p3)
+
+      if (isNaN(p1) || isNaN(p2) || isNaN(p3) || p1 <= 0 || p2 <= 0 || p3 <= 0) {
+        return {
+          results: [
+            { label: 'Penetrasi Rata-rata Awal', value: '-', unit: 'dmm' },
+            { label: 'Standar Deviasi (S)', value: '-', unit: 'dmm' },
+            { label: 'Penetrasi Akhir (Bersih Outlier)', value: '-', unit: 'dmm', highlight: true },
+          ],
+          formulaSteps: ['Nilai ketiga pembacaan penetrasi (P1, P2, P3) harus berupa angka positif > 0.'],
+          isError: true,
+          status: 'Input Tidak Valid',
+          conclusion: 'Nilai pembacaan penetrasi jarum harus bernilai positif > 0.',
+          summaryString: 'Input Parameter Tidak Valid',
+        }
+      }
+
+      const rawValues = [p1, p2, p3]
+      const n = rawValues.length
+      const pBar = rawValues.reduce((acc, v) => acc + v, 0) / n
+      const sumSq = rawValues.reduce((acc, v) => acc + Math.pow(v - pBar, 2), 0)
+      const s = Math.sqrt(sumSq / (n - 1))
+      const kv = pBar > 0 ? (s / pBar) * 100 : 0
+
+      // Evaluasi Outlier: Buang data jika Pi > (pBar + S) atau Pi < (pBar - S)
+      const batasBawah = pBar - s
+      const batasAtas = pBar + s
+      const cleanData = rawValues.filter((v) => v >= batasBawah && v <= batasAtas)
+      const outlierData = rawValues.filter((v) => v < batasBawah || v > batasAtas)
+      const pFinal = cleanData.length > 0 
+        ? cleanData.reduce((acc, v) => acc + v, 0) / cleanData.length 
+        : pBar
+
+      let klasifikasi = 'Aspal Modifikasi / Khusus'
+      if (pFinal >= 60.0 && pFinal <= 70.0) {
+        klasifikasi = 'Aspal Pen 60/70 (Standar Bina Marga)'
+      } else if (pFinal >= 80.0 && pFinal <= 100.0) {
+        klasifikasi = 'Aspal Pen 80/100'
+      } else if (pFinal < 60.0) {
+        klasifikasi = 'Aspal Sangat Keras (Pen < 60)'
+      } else if (pFinal > 100.0) {
+        klasifikasi = 'Aspal Sangat Lembek (Pen > 100)'
+      }
+
+      const status = 'Memenuhi Standar'
+      const verdictClass = 'valid'
+      const conclusion = `Nilai penetrasi akhir bersih outlier sebesar ${pFinal.toFixed(1)} dmm (0.1 mm) mengindikasikan material tergolong dalam spesifikasi ${klasifikasi}. Data pengujian memiliki Standar Deviasi S = ${s.toFixed(2)} dmm dan Koefisien Variasi KV = ${kv.toFixed(2)}% (memenuhi presisi SNI 2456:2011).`
+
+      return {
+        results: [
+          { label: 'Penetrasi Rata-rata Awal (P̄)', value: pBar.toFixed(2), unit: 'dmm' },
+          { label: 'Standar Deviasi (S)', value: s.toFixed(2), unit: 'dmm' },
+          { label: 'Koefisien Variasi (KV)', value: `${kv.toFixed(2)}%`, unit: '' },
+          { label: 'Penetrasi Akhir (Bersih Outlier)', value: pFinal.toFixed(1), unit: 'dmm', highlight: true },
+          { label: 'Klasifikasi Jenis Aspal', value: klasifikasi, unit: '', highlight: true },
+        ],
+        formulaSteps: [
+          `1. DATA PEMBACAAN PENETRASI JARUM:`,
+          `   P1 = ${p1.toFixed(1)} dmm, P2 = ${p2.toFixed(1)} dmm, P3 = ${p3.toFixed(1)} dmm`,
+          `2. RATA-RATA PENETRASI AWAL (P̄):`,
+          `   P̄ = (${p1.toFixed(1)} + ${p2.toFixed(1)} + ${p3.toFixed(1)}) / 3 = ${pBar.toFixed(2)} dmm`,
+          `3. STANDAR DEVIASI (S) & KOEFISIEN VARIASI (KV):`,
+          `   S = √[Σ(Pi - P̄)² / (n - 1)] = √[${sumSq.toFixed(4)} / 2] = ${s.toFixed(2)} dmm`,
+          `   KV = (S / P̄) × 100% = (${s.toFixed(2)} / ${pBar.toFixed(2)}) × 100% = ${kv.toFixed(2)}%`,
+          `4. ALGORITMA FILTER OUTLIER STATISTIK [P̄ - S, P̄ + S]:`,
+          `   Rentang Diterima: [${batasBawah.toFixed(2)} dmm s.d. ${batasAtas.toFixed(2)} dmm]`,
+          outlierData.length > 0 
+            ? `   Data Pencilan (Outlier) Dibuang: ${outlierData.join(', ')} dmm`
+            : `   Seluruh data seragam dan valid (tidak ditemukan outlier pencilan)`,
+          `5. NILAI PENETRASI AKHIR BERSIH OUTLIER:`,
+          `   P_akhir = [${cleanData.join(' + ')}] / ${cleanData.length} = ${pFinal.toFixed(1)} dmm (${klasifikasi})`,
+        ],
+        isError: false,
+        status,
+        verdictClass,
+        conclusion,
+        summaryString: `Pen = ${pFinal.toFixed(1)} dmm | S = ${s.toFixed(2)} | ${klasifikasi}`,
+      }
+    },
+  },
+
+  // -----------------------------------------------------------------------
+  // PERKERASAN - BAB 3: TITIK LEMBEK & INDEKS PENETRASI (PI)
+  // -----------------------------------------------------------------------
+  'bp-3-1': {
+    id: 'bp-3-1',
+    code: 'TL-01',
+    codePrefix: 'TL',
+    name: 'Uji Titik Lembek (Ring and Ball) & Indeks Penetrasi (PI)',
+    lab: 'Bahan Perkerasan',
+    category: 'Bahan Perkerasan • Bab 3: Titik Lembek & PI',
+    standard: 'SNI 2434:2011 / Spesifikasi Umum Bina Marga 2018',
+    desc: 'Pengukuran suhu titik lembek aspal dengan metode cincin dan bola (Ring and Ball), serta penentuan Indeks Penetrasi (PI) model Pfeiffer & Van Doormaal untuk mengevaluasi kepekaan termal aspal.',
+    initialInputs: {
+      titikLembek: 49.5,
+      penetrasi25: 65.0,
+    },
+    fields: [
+      {
+        key: 'titikLembek',
+        label: 'Suhu Titik Lembek Terukur (TL / TR&B)',
+        unit: '°C',
+        desc: 'Suhu air saat bola baja menembus cincin aspal dan menyentuh pelat dasar',
+        min: 0.01,
+        step: 0.1,
+        isParameterBesar: true,
+      },
+      {
+        key: 'penetrasi25',
+        label: 'Nilai Penetrasi Aspal pada 25°C',
+        unit: '0.1 mm',
+        desc: 'Nilai penetrasi jarum terukur pada suhu standar 25°C (satuan dmm)',
+        min: 0.01,
+        step: 0.1,
+        isParameterBesar: true,
+      },
+    ],
+    calculate: (inputs) => {
+      const tl = Number(inputs.titikLembek)
+      const pen = Number(inputs.penetrasi25)
+
+      if (isNaN(tl) || isNaN(pen) || tl <= 25.0 || pen <= 0) {
+        return {
+          results: [
+            { label: 'Titik Lembek (TL)', value: '-', unit: '°C' },
+            { label: 'Kepekaan Suhu (A)', value: '-', unit: '' },
+            { label: 'Indeks Penetrasi (PI)', value: '-', unit: '', highlight: true },
+            { label: 'Status Kepekaan Suhu', value: 'Input Tidak Valid', unit: '', highlight: true },
+          ],
+          formulaSteps: ['Suhu titik lembek harus > 25°C dan nilai penetrasi harus berupa angka positif > 0.'],
+          isError: true,
+          status: 'Input Tidak Valid',
+          conclusion: 'Suhu titik lembek harus lebih tinggi dari suhu standar pengujian penetrasi (25.0°C).',
+          summaryString: 'Input Parameter Tidak Valid',
+        }
+      }
+
+      // Rumus Pfeiffer & Van Doormaal:
+      // A = [log10(800) - log10(Pen)] / (TL - 25)
+      // PI = (20 - 500*A) / (1 + 50*A)
+      const log800 = Math.log10(800)
+      const logPen = Math.log10(pen)
+      const deltaT = tl - 25.0
+      const aKoef = (log800 - logPen) / deltaT
+      const pi = (20.0 - 500.0 * aKoef) / (1.0 + 50.0 * aKoef)
+
+      const isIdealPI = pi >= -1.0 && pi <= 1.0
+      const isMemenuhiTL = tl >= 48.0 // Standar Bina Marga 2018 untuk aspal Pen 60/70 min 48°C
+
+      let status = 'Memenuhi Standar'
+      let verdictClass = 'valid'
+      let keterangan = 'Aspal Normal (Bahan Pengikat Perkerasan Jalan Ideal)'
+
+      if (pi < -1.0) {
+        status = 'Aspal Sangat Sensitif Suhu'
+        verdictClass = 'warning'
+        keterangan = 'Aspal Tipe Sol (Sangat Sensitif Suhu, Rawan Retak Dingin)'
+      } else if (pi > 1.0) {
+        status = 'Aspal Kurang Rentan Suhu'
+        verdictClass = 'warning'
+        keterangan = 'Aspal Tipe Gel (Elastis Tinggi, Kurang Rentan Suhu)'
+      }
+
+      const conclusion = `Titik Lembek terukur ${tl.toFixed(1)}°C (syarat minimum Bina Marga ≥ 48.0°C: ${isMemenuhiTL ? 'MEMENUHI' : 'BELUM MEMENUHI'}) dengan Indeks Penetrasi PI = ${pi.toFixed(3)}. ${isIdealPI ? 'Nilai PI berada pada rentang ideal (-1.0 ≤ PI ≤ +1.0) menandakan perilaku reologi aspal normal yang sangat tahan terhadap beban lalu lintas dan variasi cuaca.' : 'Nilai PI di luar rentang ideal (-1.0 s.d. +1.0), aspal sangat sensitif terhadap fluktuasi temperatur.'}`
+
+      return {
+        results: [
+          { label: 'Titik Lembek Terukur (TL)', value: `${tl.toFixed(1)}`, unit: '°C' },
+          { label: 'Syarat Minimum Titik Lembek', value: '48.0', unit: '°C' },
+          { label: 'Koefisien Kepekaan Suhu (A)', value: aKoef.toFixed(5), unit: '' },
+          { label: 'Indeks Penetrasi (PI)', value: pi.toFixed(3), unit: '', highlight: true },
+          { label: 'Status Kepekaan Suhu', value: status, unit: '', highlight: true },
+        ],
+        formulaSteps: [
+          `1. PARAMETER UJI RING AND BALL & PENETRASI:`,
+          `   Suhu Titik Lembek: TL = ${tl.toFixed(1)} °C, Penetrasi 25°C: Pen = ${pen.toFixed(1)} dmm`,
+          `2. KOEFISIEN KEPEKAAN TEMPERATUR PFEIFFER (A):`,
+          `   A = [log₁₀(800) - log₁₀(Pen)] / (TL - 25)`,
+          `   A = [${log800.toFixed(4)} - ${logPen.toFixed(4)}] / (${tl.toFixed(1)} - 25) = ${aKoef.toFixed(5)}`,
+          `3. INDEKS PENETRASI (PENETRATION INDEX / PI):`,
+          `   PI = (20 - 500·A) / (1 + 50·A)`,
+          `   PI = (20 - 500 × ${aKoef.toFixed(5)}) / (1 + 50 × ${aKoef.toFixed(5)}) = ${pi.toFixed(3)}`,
+          `4. EVALUASI INDEKS PENETRASI:`,
+          `   Rentang Standar Ideal: -1.0 ≤ PI ≤ +1.0 ➔ Status: ${keterangan}`,
+        ],
+        isError: false,
+        status,
+        verdictClass,
+        conclusion,
+        summaryString: `TL = ${tl.toFixed(1)}°C | PI = ${pi.toFixed(2)} (${status})`,
+      }
+    },
+  },
+
+  // -----------------------------------------------------------------------
+  // PERKERASAN - BAB 4: UJI BERAT JENIS ASPAL KERAS
+  // -----------------------------------------------------------------------
+  'bp-4-1': {
+    id: 'bp-4-1',
+    code: 'BJA-01',
+    codePrefix: 'BJ',
+    name: 'Uji Berat Jenis Aspal Keras (Piknometer)',
+    lab: 'Bahan Perkerasan',
+    category: 'Bahan Perkerasan • Bab 4: Berat Jenis Aspal',
+    standard: 'SNI 2441:2011 / Spesifikasi Umum Bina Marga 2018',
+    desc: 'Pengukuran berat jenis (specific gravity) aspal keras padat/semi-padat menggunakan piknometer kaca kalibrasi pada suhu standar 25°C.',
+    initialInputs: {
+      massaA: 31.25,
+      massaB: 56.40,
+      massaC: 43.80,
+      massaD: 56.75,
+      suhuUji: 25.0,
+    },
+    fields: [
+      {
+        key: 'massaA',
+        label: 'Berat Piknometer Kosong + Penutup (A)',
+        unit: 'gram',
+        desc: 'Massa piknometer bersih dan kering sempurna',
+        min: 0.01,
+        step: 0.01,
+        isParameterBesar: true,
+      },
+      {
+        key: 'massaB',
+        label: 'Berat Piknometer Berisi Air Penuh (B)',
+        unit: 'gram',
+        desc: 'Massa piknometer diisi air suling pada suhu 25°C',
+        min: 0.01,
+        step: 0.01,
+        isParameterBesar: true,
+      },
+      {
+        key: 'massaC',
+        label: 'Berat Piknometer Berisi Aspal (C)',
+        unit: 'gram',
+        desc: 'Massa piknometer diisi aspal kira-kira setengah volume',
+        min: 0.01,
+        step: 0.01,
+        isParameterBesar: true,
+      },
+      {
+        key: 'massaD',
+        label: 'Berat Piknometer + Aspal + Air Penuh (D)',
+        unit: 'gram',
+        desc: 'Massa piknometer berisi aspal dan diisi penuh air suling 25°C',
+        min: 0.01,
+        step: 0.01,
+        isParameterBesar: true,
+      },
+      {
+        key: 'suhuUji',
+        label: 'Suhu Pengkondisian Waterbath',
+        unit: '°C',
+        desc: 'Suhu air perendam pengujian (standar 25.0°C)',
+        min: 0.01,
+        step: 0.1,
+      },
+    ],
+    calculate: (inputs) => {
+      const a = Number(inputs.massaA)
+      const b = Number(inputs.massaB)
+      const c = Number(inputs.massaC)
+      const d = Number(inputs.massaD)
+
+      if (isNaN(a) || isNaN(b) || isNaN(c) || isNaN(d) || a <= 0 || b <= 0 || c <= 0 || d <= 0) {
+        return {
+          results: [
+            { label: 'Berat Jenis Aspal (BJ)', value: '-', unit: 'g/cm³', highlight: true },
+            { label: 'Status Kelayakan Bina Marga', value: 'Input Tidak Valid', unit: '', highlight: true },
+          ],
+          formulaSteps: ['Keempat massa penimbangan piknometer (A, B, C, D) harus berupa angka positif > 0.'],
+          isError: true,
+          status: 'Input Tidak Valid',
+          conclusion: 'Nilai penimbangan piknometer harus bernilai positif > 0.',
+          summaryString: 'Input Parameter Tidak Valid',
+        }
+      }
+
+      const pembilang = c - a
+      const penyebut = (b - a) - (d - c)
+
+      if (penyebut <= 0) {
+        return {
+          results: [
+            { label: 'Berat Jenis Aspal (BJ)', value: '-', unit: 'g/cm³', highlight: true },
+            { label: 'Status Kelayakan Bina Marga', value: 'Data Tidak Logis', unit: '', highlight: true },
+          ],
+          formulaSteps: [`Penyebut [(B - A) - (D - C)] bernilai ${penyebut.toFixed(3)} gram (harus > 0). Periksa kembali data penimbangan piknometer.`],
+          isError: true,
+          status: 'Data Tidak Logis',
+          conclusion: 'Volume air setara aspal harus positif. Pastikan massa B > A dan massa D > C secara wajar.',
+          summaryString: 'Penyebut <= 0 Tidak Valid',
+        }
+      }
+
+      const bj = pembilang / penyebut
+      const isMemenuhi = bj >= 1.00
+
+      const status = isMemenuhi ? 'Memenuhi Standar' : 'Tidak Memenuhi Standar'
+      const verdictClass = isMemenuhi ? 'valid' : 'error'
+      const conclusion = isMemenuhi
+        ? `Nilai berat jenis aspal keras terhitung sebesar ${bj.toFixed(3)} g/cm³ memenuhi persyaratan minimum spesifikasi Bina Marga 2018 (BJ ≥ 1.000 g/cm³). Kerapatan massa aspal memenuhi standar untuk perencanaan campuran beraspal panas.`
+        : `Nilai berat jenis aspal terhitung sebesar ${bj.toFixed(3)} g/cm³ di bawah persyaratan minimum spesifikasi Bina Marga 2018 (BJ < 1.000 g/cm³). Kerapatan massa aspal tidak memenuhi syarat.`
+
+      return {
+        results: [
+          { label: 'Berat Aspal (C - A)', value: pembilang.toFixed(2), unit: 'gram' },
+          { label: 'Berat Air Pengganti [(B-A)-(D-C)]', value: penyebut.toFixed(2), unit: 'gram' },
+          { label: 'Berat Jenis Aspal Keras (BJ)', value: bj.toFixed(3), unit: 'g/cm³', highlight: true },
+          { label: 'Syarat Minimum Bina Marga', value: '1.000', unit: 'g/cm³' },
+          { label: 'Status Kelayakan', value: status, unit: '', highlight: true },
+        ],
+        formulaSteps: [
+          `1. DATA PENIMBANGAN PIKNOMETER PADA 25°C:`,
+          `   A (Pikno Kosong) = ${a.toFixed(2)} g, B (Pikno + Air) = ${b.toFixed(2)} g`,
+          `   C (Pikno + Aspal) = ${c.toFixed(2)} g, D (Pikno + Aspal + Air) = ${d.toFixed(2)} g`,
+          `2. MASSA ASPAL DAN MASSA AIR SETARA VOLUME ASPAL:`,
+          `   Massa Aspal = C - A = ${c.toFixed(2)} - ${a.toFixed(2)} = ${pembilang.toFixed(2)} gram`,
+          `   Massa Air Setara = (B - A) - (D - C)`,
+          `   Massa Air Setara = (${(b - a).toFixed(2)}) - (${(d - c).toFixed(2)}) = ${penyebut.toFixed(2)} gram`,
+          `3. RUMUS BERAT JENIS ASPAL KERAS (SPECIFIC GRAVITY):`,
+          `   BJ = (C - A) / [(B - A) - (D - C)]`,
+          `   BJ = ${pembilang.toFixed(2)} / ${penyebut.toFixed(2)} = ${bj.toFixed(3)} g/cm³`,
+          `4. EVALUASI SPESIFIKASI BINA MARGA 2018:`,
+          `   Standar Minimum = 1.000 g/cm³ ➔ Hasil = ${bj.toFixed(3)} g/cm³ (${status})`,
+        ],
+        isError: false,
+        status,
+        verdictClass,
+        conclusion,
+        summaryString: `BJ = ${bj.toFixed(3)} g/cm³ (${status})`,
+      }
+    },
+  },
+
+  // -----------------------------------------------------------------------
+  // PERKERASAN - BAB 5: UJI TITIK NYALA & BAKAR (CLEVELAND OPEN CUP)
+  // -----------------------------------------------------------------------
+  'bp-5-1': {
+    id: 'bp-5-1',
+    code: 'TNB-01',
+    codePrefix: 'TB',
+    name: 'Uji Titik Nyala dan Titik Bakar (Cleveland Open Cup)',
+    lab: 'Bahan Perkerasan',
+    category: 'Bahan Perkerasan • Bab 5: Titik Nyala & Bakar',
+    standard: 'SNI 2433:2011 / Spesifikasi Umum Bina Marga 2018',
+    desc: 'Pengukuran batas ketahanan temperatur aspal terhadap percikan api terbuka (Flash Point & Fire Point) dengan koreksi variasi tekanan atmosfer barometrik.',
+    initialInputs: {
+      titikNyala: 285.0,
+      titikBakar: 310.0,
+      tekananBarometer: 101.3,
+    },
+    fields: [
+      {
+        key: 'titikNyala',
+        label: 'Titik Nyala Terbaca (Flash Point)',
+        unit: '°C',
+        desc: 'Suhu saat terjadi kilatan api pertama di atas permukaan cawan',
+        min: 0.01,
+        step: 0.5,
+        isParameterBesar: true,
+      },
+      {
+        key: 'titikBakar',
+        label: 'Titik Bakar Terbaca (Fire Point)',
+        unit: '°C',
+        desc: 'Suhu saat aspal menyala terus-menerus selama minimal 5 detik',
+        min: 0.01,
+        step: 0.5,
+        isParameterBesar: true,
+      },
+      {
+        key: 'tekananBarometer',
+        label: 'Tekanan Udara Barometer Barometrik (K)',
+        unit: 'kPa',
+        desc: 'Tekanan barometer udara laboratorium (standar permukaan laut = 101.3 kPa)',
+        min: 0.01,
+        step: 0.1,
+      },
+    ],
+    calculate: (inputs) => {
+      const nyala = Number(inputs.titikNyala)
+      const bakar = Number(inputs.titikBakar)
+      const k = Number(inputs.tekananBarometer)
+
+      if (isNaN(nyala) || isNaN(bakar) || isNaN(k) || nyala <= 0 || bakar <= 0 || k <= 0) {
+        return {
+          results: [
+            { label: 'Titik Nyala Terkoreksi', value: '-', unit: '°C', highlight: true },
+            { label: 'Titik Bakar Terkoreksi', value: '-', unit: '°C' },
+            { label: 'Status Keamanan Suhu', value: 'Input Tidak Valid', unit: '', highlight: true },
+          ],
+          formulaSteps: ['Nilai suhu dan tekanan udara barometer harus berupa angka positif > 0.'],
+          isError: true,
+          status: 'Input Tidak Valid',
+          conclusion: 'Input titik suhu dan tekanan barometer harus bernilai positif > 0.',
+          summaryString: 'Input Parameter Tidak Valid',
+        }
+      }
+
+      if (bakar < nyala) {
+        return {
+          results: [
+            { label: 'Titik Nyala Terkoreksi', value: '-', unit: '°C', highlight: true },
+            { label: 'Titik Bakar Terkoreksi', value: '-', unit: '°C' },
+            { label: 'Status Keamanan Suhu', value: 'Bakar < Nyala Tidak Logis', unit: '', highlight: true },
+          ],
+          formulaSteps: [`Titik bakar (${bakar}°C) harus lebih tinggi dari titik nyala (${nyala}°C).`],
+          isError: true,
+          status: 'Data Tidak Logis',
+          conclusion: 'Titik bakar selalu terjadi pada temperatur yang lebih tinggi daripada titik nyala.',
+          summaryString: 'Titik Bakar < Nyala',
+        }
+      }
+
+      // Rumus Koreksi Barometer SNI 2433:2011:
+      // C_terkoreksi = C + 0.25 * (101.3 - K)
+      const koreksi = 0.25 * (101.3 - k)
+      const nyalaKor = nyala + koreksi
+      const bakarKor = bakar + koreksi
+
+      // Spesifikasi Bina Marga 2018: Titik Nyala minimal 232.0°C
+      const isAman = nyalaKor >= 232.0
+      const status = isAman ? 'Memenuhi Standar (Aman)' : 'Bahaya Kebakaran (Tidak Memenuhi)'
+      const verdictClass = isAman ? 'valid' : 'error'
+      const conclusion = isAman
+        ? `Titik Nyala Terkoreksi sebesar ${nyalaKor.toFixed(1)}°C melampaui syarat minimum spesifikasi Bina Marga 2018 (≥ 232.0°C). Aspal sangat aman untuk proses pemanasan dan pencampuran di Asphalt Mixing Plant (AMP) tanpa resiko terbakar/meledak.`
+        : `Titik Nyala Terkoreksi sebesar ${nyalaKor.toFixed(1)}°C berada di bawah batas aman minimum spesifikasi Bina Marga 2018 (≥ 232.0°C). BAHAYA KEBAKARAN! Aspal rentan meledak saat dipanaskan.`
+
+      return {
+        results: [
+          { label: 'Faktor Koreksi Tekanan Udara', value: `${koreksi >= 0 ? '+' : ''}${koreksi.toFixed(2)}`, unit: '°C' },
+          { label: 'Titik Nyala Terkoreksi', value: nyalaKor.toFixed(1), unit: '°C', highlight: true },
+          { label: 'Titik Bakar Terkoreksi', value: bakarKor.toFixed(1), unit: '°C' },
+          { label: 'Syarat Minimum Titik Nyala', value: '232.0', unit: '°C' },
+          { label: 'Status Keselamatan AMP', value: status, unit: '', highlight: true },
+        ],
+        formulaSteps: [
+          `1. PEMBACAAN SUHU TERUKUR & TEKANAN BAROMETER:`,
+          `   Titik Nyala = ${nyala.toFixed(1)} °C, Titik Bakar = ${bakar.toFixed(1)} °C`,
+          `   Tekanan Barometer Udara (K) = ${k.toFixed(1)} kPa`,
+          `2. FORMULA KOREKSI TEKANAN UDARA (SNI 2433:2011):`,
+          `   Koreksi (°C) = 0.25 × (101.3 - K)`,
+          `   Koreksi (°C) = 0.25 × (101.3 - ${k.toFixed(1)}) = ${koreksi.toFixed(2)} °C`,
+          `3. SUHU TITIK NYALA & TITIK BAKAR TERKOREKSI:`,
+          `   Titik Nyala Terkoreksi = ${nyala.toFixed(1)} + (${koreksi.toFixed(2)}) = ${nyalaKor.toFixed(1)} °C`,
+          `   Titik Bakar Terkoreksi = ${bakar.toFixed(1)} + (${koreksi.toFixed(2)}) = ${bakarKor.toFixed(1)} °C`,
+          `4. EVALUASI AMBANG BATAS KESELAMATAN BINA MARGA:`,
+          `   Standar Minimum = 232.0 °C ➔ Hasil = ${nyalaKor.toFixed(1)} °C (${status})`,
+        ],
+        isError: false,
+        status,
+        verdictClass,
+        conclusion,
+        summaryString: `Nyala = ${nyalaKor.toFixed(1)}°C | Bakar = ${bakarKor.toFixed(1)}°C (${status})`,
+      }
+    },
+  },
+
+  // -----------------------------------------------------------------------
+  // PERKERASAN - BAB 6: UJI DAKTILITAS ASPAL
+  // -----------------------------------------------------------------------
+  'bp-6-1': {
+    id: 'bp-6-1',
+    code: 'DAK-01',
+    codePrefix: 'DK',
+    name: 'Uji Daktilitas Bahan Aspal (Ductility Test)',
+    lab: 'Bahan Perkerasan',
+    category: 'Bahan Perkerasan • Bab 6: Daktilitas Aspal',
+    standard: 'SNI 2432:2011 / Spesifikasi Umum Bina Marga 2018',
+    desc: 'Pengukuran keelastisan, kohesi internal, dan elastisitas aspal melalui pemuluran cetakan briket hingga putus pada suhu 25°C dengan kecepatan tarik konstan 5 cm/menit.',
+    initialInputs: {
+      regangan1: 125.0,
+      regangan2: 130.0,
+      regangan3: 128.0,
+      suhuUji: 25.0,
+      kecepatanTarik: 5.0,
+    },
+    fields: [
+      {
+        key: 'regangan1',
+        label: 'Panjang Regangan Sampel 1',
+        unit: 'cm',
+        desc: 'Panjang pemuluran briket aspal 1 saat putus',
+        min: 0.01,
+        step: 0.5,
+        isParameterBesar: true,
+      },
+      {
+        key: 'regangan2',
+        label: 'Panjang Regangan Sampel 2',
+        unit: 'cm',
+        desc: 'Panjang pemuluran briket aspal 2 saat putus',
+        min: 0.01,
+        step: 0.5,
+        isParameterBesar: true,
+      },
+      {
+        key: 'regangan3',
+        label: 'Panjang Regangan Sampel 3',
+        unit: 'cm',
+        desc: 'Panjang pemuluran briket aspal 3 saat putus',
+        min: 0.01,
+        step: 0.5,
+        isParameterBesar: true,
+      },
+      {
+        key: 'suhuUji',
+        label: 'Suhu Bak Perendam Waterbath',
+        unit: '°C',
+        desc: 'Suhu pengkondisian air waterbath (standar 25.0°C)',
+        min: 0.01,
+        step: 0.1,
+      },
+      {
+        key: 'kecepatanTarik',
+        label: 'Kecepatan Tarik Mesin',
+        unit: 'cm/menit',
+        desc: 'Laju pemuluran konstan mesin daktilitas (standar 5.0 cm/menit)',
+        min: 0.01,
+        step: 0.1,
+      },
+    ],
+    calculate: (inputs) => {
+      const s1 = Number(inputs.regangan1)
+      const s2 = Number(inputs.regangan2)
+      const s3 = Number(inputs.regangan3)
+
+      if (isNaN(s1) || isNaN(s2) || isNaN(s3) || s1 <= 0 || s2 <= 0 || s3 <= 0) {
+        return {
+          results: [
+            { label: 'Daktilitas Rata-rata', value: '-', unit: 'cm', highlight: true },
+            { label: 'Status Daktilitas Aspal', value: 'Input Tidak Valid', unit: '', highlight: true },
+          ],
+          formulaSteps: ['Nilai ketiga panjang regangan sampel briket harus berupa angka positif > 0.'],
+          isError: true,
+          status: 'Input Tidak Valid',
+          conclusion: 'Nilai panjang regangan harus bernilai positif > 0.',
+          summaryString: 'Input Parameter Tidak Valid',
+        }
+      }
+
+      const rata = (s1 + s2 + s3) / 3
+      const isMemenuhi = rata >= 100.0
+
+      const status = isMemenuhi ? 'Memenuhi Standar' : 'Tidak Memenuhi Standar'
+      const verdictClass = isMemenuhi ? 'valid' : 'error'
+      const conclusion = isMemenuhi
+        ? `Nilai daktilitas rata-rata sebesar ${rata.toFixed(1)} cm memenuhi syarat minimum spesifikasi Bina Marga 2018 (Daktilitas pada 25°C ≥ 100.0 cm). Aspal memiliki daya rekat dan elastisitas yang baik sehingga tidak mudah retak akibat regangan beban lalu lintas.`
+        : `Nilai daktilitas rata-rata sebesar ${rata.toFixed(1)} cm berada di bawah batas minimum spesifikasi Bina Marga 2018 (Daktilitas pada 25°C < 100.0 cm). Aspal bersifat getas dan rentan pecah.`
+
+      return {
+        results: [
+          { label: 'Regangan Sampel 1', value: s1.toFixed(1), unit: 'cm' },
+          { label: 'Regangan Sampel 2', value: s2.toFixed(1), unit: 'cm' },
+          { label: 'Regangan Sampel 3', value: s3.toFixed(1), unit: 'cm' },
+          { label: 'Daktilitas Rata-rata', value: rata.toFixed(1), unit: 'cm', highlight: true },
+          { label: 'Syarat Minimum Bina Marga', value: '100.0', unit: 'cm' },
+          { label: 'Status Daktilitas Aspal', value: status, unit: '', highlight: true },
+        ],
+        formulaSteps: [
+          `1. DATA PENGUKURAN PANJANG REGANGAN SAMPEL (SUHU 25°C):`,
+          `   Sampel 1 = ${s1.toFixed(1)} cm, Sampel 2 = ${s2.toFixed(1)} cm, Sampel 3 = ${s3.toFixed(1)} cm`,
+          `2. RUMUS NILAI DAKTILITAS RATA-RATA:`,
+          `   Daktilitas = (S1 + S2 + S3) / 3`,
+          `   Daktilitas = (${s1.toFixed(1)} + ${s2.toFixed(1)} + ${s3.toFixed(1)}) / 3 = ${rata.toFixed(1)} cm`,
+          `3. EVALUASI SPESIFIKASI BINA MARGA 2018:`,
+          `   Batas Minimum = 100.0 cm ➔ Hasil = ${rata.toFixed(1)} cm (${status})`,
+        ],
+        isError: false,
+        status,
+        verdictClass,
+        conclusion,
+        summaryString: `Daktilitas = ${rata.toFixed(1)} cm (${status})`,
+      }
+    },
+  },
+
+  // -----------------------------------------------------------------------
+  // PERKERASAN - BAB 7: UJI VISKOSITAS SAYBOLT FUROL & SUHU PENCAMPURAN
+  // -----------------------------------------------------------------------
+  'bp-7-1': {
+    id: 'bp-7-1',
+    code: 'VIS-01',
+    codePrefix: 'VS',
+    name: 'Uji Viskositas Saybolt Furol & Rentang Suhu Pelaksanaan',
+    lab: 'Bahan Perkerasan',
+    category: 'Bahan Perkerasan • Bab 7: Saybolt Furol',
+    standard: 'SNI 7729:2011 / Spesifikasi Umum Bina Marga 2018',
+    desc: 'Pengukuran waktu alir Saybolt Furol (SSF), konversi interpolasi ke viskositas kinematik (cSt), dan penentuan regresi rentang suhu pencampuran (170-230 cSt) serta pemadatan (250-350 cSt).',
+    initialInputs: {
+      suhu1: 135.0,
+      waktuSsf1: 95.0,
+      suhu2: 160.0,
+      waktuSsf2: 40.0,
+    },
+    fields: [
+      {
+        key: 'suhu1',
+        label: 'Suhu Pengujian Titik 1 (T1)',
+        unit: '°C',
+        desc: 'Suhu viskometer pengujian pertama (misal 135.0°C)',
+        min: 0.01,
+        step: 0.5,
+        isParameterBesar: true,
+      },
+      {
+        key: 'waktuSsf1',
+        label: 'Waktu Alir Saybolt Furol Titik 1 (t1)',
+        unit: 'detik',
+        desc: 'Waktu alir 60 ml aspal pada suhu T1 (Saybolt Furol Seconds)',
+        min: 0.01,
+        step: 0.5,
+        isParameterBesar: true,
+      },
+      {
+        key: 'suhu2',
+        label: 'Suhu Pengujian Titik 2 (T2)',
+        unit: '°C',
+        desc: 'Suhu viskometer pengujian kedua (misal 160.0°C)',
+        min: 0.01,
+        step: 0.5,
+        isParameterBesar: true,
+      },
+      {
+        key: 'waktuSsf2',
+        label: 'Waktu Alir Saybolt Furol Titik 2 (t2)',
+        unit: 'detik',
+        desc: 'Waktu alir 60 ml aspal pada suhu T2 (Saybolt Furol Seconds)',
+        min: 0.01,
+        step: 0.5,
+        isParameterBesar: true,
+      },
+    ],
+    calculate: (inputs) => {
+      const t1 = Number(inputs.suhu1)
+      const ssf1 = Number(inputs.waktuSsf1)
+      const t2 = Number(inputs.suhu2)
+      const ssf2 = Number(inputs.waktuSsf2)
+
+      if (isNaN(t1) || isNaN(ssf1) || isNaN(t2) || isNaN(ssf2) || t1 <= 0 || ssf1 <= 0 || t2 <= 0 || ssf2 <= 0) {
+        return {
+          results: [
+            { label: 'Viskositas Kinematik Titik 1', value: '-', unit: 'cSt' },
+            { label: 'Viskositas Kinematik Titik 2', value: '-', unit: 'cSt' },
+            { label: 'Rentang Suhu Pencampuran', value: '-', unit: '°C', highlight: true },
+            { label: 'Rentang Suhu Pemadatan', value: '-', unit: '°C', highlight: true },
+          ],
+          formulaSteps: ['Suhu dan waktu alir Saybolt Furol untuk kedua titik pengujian harus berupa angka positif > 0.'],
+          isError: true,
+          status: 'Input Tidak Valid',
+          conclusion: 'Input parameter viskometer harus bernilai positif > 0.',
+          summaryString: 'Input Parameter Tidak Valid',
+        }
+      }
+
+      if (t1 === t2) {
+        return {
+          results: [
+            { label: 'Rentang Suhu Pencampuran', value: '-', unit: '°C', highlight: true },
+            { label: 'Rentang Suhu Pemadatan', value: '-', unit: '°C', highlight: true },
+          ],
+          formulaSteps: ['Suhu T1 dan T2 tidak boleh sama agar dapat ditarik kurva garis regresi hubungan suhu vs viskositas.'],
+          isError: true,
+          status: 'T1 === T2 Tidak Valid',
+          conclusion: 'Pengujian memerlukan minimal 2 titik temperatur yang berbeda untuk regresi linear log(cSt) vs T.',
+          summaryString: 'T1 === T2 Tidak Valid',
+        }
+      }
+
+      // Tabel Konversi Standar Saybolt Furol (SSF) ke Kinematik (cSt)
+      const sfTable = [
+        { sfs: 25, cst: 54.0 }, { sfs: 30, cst: 65.0 }, { sfs: 35, cst: 76.0 },
+        { sfs: 40, cst: 86.8 }, { sfs: 50, cst: 108.5 }, { sfs: 60, cst: 130.2 },
+        { sfs: 70, cst: 151.9 }, { sfs: 80, cst: 173.6 }, { sfs: 90, cst: 195.3 },
+        { sfs: 100, cst: 217.0 }, { sfs: 120, cst: 260.4 }, { sfs: 140, cst: 303.8 },
+        { sfs: 160, cst: 347.2 }, { sfs: 180, cst: 390.6 }, { sfs: 200, cst: 434.0 },
+        { sfs: 250, cst: 542.5 }, { sfs: 300, cst: 651.0 }, { sfs: 400, cst: 868.0 },
+        { sfs: 500, cst: 1085.0 },
+      ]
+
+      const convertSfs = (sfs) => {
+        if (sfs <= sfTable[0].sfs) return +(sfs * (sfTable[0].cst / sfTable[0].sfs)).toFixed(2)
+        const last = sfTable[sfTable.length - 1]
+        if (sfs >= last.sfs) return +(sfs * 2.17).toFixed(2)
+        for (let i = 0; i < sfTable.length - 1; i++) {
+          const p1 = sfTable[i]
+          const p2 = sfTable[i + 1]
+          if (sfs >= p1.sfs && sfs <= p2.sfs) {
+            const frac = (sfs - p1.sfs) / (p2.sfs - p1.sfs)
+            return +(p1.cst + frac * (p2.cst - p1.cst)).toFixed(2)
+          }
+        }
+        return +(sfs * 2.17).toFixed(2)
+      }
+
+      const cst1 = convertSfs(ssf1)
+      const cst2 = convertSfs(ssf2)
+
+      const log1 = Math.log10(cst1)
+      const log2 = Math.log10(cst2)
+
+      // Regresi Linear: log10(cSt) = m * T + c
+      const slope = (log2 - log1) / (t2 - t1)
+      const intercept = log1 - slope * t1
+
+      // Suhu Pencampuran (Target 170 s.d. 230 cSt)
+      const tMixMin = (Math.log10(230) - intercept) / slope
+      const tMixMax = (Math.log10(170) - intercept) / slope
+
+      // Suhu Pemadatan (Target 250 s.d. 350 cSt)
+      const tCompMin = (Math.log10(350) - intercept) / slope
+      const tCompMax = (Math.log10(250) - intercept) / slope
+
+      const status = 'Valid'
+      const verdictClass = 'valid'
+      const conclusion = `Berdasarkan regresi viskositas logaritmis, diperoleh rekomendasi Suhu Pencampuran (Mixing Temperature) antara ${tMixMin.toFixed(1)}°C s.d. ${tMixMax.toFixed(1)}°C (target 170-230 cSt) dan Suhu Pemadatan (Compaction Temperature) antara ${tCompMin.toFixed(1)}°C s.d. ${tCompMax.toFixed(1)}°C (target 250-350 cSt) sesuai Spesifikasi Umum Bina Marga 2018.`
+
+      return {
+        results: [
+          { label: 'Viskositas Kinematik Titik 1', value: cst1.toFixed(1), unit: 'cSt' },
+          { label: 'Viskositas Kinematik Titik 2', value: cst2.toFixed(1), unit: 'cSt' },
+          { label: 'Persamaan Garis Walther', value: `log(cSt) = ${slope.toFixed(4)}·T + ${intercept.toFixed(3)}`, unit: '' },
+          { label: 'Rentang Suhu Pencampuran', value: `${tMixMin.toFixed(1)} - ${tMixMax.toFixed(1)}`, unit: '°C', highlight: true },
+          { label: 'Rentang Suhu Pemadatan', value: `${tCompMin.toFixed(1)} - ${tCompMax.toFixed(1)}`, unit: '°C', highlight: true },
+        ],
+        formulaSteps: [
+          `1. DATA PENGUJIAN WAKTU ALIR SAYBOLT FUROL:`,
+          `   Titik 1: Suhu = ${t1.toFixed(1)} °C, Waktu Alir = ${ssf1.toFixed(1)} detik ➔ Viskositas = ${cst1.toFixed(1)} cSt`,
+          `   Titik 2: Suhu = ${t2.toFixed(1)} °C, Waktu Alir = ${ssf2.toFixed(1)} detik ➔ Viskositas = ${cst2.toFixed(1)} cSt`,
+          `2. MODEL REGRESI LINEAR LOGARITMIS (ASTM D2493):`,
+          `   Kemiringan (m) = [log₁₀(ν₂) - log₁₀(ν₁)] / (T₂ - T₁) = [${log2.toFixed(4)} - ${log1.toFixed(4)}] / (${t2} - ${t1}) = ${slope.toFixed(5)}`,
+          `   Intersep (c) = log₁₀(ν₁) - m·T₁ = ${log1.toFixed(4)} - (${slope.toFixed(5)} × ${t1}) = ${intercept.toFixed(4)}`,
+          `3. SUHU PENCAMPURAN ASPAL (TARGET VISKOSITAS 170 - 230 cSt):`,
+          `   T_campur = [log₁₀(target) - c] / m ➔ ${tMixMin.toFixed(1)} °C s.d. ${tMixMax.toFixed(1)} °C`,
+          `4. SUHU PEMADATAN ASPAL (TARGET VISKOSITAS 250 - 350 cSt):`,
+          `   T_padat = [log₁₀(target) - c] / m ➔ ${tCompMin.toFixed(1)} °C s.d. ${tCompMax.toFixed(1)} °C`,
+        ],
+        isError: false,
+        status,
+        verdictClass,
+        conclusion,
+        summaryString: `Suhu Campur: ${tMixMin.toFixed(0)}-${tMixMax.toFixed(0)}°C | Padat: ${tCompMin.toFixed(0)}-${tCompMax.toFixed(0)}°C`,
+      }
+    },
+  },
+
+  // -----------------------------------------------------------------------
+  // PERKERASAN - BAB 8: JOB MIX FORMULA (JMF)
+  // -----------------------------------------------------------------------
+  'bp-8-1': {
+    id: 'bp-8-1',
+    code: 'JMF-01',
+    codePrefix: 'JM',
+    name: 'Job Mix Formula (JMF) & Perkiraan Kadar Aspal Awal',
+    lab: 'Bahan Perkerasan',
+    category: 'Bahan Perkerasan • Bab 8: Job Mix Formula',
+    standard: 'Spesifikasi Umum Bina Marga 2018 (Divisi 6)',
+    desc: 'Perhitungan perkiraan Kadar Aspal Awal / Optimum Pendekatan (KAA / Pb) berdasarkan proporsi fraksi agregat (%CA, %FA, %Filler) sesuai rumus empiris Spesifikasi Bina Marga 2018.',
+    initialInputs: {
+      ca: 52.0,
+      fa: 41.5,
+      filler: 6.5,
+      k: 0.75,
+    },
+    fields: [
+      {
+        key: 'ca',
+        label: 'Persentase Agregat Kasar (%CA)',
+        unit: '%',
+        desc: 'Fraksi agregat yang tertahan di atas saringan No. 4 (4.75 mm)',
+        min: 0.01,
+        max: 100.0,
+        step: 0.1,
+        isParameterBesar: true,
+      },
+      {
+        key: 'fa',
+        label: 'Persentase Agregat Halus (%FA)',
+        unit: '%',
+        desc: 'Fraksi lolos saringan No. 4 dan tertahan di atas saringan No. 200',
+        min: 0.01,
+        max: 100.0,
+        step: 0.1,
+        isParameterBesar: true,
+      },
+      {
+        key: 'filler',
+        label: 'Persentase Bahan Pengisi / Filler',
+        unit: '%',
+        desc: 'Fraksi mineral pengisi halus yang lolos saringan No. 200 (0.075 mm)',
+        min: 0.01,
+        max: 100.0,
+        step: 0.1,
+        isParameterBesar: true,
+      },
+      {
+        key: 'k',
+        label: 'Konstanta Campuran (K)',
+        unit: '%',
+        desc: 'Nilai empiris jenis campuran (standar 0.5 s.d. 1.0, default Laston = 0.75)',
+        min: 0.01,
+        step: 0.05,
+      },
+    ],
+    calculate: (inputs) => {
+      const ca = Number(inputs.ca)
+      const fa = Number(inputs.fa)
+      const filler = Number(inputs.filler)
+      const k = Number(inputs.k)
+
+      if (isNaN(ca) || isNaN(fa) || isNaN(filler) || isNaN(k) || ca < 0 || fa < 0 || filler < 0 || k < 0) {
+        return {
+          results: [
+            { label: 'Kadar Aspal Awal (KAA)', value: '-', unit: '%', highlight: true },
+            { label: 'Total Proporsi Agregat', value: '-', unit: '%' },
+          ],
+          formulaSteps: ['Persentase fraksi agregat dan nilai konstanta K harus bernilai positif > 0.'],
+          isError: true,
+          status: 'Input Tidak Valid',
+          conclusion: 'Input parameter proporsi agregat harus bernilai positif > 0.',
+          summaryString: 'Input Parameter Tidak Valid',
+        }
+      }
+
+      const totalAgregat = ca + fa + filler
+      const isTotalValid = Math.abs(totalAgregat - 100.0) <= 0.5
+
+      // Rumus Empiris KAA Bina Marga 2018:
+      // KAA = 0.035 * (%CA) + 0.045 * (%FA) + 0.18 * (%Filler) + K
+      const kaa = 0.035 * ca + 0.045 * fa + 0.18 * filler + k
+
+      const status = isTotalValid ? 'Proporsi Agregat Valid' : 'Proporsi Agregat Belum 100%'
+      const verdictClass = isTotalValid ? 'valid' : 'warning'
+      const conclusion = `Kadar Aspal Awal (KAA) perkiraan rumus empiris Bina Marga adalah ${kaa.toFixed(2)}%. Disarankan membuat 5 variasi kadar aspal untuk pengujian Marshall: ${(kaa - 1.0).toFixed(2)}%, ${(kaa - 0.5).toFixed(2)}%, ${kaa.toFixed(2)}%, ${(kaa + 0.5).toFixed(2)}%, dan ${(kaa + 1.0).toFixed(2)}% guna menentukan Kadar Aspal Optimum (KAO) definitif.`
+
+      return {
+        results: [
+          { label: 'Total Proporsi Agregat (%CA+%FA+%Filler)', value: `${totalAgregat.toFixed(1)}%`, unit: '', highlight: !isTotalValid },
+          { label: 'Kadar Aspal Awal Perkiraan (KAA)', value: `${kaa.toFixed(2)}%`, unit: '', highlight: true },
+          { label: 'Rekomendasi Variasi Uji Marshall', value: `${(kaa - 1.0).toFixed(1)}% s.d. ${(kaa + 1.0).toFixed(1)}%`, unit: '' },
+          { label: 'Status Validasi JMF', value: status, unit: '', highlight: true },
+        ],
+        formulaSteps: [
+          `1. PROPORSI FRAKSI GABUNGAN AGREGAT:`,
+          `   %CA (Tertahan No.4) = ${ca.toFixed(1)}%, %FA (No.4 - No.200) = ${fa.toFixed(1)}%, %Filler (Lolos No.200) = ${filler.toFixed(1)}%`,
+          `   Total Agregat = ${ca.toFixed(1)} + ${fa.toFixed(1)} + ${filler.toFixed(1)} = ${totalAgregat.toFixed(1)}% (Status: ${isTotalValid ? 'Ideal 100%' : 'Periksa proporsi'})`,
+          `2. RUMUS EMPIRIS BINA MARGA KADAR ASPAL AWAL (KAA):`,
+          `   KAA = 0.035 × (%CA) + 0.045 × (%FA) + 0.18 × (%Filler) + K`,
+          `   KAA = (0.035 × ${ca.toFixed(1)}) + (0.045 × ${fa.toFixed(1)}) + (0.18 × ${filler.toFixed(1)}) + ${k.toFixed(2)}`,
+          `   KAA = ${(0.035 * ca).toFixed(3)} + ${(0.045 * fa).toFixed(3)} + ${(0.18 * filler).toFixed(3)} + ${k.toFixed(2)} = ${kaa.toFixed(2)}%`,
+          `3. 5 VARIASI KADAR ASPAL BENDA UJI MARSHALL (INTERVAL 0.5%):`,
+          `   - Variasi 1: KAA - 1.0% = ${(kaa - 1.0).toFixed(2)}%`,
+          `   - Variasi 2: KAA - 0.5% = ${(kaa - 0.5).toFixed(2)}%`,
+          `   - Variasi 3: KAA (Acuan) = ${kaa.toFixed(2)}%`,
+          `   - Variasi 4: KAA + 0.5% = ${(kaa + 0.5).toFixed(2)}%`,
+          `   - Variasi 5: KAA + 1.0% = ${(kaa + 1.0).toFixed(2)}%`,
+        ],
+        isError: false,
+        status,
+        verdictClass,
+        conclusion,
+        summaryString: `KAA = ${kaa.toFixed(2)}% | Variasi: ${(kaa - 1.0).toFixed(1)}% - ${(kaa + 1.0).toFixed(1)}%`,
+      }
+    },
+  },
+
+  // -----------------------------------------------------------------------
+  // PERKERASAN - BAB 9: UJI MARSHALL TEST (MULTI-STEP / MULTI-TAB)
+  // -----------------------------------------------------------------------
+  'bp-9-1': {
+    id: 'bp-9-1',
+    code: 'MAR-01',
+    codePrefix: 'MR',
+    name: 'Uji Marshall Campuran Beraspal (Marshall Test)',
+    lab: 'Bahan Perkerasan',
+    category: 'Bahan Perkerasan • Bab 9: Uji Marshall',
+    standard: 'SNI 06-2489-1991 / Spesifikasi Umum Bina Marga 2018',
+    desc: 'Pengujian komprehensif sifat volumetrik briket aspal (VMA, VIM, VFA, Gmb, Gmm) dan sifat mekanik (Stabilitas Marshall, Kelelehan/Flow, Marshall Quotient) dengan form multi-step berstandar Bina Marga 2018.',
+    fieldTabs: [
+      { id: 'tab1', label: 'Tab 1: Data Berat', sub: 'Kering, SSD, Air', fields: ['beratKering', 'beratSsd', 'beratAir'] },
+      { id: 'tab2', label: 'Tab 2: Data Material', sub: 'Pa, Gsb, Gse, Ga, Ps', fields: ['kadarAspalPa', 'persenAgregatPs', 'gsb', 'gse', 'ga'] },
+      { id: 'tab3', label: 'Tab 3: Data Alat', sub: 'Stabilitas, Flow, Korelasi, Kalibrasi', fields: ['bacaanStabilitas', 'flow', 'angkaKorelasi', 'kalibrasiAlat'] },
+    ],
+    initialInputs: {
+      beratKering: 1153.6,
+      beratSsd: 1158.2,
+      beratAir: 662.4,
+      kadarAspalPa: 5.8,
+      persenAgregatPs: 94.2,
+      gsb: 2.620,
+      gse: 2.6968,
+      ga: 1.030,
+      bacaanStabilitas: 265.0,
+      flow: 3.2,
+      angkaKorelasi: 1.00,
+      kalibrasiAlat: 3.82,
+    },
+    fields: [
+      // Tab 1: Data Berat
+      {
+        key: 'beratKering',
+        label: 'Berat Benda Uji Kering Oven',
+        unit: 'gram',
+        desc: 'Massa briket aspal kering sempurna setelah dikeluarkan dari cetakan',
+        min: 0.01,
+        step: 0.1,
+        isParameterBesar: true,
+      },
+      {
+        key: 'beratSsd',
+        label: 'Berat Benda Uji Kondisi Jenuh Kering Permukaan (SSD)',
+        unit: 'gram',
+        desc: 'Massa briket setelah direndam air dan dilap permukaannya dengan kain lembab',
+        min: 0.01,
+        step: 0.1,
+        isParameterBesar: true,
+      },
+      {
+        key: 'beratAir',
+        label: 'Berat Benda Uji di Dalam Air',
+        unit: 'gram',
+        desc: 'Massa briket saat ditimbang terendam penuh di dalam air waterbath',
+        min: 0.01,
+        step: 0.1,
+        isParameterBesar: true,
+      },
+      // Tab 2: Data Material
+      {
+        key: 'kadarAspalPa',
+        label: 'Kadar Aspal terhadap Campuran (Pa)',
+        unit: '%',
+        desc: 'Persentase massa aspal dalam campuran total (misal 5.8%)',
+        min: 0.01,
+        max: 100.0,
+        step: 0.1,
+        isParameterBesar: true,
+      },
+      {
+        key: 'persenAgregatPs',
+        label: 'Kadar Agregat terhadap Campuran (Ps)',
+        unit: '%',
+        desc: 'Persentase agregat terhadap total campuran (100 - Pa = 94.2%)',
+        min: 0.01,
+        max: 100.0,
+        step: 0.1,
+      },
+      {
+        key: 'gsb',
+        label: 'Berat Jenis Bulk Agregat Campuran (Gsb)',
+        unit: '',
+        desc: 'Specific gravity bulk agregat gabungan (misal 2.620)',
+        min: 0.01,
+        step: 0.001,
+      },
+      {
+        key: 'gse',
+        label: 'Berat Jenis Efektif Agregat (Gse)',
+        unit: '',
+        desc: 'Specific gravity efektif agregat bebas pori aspal terabsorpsi (misal 2.697)',
+        min: 0.01,
+        step: 0.001,
+      },
+      {
+        key: 'ga',
+        label: 'Berat Jenis Aspal (Ga / Gb)',
+        unit: '',
+        desc: 'Specific gravity aspal murni pada suhu 25°C (misal 1.030)',
+        min: 0.01,
+        step: 0.001,
+      },
+      // Tab 3: Data Alat
+      {
+        key: 'bacaanStabilitas',
+        label: 'Pembacaan Dial Arloji Stabilitas',
+        unit: 'div',
+        desc: 'Nilai defleksi dial proving ring saat beban tekan maksimum runtuh',
+        min: 0.01,
+        step: 1.0,
+        isParameterBesar: true,
+      },
+      {
+        key: 'flow',
+        label: 'Nilai Kelelehan (Flow)',
+        unit: 'mm',
+        desc: 'Deformasi vertikal benda uji pada saat keruntuhan beban puncak',
+        min: 0.01,
+        step: 0.1,
+        isParameterBesar: true,
+      },
+      {
+        key: 'angkaKorelasi',
+        label: 'Angka Korelasi Tebal Benda Uji',
+        unit: '',
+        desc: 'Faktor koreksi volume tebal benda uji standar 63.5 mm (default 1.00)',
+        min: 0.01,
+        step: 0.01,
+      },
+      {
+        key: 'kalibrasiAlat',
+        label: 'Faktor Kalibrasi Proving Ring',
+        unit: 'kg/div',
+        desc: 'Koefisien konversi pembacaan dial ke beban mekanik (misal 3.82 kg/div)',
+        min: 0.01,
+        step: 0.01,
+      },
+    ],
+    calculate: (inputs) => {
+      const wKering = Number(inputs.beratKering)
+      const wSsd = Number(inputs.beratSsd)
+      const wAir = Number(inputs.beratAir)
+      const pa = Number(inputs.kadarAspalPa)
+      const psInput = Number(inputs.persenAgregatPs)
+      const ps = !isNaN(psInput) && psInput > 0 ? psInput : (100.0 - pa)
+      const gsb = Number(inputs.gsb)
+      const gse = Number(inputs.gse)
+      const ga = Number(inputs.ga)
+      const bacaan = Number(inputs.bacaanStabilitas)
+      const flow = Number(inputs.flow)
+      const korelasi = Number(inputs.angkaKorelasi) || 1.00
+      const kalibrasi = Number(inputs.kalibrasiAlat) || 3.82
+
+      if (
+        isNaN(wKering) || isNaN(wSsd) || isNaN(wAir) || isNaN(pa) ||
+        isNaN(gsb) || isNaN(gse) || isNaN(ga) || isNaN(bacaan) || isNaN(flow) ||
+        wKering <= 0 || wSsd <= 0 || wAir <= 0 || pa <= 0 || gsb <= 0 || gse <= 0 || ga <= 0 || flow <= 0
+      ) {
+        return {
+          results: [
+            { label: 'Volume Benda Uji', value: '-', unit: 'cm³' },
+            { label: 'Berat Jenis Bulk (Gmb)', value: '-', unit: 'g/cm³' },
+            { label: 'Stabilitas Marshall', value: '-', unit: 'kg', highlight: true },
+            { label: 'Kelelehan (Flow)', value: '-', unit: 'mm' },
+            { label: 'Marshall Quotient (MQ)', value: '-', unit: 'kg/mm', highlight: true },
+            { label: 'VMA', value: '-', unit: '%' },
+            { label: 'VIM', value: '-', unit: '%', highlight: true },
+            { label: 'VFA', value: '-', unit: '%' },
+          ],
+          formulaSteps: ['Seluruh data berat, material agregat-aspal, dan bacaan alat Marshall harus bernilai positif > 0.'],
+          isError: true,
+          status: 'Input Tidak Valid',
+          conclusion: 'Input parameter pengujian Marshall harus bernilai positif > 0.',
+          summaryString: 'Input Parameter Tidak Valid',
+        }
+      }
+
+      const volume = wSsd - wAir
+      if (volume <= 0) {
+        return {
+          results: [
+            { label: 'Volume Benda Uji', value: '-', unit: 'cm³' },
+            { label: 'Status Uji Marshall', value: 'SSD <= Air Tidak Logis', unit: '', highlight: true },
+          ],
+          formulaSteps: [`Volume (Berat SSD - Berat Air) bernilai ${volume.toFixed(1)} cm³ (harus > 0). Pastikan Berat SSD > Berat Air.`],
+          isError: true,
+          status: 'Data Tidak Logis',
+          conclusion: 'Berat SSD harus lebih besar dari berat saat terendam di dalam air.',
+          summaryString: 'Volume <= 0 Tidak Valid',
+        }
+      }
+
+      // 1. Gmb (Bulk Specific Gravity of Mix)
+      const gmb = wKering / volume
+
+      // 2. Gmm (Theoretical Maximum Specific Gravity)
+      // Gmm = 100 / ((Ps / Gse) + (Pa / Ga))
+      const pembagiGmm = (ps / gse) + (pa / ga)
+      const gmm = 100.0 / pembagiGmm
+
+      // 3. VMA (Voids in Mineral Aggregate)
+      // VMA = 100 - ((Gmb * Ps) / Gsb)
+      const vma = 100.0 - ((gmb * ps) / gsb)
+
+      // 4. VIM (Voids in Mix / Rongga Pori)
+      // VIM = 100 * ((Gmm - Gmb) / Gmm)
+      const vim = 100.0 * ((gmm - gmb) / gmm)
+
+      // 5. VFA (Voids Filled with Asphalt)
+      // VFA = 100 * ((VMA - VIM) / VMA)
+      const vfa = vma > 0 ? 100.0 * ((vma - vim) / vma) : 0
+
+      // 6. Stabilitas Marshall & Marshall Quotient
+      const stabilitas = bacaan * korelasi * kalibrasi
+      const mq = stabilitas / flow
+
+      // Validasi Bina Marga 2018 (Campuran Laston / AC-WC):
+      // - Stabilitas >= 800 kg
+      // - Flow 2.0 - 4.0 mm
+      // - MQ >= 250 kg/mm
+      // - VMA >= 15.0%
+      // - VIM 3.0% - 5.0%
+      // - VFA >= 65.0%
+      const checkStab = stabilitas >= 800.0
+      const checkFlow = flow >= 2.0 && flow <= 4.0
+      const checkMQ = mq >= 250.0
+      const checkVMA = vma >= 15.0
+      const checkVIM = vim >= 3.0 && vim <= 5.0
+      const checkVFA = vfa >= 65.0
+
+      const allValid = checkStab && checkFlow && checkMQ && checkVMA && checkVIM && checkVFA
+      const status = allValid ? 'Memenuhi Spesifikasi Bina Marga' : 'Perlu Penyesuaian Volumetrik'
+      const verdictClass = allValid ? 'valid' : (checkStab && checkFlow ? 'warning' : 'error')
+
+      const conclusion = `Benda uji menghasilkan Stabilitas Marshall ${stabilitas.toFixed(1)} kg (${checkStab ? 'Memenuhi' : 'Gagal'}), Flow ${flow.toFixed(2)} mm (${checkFlow ? 'Memenuhi' : 'Gagal'}), Marshall Quotient ${mq.toFixed(1)} kg/mm (${checkMQ ? 'Memenuhi' : 'Gagal'}), VMA ${vma.toFixed(2)}% (${checkVMA ? 'Memenuhi' : 'Gagal'}), VIM ${vim.toFixed(3)}% (${checkVIM ? 'Memenuhi' : (vim < 3.0 ? 'Terlalu Rapat/Rawan Bleeding' : 'Pori Terlalu Besar')}), dan VFA ${vfa.toFixed(1)}% (${checkVFA ? 'Memenuhi' : 'Gagal'}). Status evaluasi: ${status}.`
+
+      return {
+        results: [
+          { label: 'Volume Benda Uji', value: volume.toFixed(1), unit: 'cm³' },
+          { label: 'Berat Jenis Bulk (Gmb)', value: gmb.toFixed(4), unit: 'g/cm³' },
+          { label: 'Berat Jenis Maksimum (Gmm)', value: gmm.toFixed(4), unit: 'g/cm³' },
+          { label: 'Stabilitas Marshall', value: stabilitas.toFixed(1), unit: 'kg', highlight: true },
+          { label: 'Kelelehan (Flow)', value: flow.toFixed(2), unit: 'mm', highlight: true },
+          { label: 'Marshall Quotient (MQ)', value: mq.toFixed(1), unit: 'kg/mm', highlight: true },
+          { label: 'Rongga dlm Agregat (VMA)', value: `${vma.toFixed(2)}%`, unit: '', highlight: true },
+          { label: 'Rongga dlm Campuran (VIM)', value: `${vim.toFixed(3)}%`, unit: '', highlight: true },
+          { label: 'Rongga Terisi Aspal (VFA)', value: `${vfa.toFixed(1)}%`, unit: '', highlight: true },
+        ],
+        formulaSteps: [
+          `1. SIFAT FISIK & VOLUME SPESIMEN (TAB 1):`,
+          `   Berat Kering = ${wKering.toFixed(1)} g, Berat SSD = ${wSsd.toFixed(1)} g, Berat di Air = ${wAir.toFixed(1)} g`,
+          `   Volume Briket = Berat SSD - Berat Air = ${wSsd.toFixed(1)} - ${wAir.toFixed(1)} = ${volume.toFixed(1)} cm³`,
+          `   Gmb (Bulk SG) = Berat Kering / Volume = ${wKering.toFixed(1)} / ${volume.toFixed(1)} = ${gmb.toFixed(4)} g/cm³`,
+          `2. BERAT JENIS MAKSIMUM TEORETIS (Gmm) (TAB 2):`,
+          `   Kadar Aspal: Pa = ${pa.toFixed(1)}%, Kadar Agregat: Ps = ${ps.toFixed(1)}%`,
+          `   Gmm = 100 / [(Ps / Gse) + (Pa / Ga)] = 100 / [(${ps.toFixed(1)} / ${gse.toFixed(3)}) + (${pa.toFixed(1)} / ${ga.toFixed(3)})]`,
+          `   Gmm = 100 / [${(ps / gse).toFixed(3)} + ${(pa / ga).toFixed(3)}] = ${gmm.toFixed(4)} g/cm³`,
+          `3. PARAMETER VOLUMETRIK CAMPURAN (VMA, VIM, VFA):`,
+          `   VMA = 100 - [(Gmb × Ps) / Gsb] = 100 - [(${gmb.toFixed(4)} × ${ps.toFixed(1)}) / ${gsb.toFixed(3)}] = ${vma.toFixed(3)}%`,
+          `   VIM = [(Gmm - Gmb) / Gmm] × 100% = [(${gmm.toFixed(4)} - ${gmb.toFixed(4)}) / ${gmm.toFixed(4)}] × 100% = ${vim.toFixed(3)}%`,
+          `   VFA = [(VMA - VIM) / VMA] × 100% = [(${vma.toFixed(2)} - ${vim.toFixed(2)}) / ${vma.toFixed(2)}] × 100% = ${vfa.toFixed(2)}%`,
+          `4. KEKUATAN MEKANIK MARSHALL (TAB 3):`,
+          `   Stabilitas = Dial × Korelasi × Kalibrasi = ${bacaan.toFixed(1)} × ${korelasi.toFixed(2)} × ${kalibrasi.toFixed(2)} = ${stabilitas.toFixed(1)} kg`,
+          `   Marshall Quotient (MQ) = Stabilitas / Flow = ${stabilitas.toFixed(1)} / ${flow.toFixed(2)} = ${mq.toFixed(1)} kg/mm`,
+          `5. EVALUASI BINA MARGA 2018:`,
+          `   - Stabilitas (≥ 800 kg): ${stabilitas.toFixed(1)} kg [${checkStab ? 'OK' : 'FAIL'}]`,
+          `   - Flow (2.0 - 4.0 mm): ${flow.toFixed(2)} mm [${checkFlow ? 'OK' : 'FAIL'}]`,
+          `   - MQ (≥ 250 kg/mm): ${mq.toFixed(1)} kg/mm [${checkMQ ? 'OK' : 'FAIL'}]`,
+          `   - VMA (≥ 15.0%): ${vma.toFixed(2)}% [${checkVMA ? 'OK' : 'FAIL'}]`,
+          `   - VIM (3.0% - 5.0%): ${vim.toFixed(3)}% [${checkVIM ? 'OK' : 'EVALUASI'}]`,
+          `   - VFA (≥ 65.0%): ${vfa.toFixed(1)}% [${checkVFA ? 'OK' : 'FAIL'}]`,
+        ],
+        isError: false,
+        status,
+        verdictClass,
+        conclusion,
+        summaryString: `Stab = ${stabilitas.toFixed(0)} kg | Flow = ${flow.toFixed(1)} mm | VIM = ${vim.toFixed(3)}% | VMA = ${vma.toFixed(1)}%`,
+      }
+    },
+  },
+
+  // -----------------------------------------------------------------------
+  // PERKERASAN - BAB 10: UJI EKSTRAKSI ASPAL (CENTRIFUGE EXTRACTOR)
+  // -----------------------------------------------------------------------
+  'bp-10-1': {
+    id: 'bp-10-1',
+    code: 'EKS-01',
+    codePrefix: 'EK',
+    name: 'Uji Ekstraksi Kadar Aspal (Centrifuge Extractor)',
+    lab: 'Bahan Perkerasan',
+    category: 'Bahan Perkerasan • Bab 10: Ekstraksi Aspal',
+    standard: 'SNI 03-6894-2002 / Spesifikasi Umum Bina Marga 2018',
+    desc: 'Pengukuran kadar aspal aktual dari sampel perkerasan menggunakan alat sentrifus dan pelarut kimia, serta verifikasi deviasi terhadap kadar aspal rencana JMF (toleransi batas toleransi ±0.30%).',
+    initialInputs: {
+      beratSampelW1: 1000.0,
+      beratAgregatW2: 943.0,
+      kadarAspalJmf: 5.8,
+    },
+    fields: [
+      {
+        key: 'beratSampelW1',
+        label: 'Berat Sampel Campuran Sebelum Ekstraksi (W1)',
+        unit: 'gram',
+        desc: 'Massa briket/sampel perkerasan beraspal kering semula',
+        min: 0.01,
+        step: 0.1,
+        isParameterBesar: true,
+      },
+      {
+        key: 'beratAgregatW2',
+        label: 'Berat Agregat Kering Setelah Ekstraksi (W2)',
+        unit: 'gram',
+        desc: 'Massa agregat bersih + mineral filler pada kertas saring setelah pengeringan oven',
+        min: 0.01,
+        step: 0.1,
+        isParameterBesar: true,
+      },
+      {
+        key: 'kadarAspalJmf',
+        label: 'Kadar Aspal Rencana / Target JMF',
+        unit: '%',
+        desc: 'Kadar aspal desain Job Mix Formula yang ditargetkan (misal 5.8%)',
+        min: 0.01,
+        max: 100.0,
+        step: 0.1,
+        isParameterBesar: true,
+      },
+    ],
+    calculate: (inputs) => {
+      const w1 = Number(inputs.beratSampelW1)
+      const w2 = Number(inputs.beratAgregatW2)
+      const jmf = Number(inputs.kadarAspalJmf)
+
+      if (isNaN(w1) || isNaN(w2) || isNaN(jmf) || w1 <= 0 || w2 <= 0 || jmf <= 0) {
+        return {
+          results: [
+            { label: 'Berat Aspal Terekstrak', value: '-', unit: 'gram' },
+            { label: 'Kadar Aspal Aktual', value: '-', unit: '%', highlight: true },
+            { label: 'Selisih terhadap JMF', value: '-', unit: '%' },
+            { label: 'Status Toleransi Bina Marga', value: 'Input Tidak Valid', unit: '', highlight: true },
+          ],
+          formulaSteps: ['Berat sampel, berat agregat, dan kadar aspal rencana JMF harus berupa angka positif > 0.'],
+          isError: true,
+          status: 'Input Tidak Valid',
+          conclusion: 'Input parameter uji ekstraksi aspal harus bernilai positif > 0.',
+          summaryString: 'Input Parameter Tidak Valid',
+        }
+      }
+
+      if (w2 >= w1) {
+        return {
+          results: [
+            { label: 'Berat Aspal Terekstrak', value: '-', unit: 'gram' },
+            { label: 'Kadar Aspal Aktual', value: '-', unit: '%', highlight: true },
+            { label: 'Status Toleransi Bina Marga', value: 'W2 >= W1 Tidak Logis', unit: '', highlight: true },
+          ],
+          formulaSteps: [`Berat agregat setelah ekstraksi W2 (${w2} g) tidak boleh >= berat sampel awal W1 (${w1} g).`],
+          isError: true,
+          status: 'Data Tidak Logis',
+          conclusion: 'Berat agregat setelah aspal larut harus lebih kecil dari berat sampel semula.',
+          summaryString: 'W2 >= W1 Tidak Valid',
+        }
+      }
+
+      const beratAspal = w1 - w2
+      const kadarAktual = (beratAspal / w1) * 100
+      const selisih = Math.abs(kadarAktual - jmf)
+      const isMemenuhi = selisih <= 0.30
+
+      const status = isMemenuhi ? 'Memenuhi Standar' : 'Menyimpang dari JMF'
+      const verdictClass = isMemenuhi ? 'valid' : 'error'
+      const conclusion = isMemenuhi
+        ? `Kadar aspal aktual hasil ekstraksi sebesar ${kadarAktual.toFixed(2)}% berbeda ${selisih.toFixed(2)}% terhadap target JMF (${jmf.toFixed(2)}%). Selisih masih berada di dalam batas toleransi ketat spesifikasi Bina Marga 2018 (Toleransi Kadar Aspal Maksimum ±0.30%).`
+        : `Kadar aspal aktual hasil ekstraksi sebesar ${kadarAktual.toFixed(2)}% menyimpang sebesar ${selisih.toFixed(2)}% dari target JMF (${jmf.toFixed(2)}%). Deviasi melebihi batas toleransi spesifikasi Bina Marga 2018 (Maksimum ±0.30%). Campuran perkerasan tidak seragam.`
+
+      return {
+        results: [
+          { label: 'Berat Aspal Terekstrak (W1 - W2)', value: beratAspal.toFixed(1), unit: 'gram' },
+          { label: 'Kadar Aspal Aktual Hasil Ekstraksi', value: `${kadarAktual.toFixed(2)}%`, unit: '', highlight: true },
+          { label: 'Kadar Aspal Target Rencana (JMF)', value: `${jmf.toFixed(2)}%`, unit: '' },
+          { label: 'Deviasi Selisih terhadap JMF', value: `${selisih.toFixed(2)}%`, unit: '', highlight: !isMemenuhi },
+          { label: 'Batas Toleransi Spesifikasi', value: '±0.30%', unit: '' },
+          { label: 'Status Kesesuaian JMF', value: status, unit: '', highlight: true },
+        ],
+        formulaSteps: [
+          `1. DATA PENIMBANGAN SEBELUM & SESUDAH EKSTRAKSI SENTRIFUS:`,
+          `   Berat Sampel Semula (W1) = ${w1.toFixed(1)} gram, Berat Agregat Kering (W2) = ${w2.toFixed(1)} gram`,
+          `2. MASSA ASPAL TERLARUT / TEREKSTRAK:`,
+          `   Massa Aspal = W1 - W2 = ${w1.toFixed(1)} - ${w2.toFixed(1)} = ${beratAspal.toFixed(1)} gram`,
+          `3. PERSENTASE KADAR ASPAL AKTUAL TERHADAP TOTAL CAMPURAN:`,
+          `   Kadar Aspal (%) = [(W1 - W2) / W1] × 100%`,
+          `   Kadar Aspal (%) = [(${w1.toFixed(1)} - ${w2.toFixed(1)}) / ${w1.toFixed(1)}] × 100% = ${kadarAktual.toFixed(2)}%`,
+          `4. EVALUASI TOLERANSI TERHADAP JMF (SPESIFIKASI BINA MARGA 2018):`,
+          `   Target JMF = ${jmf.toFixed(2)}% ➔ Deviasi = |${kadarAktual.toFixed(2)}% - ${jmf.toFixed(2)}%| = ${selisih.toFixed(2)}%`,
+          `   Batas Maksimum Deviasi = ±0.30% ➔ Status: ${status}`,
+        ],
+        isError: false,
+        status,
+        verdictClass,
+        conclusion,
+        summaryString: `Kadar Aspal = ${kadarAktual.toFixed(2)}% | Deviasi = ${selisih.toFixed(2)}% (${status})`,
       }
     },
   },

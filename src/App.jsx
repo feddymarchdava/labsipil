@@ -36,6 +36,19 @@ const labTabsData = {
     { id: 'bab4', label: 'Bab 4: Ambang Tajam' },
     { id: 'bab5', label: 'Bab 5: Kalibrasi Flowmeter' },
   ],
+  perkerasan: [
+    { id: 'ringkasan', label: 'Ringkasan' },
+    { id: 'bab1', label: 'Bab 1: Keausan LA' },
+    { id: 'bab2', label: 'Bab 2: Penetrasi Aspal' },
+    { id: 'bab3', label: 'Bab 3: Titik Lembek & PI' },
+    { id: 'bab4', label: 'Bab 4: Berat Jenis Aspal' },
+    { id: 'bab5', label: 'Bab 5: Titik Nyala & Bakar' },
+    { id: 'bab6', label: 'Bab 6: Daktilitas' },
+    { id: 'bab7', label: 'Bab 7: Saybolt Furol' },
+    { id: 'bab8', label: 'Bab 8: JMF' },
+    { id: 'bab9', label: 'Bab 9: Marshall Test' },
+    { id: 'bab10', label: 'Bab 10: Ekstraksi' },
+  ],
 }
 
 const labModulesData = {
@@ -499,6 +512,190 @@ const labModulesData = {
       },
     ],
   },
+  perkerasan: {
+    ringkasan: [
+      {
+        id: 'p-sum-1',
+        code: 'Bab 1',
+        title: 'Uji Keausan Agregat (Los Angeles)',
+        badge: 'SNI 2417:2008 • Bina Marga 2018',
+        desc: 'Penentuan ketahanan agregat kasar terhadap degradasi/keausan abrasi di dalam silinder mesin Los Angeles dengan bola baja.',
+        icon: 'los-angeles',
+      },
+      {
+        id: 'p-sum-2',
+        code: 'Bab 2',
+        title: 'Uji Penetrasi Aspal',
+        badge: 'SNI 2456:2011 • Bina Marga 2018',
+        desc: 'Pengukuran konsistensi dan kekerasan aspal suhu 25°C beban 100 gram 5 detik dengan algoritma eliminasi data outlier statistik.',
+        icon: 'gauge',
+      },
+      {
+        id: 'p-sum-3',
+        code: 'Bab 3',
+        title: 'Uji Titik Lembek & Indeks Penetrasi (PI)',
+        badge: 'SNI 2434:2011 • Bina Marga 2018',
+        desc: 'Pengukuran titik lembek cincin dan bola (Ring and Ball) serta penentuan kepekaan temperatur aspal (Indeks Penetrasi PI).',
+        icon: 'fire',
+      },
+      {
+        id: 'p-sum-4',
+        code: 'Bab 4',
+        title: 'Uji Berat Jenis Aspal Keras',
+        badge: 'SNI 2441:2011 • Bina Marga 2018',
+        desc: 'Penentuan kerapatan dan specific gravity aspal padat/semi-padat menggunakan piknometer kaca kalibrasi pada suhu 25°C.',
+        icon: 'beaker',
+      },
+      {
+        id: 'p-sum-5',
+        code: 'Bab 5',
+        title: 'Uji Titik Nyala & Bakar (Cleveland)',
+        badge: 'SNI 2433:2011 • Bina Marga 2018',
+        desc: 'Pengukuran suhu titik nyala (flash point) dan titik bakar (fire point) aspal cawan Cleveland dengan koreksi barometer udara.',
+        icon: 'fire',
+      },
+      {
+        id: 'p-sum-6',
+        code: 'Bab 6',
+        title: 'Uji Daktilitas Aspal',
+        badge: 'SNI 2432:2011 • Bina Marga 2018',
+        desc: 'Pengukuran keelastisan, kohesi internal, dan elastisitas aspal melalui pemuluran briket hingga putus pada suhu 25°C kecepatan 5 cm/menit.',
+        icon: 'waves',
+      },
+      {
+        id: 'p-sum-7',
+        code: 'Bab 7',
+        title: 'Uji Viskositas (Saybolt Furol)',
+        badge: 'SNI 7729:2011 • Bina Marga 2018',
+        desc: 'Pengukuran waktu alir Saybolt Furol (SSF), interpolasi cSt, dan regresi suhu pencampuran (170-230 cSt) serta pemadatan (250-350 cSt).',
+        icon: 'droplet',
+      },
+      {
+        id: 'p-sum-8',
+        code: 'Bab 8',
+        title: 'Job Mix Formula (JMF)',
+        badge: 'Spesifikasi Umum Bina Marga 2018',
+        desc: 'Perhitungan perkiraan Kadar Aspal Awal (KAA / Pb) berdasarkan proporsi fraksi agregat (%CA, %FA, %Filler) dan konstanta K.',
+        icon: 'box',
+      },
+      {
+        id: 'p-sum-9',
+        code: 'Bab 9',
+        title: 'Uji Marshall Test',
+        badge: 'SNI 06-2489-1991 • Bina Marga 2018',
+        desc: 'Analisis volumetrik (VMA, VIM, VFA, Gmb, Gmm) dan mekanik (Stabilitas, Flow, Marshall Quotient) briket campuran beraspal.',
+        icon: 'concrete-press',
+      },
+      {
+        id: 'p-sum-10',
+        code: 'Bab 10',
+        title: 'Uji Ekstraksi Aspal (Sentrifus)',
+        badge: 'SNI 03-6894-2002 • Bina Marga 2018',
+        desc: 'Pemisahan aspal dari campuran perkerasan menggunakan centrifuge extractor untuk mengevaluasi toleransi deviasi terhadap JMF (±0.30%).',
+        icon: 'sand',
+      },
+    ],
+    bab1: [
+      {
+        id: 'p1-1',
+        code: 'UJI 1.1',
+        title: 'Uji Keausan Agregat dengan Mesin Los Angeles',
+        badge: 'SNI 2417:2008 • Bina Marga 2018',
+        desc: 'Pengukuran ketahanan abrasi agregat kasar menggunakan mesin Los Angeles (batas maksimum keausan < 40.0%).',
+        icon: 'los-angeles',
+      },
+    ],
+    bab2: [
+      {
+        id: 'p2-1',
+        code: 'UJI 2.1',
+        title: 'Uji Penetrasi Aspal & Filter Outlier',
+        badge: 'SNI 2456:2011 • Bina Marga 2018',
+        desc: 'Pengujian konsistensi penetrasi jarum pada suhu 25°C dengan eliminasi data pencilan statistik.',
+        icon: 'gauge',
+      },
+    ],
+    bab3: [
+      {
+        id: 'p3-1',
+        code: 'UJI 3.1',
+        title: 'Uji Titik Lembek (Ring & Ball) & Indeks Penetrasi (PI)',
+        badge: 'SNI 2434:2011 • Bina Marga 2018',
+        desc: 'Pengujian titik lembek aspal dan evaluasi kepekaan temperatur menggunakan rumus Indeks Penetrasi (PI) Pfeiffer.',
+        icon: 'fire',
+      },
+    ],
+    bab4: [
+      {
+        id: 'p4-1',
+        code: 'UJI 4.1',
+        title: 'Uji Berat Jenis Aspal Keras (Piknometer)',
+        badge: 'SNI 2441:2011 • Bina Marga 2018',
+        desc: 'Kerapatan massa jenis relatif aspal padat pada suhu 25°C dengan piknometer gelas kalibrasi.',
+        icon: 'beaker',
+      },
+    ],
+    bab5: [
+      {
+        id: 'p5-1',
+        code: 'UJI 5.1',
+        title: 'Uji Titik Nyala dan Titik Bakar (Cleveland)',
+        badge: 'SNI 2433:2011 • Bina Marga 2018',
+        desc: 'Evaluasi batas keamanan pemanasan aspal dengan cawan terbuka Cleveland dan koreksi tekanan barometer.',
+        icon: 'fire',
+      },
+    ],
+    bab6: [
+      {
+        id: 'p6-1',
+        code: 'UJI 6.1',
+        title: 'Uji Daktilitas Bahan Aspal',
+        badge: 'SNI 2432:2011 • Bina Marga 2018',
+        desc: 'Pengukuran elastisitas dan sifat kohesi pemuluran aspal pada 25°C kecepatan 5 cm/menit (syarat ≥ 100 cm).',
+        icon: 'waves',
+      },
+    ],
+    bab7: [
+      {
+        id: 'p7-1',
+        code: 'UJI 7.1',
+        title: 'Uji Viskositas Saybolt Furol & Rentang Suhu Pelaksanaan',
+        badge: 'SNI 7729:2011 • Bina Marga 2018',
+        desc: 'Konversi Saybolt Furol ke viskositas kinematik dan penentuan kurva suhu pencampuran & pemadatan.',
+        icon: 'droplet',
+      },
+    ],
+    bab8: [
+      {
+        id: 'p8-1',
+        code: 'UJI 8.1',
+        title: 'Job Mix Formula (JMF) & Perkiraan Kadar Aspal Awal',
+        badge: 'Spesifikasi Umum Bina Marga 2018',
+        desc: 'Kalkulasi Kadar Aspal Awal (KAA) dan 5 variasi kadar aspal untuk pengujian briket Marshall.',
+        icon: 'box',
+      },
+    ],
+    bab9: [
+      {
+        id: 'p9-1',
+        code: 'UJI 9.1',
+        title: 'Uji Marshall Campuran Beraspal Panas',
+        badge: 'SNI 06-2489-1991 • Bina Marga 2018',
+        desc: 'Kalkulasi komprehensif volumetrik (VMA, VIM, VFA) dan mekanik (Stabilitas, Flow, MQ) dengan multi-step form.',
+        icon: 'concrete-press',
+      },
+    ],
+    bab10: [
+      {
+        id: 'p10-1',
+        code: 'UJI 10.1',
+        title: 'Uji Ekstraksi Kadar Aspal (Centrifuge Extractor)',
+        badge: 'SNI 03-6894-2002 • Bina Marga 2018',
+        desc: 'Pemisahan aspal dari campuran perkerasan dan verifikasi batas toleransi deviasi terhadap JMF (±0.30%).',
+        icon: 'sand',
+      },
+    ],
+  },
 }
 
 // =========================================================================
@@ -541,6 +738,18 @@ function getDynamicStandardCategories(data) {
     ...(data.fluida?.bab4 || []),
     ...(data.fluida?.bab5 || []),
   ]
+  const bpBabAll = [
+    ...(data.perkerasan?.bab1 || []),
+    ...(data.perkerasan?.bab2 || []),
+    ...(data.perkerasan?.bab3 || []),
+    ...(data.perkerasan?.bab4 || []),
+    ...(data.perkerasan?.bab5 || []),
+    ...(data.perkerasan?.bab6 || []),
+    ...(data.perkerasan?.bab7 || []),
+    ...(data.perkerasan?.bab8 || []),
+    ...(data.perkerasan?.bab9 || []),
+    ...(data.perkerasan?.bab10 || []),
+  ]
 
   return [
     {
@@ -577,6 +786,24 @@ function getDynamicStandardCategories(data) {
       badgeGroup: 'Mekanika Fluida • Bab 1 s.d. 5',
       standards: extractStandardsFromList(mfBabAll),
       modules: mfBabAll,
+    },
+    {
+      num: '06',
+      title: 'Standar Bahan Perkerasan',
+      badgeGroup: 'Bahan Perkerasan • Bab 1 s.d. 10',
+      standards: [
+        'SNI 2417:2008 (Keausan Agregat)',
+        'SNI 2456:2011 (Penetrasi Aspal)',
+        'SNI 2434:2011 (Titik Lembek)',
+        'SNI 2441:2011 (Berat Jenis Aspal)',
+        'SNI 2433:2011 (Titik Nyala & Bakar)',
+        'SNI 2432:2011 (Daktilitas)',
+        'SNI 7729:2011 (Viskositas Saybolt Furol)',
+        'SNI 06-2489-1991 (Marshall Test)',
+        'SNI 03-6894-2002 (Ekstraksi Aspal)',
+        'Spesifikasi Umum Bina Marga 2018 (Sebagai acuan validasi)',
+      ],
+      modules: bpBabAll,
     },
   ]
 }
@@ -642,6 +869,12 @@ function getDynamicFooterStandards(data) {
       label: 'Debit Ambang Tajam & Aliran Pipa',
       codes: 'ASTM D5242 & SNI 03-2414-1991',
       hint: 'Bilangan Reynolds, Venturimeter, Ambang Tajam (Weir) & Kalibrasi',
+    },
+    {
+      id: 'f-perkerasan-aspal',
+      label: 'SNI Aspal & Bahan Perkerasan',
+      codes: 'SNI 2456:2011 • SNI 2434:2011 & Bina Marga 2018',
+      hint: 'Penetrasi, Titik Lembek (PI), Berat Jenis, Saybolt Furol & Marshall Test',
     },
   ]
 }
@@ -990,6 +1223,21 @@ const initialSavedTests = [
     time: '24 Okt 2026',
     inputs: { diameterD: 0.025, kecepatanV: 0.065, viskositasNu: 0.000001004 },
     notes: 'Pengujian aliran pipa akrilik D=25 mm dengan zat warna. Bilangan Reynolds Re = 1619 menunjukkan aliran laminer stabil.',
+  },
+  {
+    id: 'MR-01',
+    testId: 'bp-9-1',
+    codePrefix: 'MR',
+    baseCode: 'MAR-01',
+    name: 'Uji Marshall Campuran Beraspal Panas',
+    lab: 'Bahan Perkerasan',
+    category: 'Bahan Perkerasan • Bab 9: Uji Marshall',
+    standard: 'SNI 06-2489-1991',
+    summary: 'Stab = 1012 kg, VIM = 5.624%',
+    status: 'Valid',
+    time: '26 Okt 2026',
+    inputs: { beratKering: 1153.6, beratSsd: 1158.2, beratAir: 662.4, kadarAspalPa: 5.8, persenAgregatPs: 94.2, gsb: 2.620, gse: 2.6968, ga: 1.030, bacaanStabilitas: 265.0, flow: 3.2, angkaKorelasi: 1.00, kalibrasiAlat: 3.82 },
+    notes: 'Pengujian Marshall campuran beraspal panas. Stabilitas 1012.3 kg, Flow 3.2 mm, VIM 5.624%, VMA 16.34%. Memenuhi Spesifikasi Bina Marga 2018.',
   },
 ]
 
@@ -1409,6 +1657,40 @@ export default function App() {
       }
     }
 
+    // Ringkasan Bahan Perkerasan (format: p-sum-1 => bp-1-1, dst)
+    if (id.startsWith('p-sum-')) {
+      const match = id.match(/^p-sum-(\d+)$/)
+      if (match) {
+        const num = match[1]
+        return { testId: `bp-${num}-1`, chapterId: `bp-bab${num}` }
+      }
+    }
+
+    // Uji Spesifik Bahan Perkerasan (format: p1-1 => bp-1-1, p9-1 => bp-9-1, dst)
+    if (id.startsWith('p') && !id.startsWith('pr')) {
+      const match = id.match(/^p(\d+)-(\d+)$/)
+      if (match) {
+        const chapNum = match[1]
+        const itemNum = match[2]
+        return {
+          testId: `bp-${chapNum}-${itemNum}`,
+          chapterId: `bp-bab${chapNum}`,
+        }
+      }
+    }
+
+    if (id.startsWith('bp-')) {
+      const match = id.match(/^bp-(\d+)-(\d+)$/)
+      if (match) {
+        const chapNum = match[1]
+        const itemNum = match[2]
+        return {
+          testId: `bp-${chapNum}-${itemNum}`,
+          chapterId: `bp-bab${chapNum}`,
+        }
+      }
+    }
+
     return { testId: 'bb-1-1', chapterId: 'bb-bab1' }
   }
 
@@ -1751,6 +2033,7 @@ export default function App() {
   const bahanCount = savedTests.filter((t) => t.lab === 'Bahan Bangunan' || t.category.includes('Bahan Bangunan')).length
   const tanahCount = savedTests.filter((t) => t.lab === 'Mekanika Tanah' || t.category.includes('Mekanika Tanah')).length
   const fluidaCount = savedTests.filter((t) => t.lab === 'Mekanika Fluida' || t.category.includes('Mekanika Fluida') || t.category.includes('Fluida')).length
+  const perkerasanCount = savedTests.filter((t) => t.lab === 'Bahan Perkerasan' || t.category.includes('Bahan Perkerasan') || t.category.includes('Perkerasan')).length
 
   // =========================================================================
   // VIEW 1: DASBOR APLIKASI WEB PENUH (Saat isAppOpen === true)
@@ -1980,6 +2263,18 @@ export default function App() {
                 </div>
                 <span className="bento-card-sub">Sifat fluida, reynolds, & debit</span>
               </div>
+
+              <div className="bento-card">
+                <div className="bento-card-top">
+                  <span className="bento-card-label">Modul Bahan Perkerasan</span>
+                  <span className="bento-card-tag neutral">Lab Perkerasan</span>
+                </div>
+                <div className="bento-card-number-row">
+                  <strong className="bento-card-number">{perkerasanCount}</strong>
+                  <span className="bento-card-unit">Catatan</span>
+                </div>
+                <span className="bento-card-sub">LA, Penetrasi, Marshall & JMF</span>
+              </div>
             </div>
 
             {/* Panel Riwayat & Ringkasan Data Pengujian Masuk */}
@@ -2008,6 +2303,7 @@ export default function App() {
                     <option value="Bahan Bangunan">Bahan Bangunan</option>
                     <option value="Mekanika Tanah">Mekanika Tanah</option>
                     <option value="Mekanika Fluida">Mekanika Fluida</option>
+                    <option value="Bahan Perkerasan">Bahan Perkerasan</option>
                   </select>
 
                   <button
@@ -2173,13 +2469,16 @@ export default function App() {
                                 ? 'Bahan Bangunan • Bab 3' 
                                 : newLab === 'Mekanika Tanah' 
                                 ? 'Mekanika Tanah • Bab 1' 
-                                : 'Mekanika Fluida • Bab 1'
+                                : newLab === 'Mekanika Fluida'
+                                ? 'Mekanika Fluida • Bab 1'
+                                : 'Bahan Perkerasan • Bab 1'
                               setNewTestData({ ...newTestData, lab: newLab, category: defaultCat })
                             }}
                           >
                             <option value="Bahan Bangunan">Praktikum Bahan Bangunan</option>
                             <option value="Mekanika Tanah">Praktikum Mekanika Tanah</option>
                             <option value="Mekanika Fluida">Praktikum Mekanika Fluida</option>
+                            <option value="Bahan Perkerasan">Praktikum Bahan Perkerasan</option>
                           </select>
                         </div>
                       </div>
@@ -2703,7 +3002,7 @@ export default function App() {
               <span className="section-kicker">MODUL LABORATORIUM</span>
               <h2 className="section-heading">Modul Praktikum Siap Pakai</h2>
               <p className="section-subtext">
-                Katalog komputasi resmi Praktikum Bahan Bangunan, Mekanika Tanah, dan Mekanika Fluida Teknik Sipil.
+                Katalog komputasi resmi Praktikum Bahan Bangunan, Mekanika Tanah, Mekanika Fluida, dan Bahan Perkerasan Teknik Sipil.
               </p>
             </div>
 
@@ -2745,6 +3044,21 @@ export default function App() {
                     <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z" />
                   </svg>
                   <span>Praktikum Mekanika Fluida (5 Uji)</span>
+                </button>
+                <button
+                  type="button"
+                  role="radio"
+                  aria-checked={selectedLab === 'perkerasan'}
+                  className={`lab-segment-btn ${selectedLab === 'perkerasan' ? 'active' : ''}`}
+                  onClick={() => handleSelectLab('perkerasan')}
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="9" />
+                    <circle cx="12" cy="12" r="3" />
+                    <line x1="12" y1="3" x2="12" y2="9" />
+                    <line x1="12" y1="15" x2="12" y2="21" />
+                  </svg>
+                  <span>Praktikum Bahan Perkerasan (10 Uji)</span>
                 </button>
               </div>
             </div>
