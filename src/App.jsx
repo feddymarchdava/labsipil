@@ -792,16 +792,16 @@ function getDynamicStandardCategories(data) {
       title: 'Standar Bahan Perkerasan',
       badgeGroup: 'Bahan Perkerasan • Bab 1 s.d. 10',
       standards: [
-        'SNI 2417:2008 (Keausan Agregat)',
-        'SNI 2456:2011 (Penetrasi Aspal)',
-        'SNI 2434:2011 (Titik Lembek)',
-        'SNI 2441:2011 (Berat Jenis Aspal)',
-        'SNI 2433:2011 (Titik Nyala & Bakar)',
-        'SNI 2432:2011 (Daktilitas)',
-        'SNI 7729:2011 (Viskositas Saybolt Furol)',
-        'SNI 06-2489-1991 (Marshall Test)',
-        'SNI 03-6894-2002 (Ekstraksi Aspal)',
-        'Spesifikasi Umum Bina Marga 2018 (Sebagai acuan validasi)',
+        'SNI 2417:2008',
+        'SNI 2456:2011',
+        'SNI 2434:2011',
+        'SNI 2441:2011',
+        'SNI 2433:2011',
+        'SNI 2432:2011',
+        'SNI 7729:2011',
+        'SNI 06-2489-1991',
+        'SNI 03-6894-2002',
+        'Bina Marga 2018',
       ],
       modules: bpBabAll,
     },
@@ -2913,7 +2913,7 @@ export default function App() {
                       </div>
                       <span className="point-category-tag">{cat.badgeGroup}</span>
                     </div>
-                    <div className="point-standards-tags">
+                    <div className={`point-standards-tags ${cat.standards.length > 6 ? 'grid grid-cols-2 gap-2' : 'flex flex-wrap gap-1.5'}`}>
                       {cat.standards.map((std) => (
                         <span key={std} className="std-badge-pill">
                           {std}
@@ -2999,7 +2999,7 @@ export default function App() {
         <section id="modul-uji" className="feature-grid-section">
           <div className="container">
             <div className="section-title-wrap">
-              <span className="section-kicker">MODUL LABORATORIUM</span>
+              <span className="section-kicker">MODUL</span>
               <h2 className="section-heading">Modul Praktikum Siap Pakai</h2>
               <p className="section-subtext">
                 Katalog komputasi resmi Praktikum Bahan Bangunan, Mekanika Tanah, Mekanika Fluida, dan Bahan Perkerasan Teknik Sipil.
@@ -3008,7 +3008,11 @@ export default function App() {
 
             {/* Segmented Switcher Utama (Tingkat 1) */}
             <div className="lab-segmented-switcher-container">
-              <div className="lab-segmented-switcher" role="radiogroup" aria-label="Pilih Kategori Laboratorium">
+              <div 
+                className="lab-segmented-switcher grid grid-cols-1 md:grid-cols-2 gap-2.5 max-w-3xl mx-auto p-2 rounded-2xl w-full" 
+                role="radiogroup" 
+                aria-label="Pilih Kategori Laboratorium"
+              >
                 <button
                   type="button"
                   role="radio"
