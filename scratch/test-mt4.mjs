@@ -73,6 +73,63 @@ assert(d10Field && d10Field.min > 0, 'd10 has min > 0')
 assert(d30Field && d30Field.min > 0, 'd30 has min > 0')
 assert(d60Field && d60Field.min > 0, 'd60 has min > 0')
 
+// 8. Test Dynamic Soil Sieve Initial Inputs (SW - Well Graded Sand)
+console.log('\n--- 8. Testing Dynamic Soil Sieve Initial Inputs ---')
+const rDynInit = mt41.calculate(mt41.initialInputs)
+assert(rDynInit.status === 'Valid', 'Dynamic init status is Valid')
+assert(!rDynInit.isError, 'Dynamic init is not error')
+assert(rDynInit.isMassLossValid === true, 'Mass loss is valid (<= 2%)')
+assert(rDynInit.massLossPct < 2.0, 'Mass loss percentage < 2.0%')
+assert(rDynInit.cu !== null && rDynInit.cu >= 6.0, `Cu >= 6.0 (Actual: ${rDynInit.cu?.toFixed(2)})`)
+assert(rDynInit.cc !== null && rDynInit.cc >= 1.0 && rDynInit.cc <= 3.0, `1 <= Cc <= 3 (Actual: ${rDynInit.cc?.toFixed(2)})`)
+assert(rDynInit.uscsCode.includes('SW'), `USCS code is SW (Actual: ${rDynInit.uscsCode})`)
+assert(Array.isArray(rDynInit.chartDataPoints) && rDynInit.chartDataPoints.length === 7, 'chartDataPoints has 7 sieve points')
+
+// 9. Test Mass Loss Exceeded (> 2.0%)
+console.log('\n--- 9. Testing Mass Loss Exceeded (> 2.0%) ---')
+const rLossExceeded = mt41.calculate({
+  wTotal: 500.0,
+  panWeight: 10.0,
+  soilSieves: [
+    { id: 1, sieveNo: 'No. 4', diameter: 4.75, retainedWeight: 20.0 },
+    { id: 2, sieveNo: 'No. 10', diameter: 2.00, retainedWeight: 60.0 },
+    { id: 3, sieveNo: 'No. 20', diameter: 0.850, retainedWeight: 100.0 },
+    { id: 4, sieveNo: 'No. 40', diameter: 0.425, retainedWeight: 100.0 },
+    { id: 5, sieveNo: 'No. 60', diameter: 0.250, retainedWeight: 90.0 },
+    { id: 6, sieveNo: 'No. 100', diameter: 0.150, retainedWeight: 55.0 },
+    { id: 7, sieveNo: 'No. 200', diameter: 0.075, retainedWeight: 45.0 },
+    { id: 8, sieveNo: 'Pan', diameter: 0, retainedWeight: 10.0, isPan: true },
+  ], // Total = 380g, Loss = 120g (24%)
+})
+assert(rLossExceeded.isMassLossValid === false, 'Mass loss is flagged invalid')
+assert(rLossExceeded.isError === true, 'isError is true when mass loss > 2%')
+assert(rLossExceeded.status === 'Perlu Evaluasi', 'Status is Perlu Evaluasi')
+
+// 10. Test Fine-Grained Soil (> 50% passing #200)
+console.log('\n--- 10. Testing Fine-Grained Soil (> 50% Fines) ---')
+const rFine = mt41.calculate({
+  wTotal: 500.0,
+  panWeight: 280.0,
+  soilSieves: [
+    { id: 1, sieveNo: 'No. 4', diameter: 4.75, retainedWeight: 10.0 },
+    { id: 2, sieveNo: 'No. 200', diameter: 0.075, retainedWeight: 210.0 },
+    { id: 3, sieveNo: 'Pan', diameter: 0, retainedWeight: 280.0, isPan: true },
+  ],
+})
+assert(rFine.finesPct > 50, 'Fines > 50%')
+assert(rFine.uscsCode === 'Fine-Grained', 'Classified as Fine-Grained')
+
+// 11. Test Negative Input in Sieve Table
+console.log('\n--- 11. Testing Negative Input in Sieve Table ---')
+const rNegSieve = mt41.calculate({
+  wTotal: 500.0,
+  soilSieves: [
+    { id: 1, sieveNo: 'No. 4', diameter: 4.75, retainedWeight: -5.0 },
+  ],
+})
+assert(rNegSieve.isError === true, 'Negative retained weight triggers error')
+assert(rNegSieve.status === 'Input Tidak Wajar / Cek Kembali Data', 'Status is Input Tidak Wajar')
+
 if (failures > 0) {
   console.error(`\n💥 TOTAL FAILURES: ${failures}`)
   process.exit(1)

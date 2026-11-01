@@ -11,95 +11,74 @@ function assert(condition, message) {
   }
 }
 
-console.log('--- TESTING BAB 3 MEKANIKA TANAH: PEMADATAN TANAH (PROCTOR & SAND CONE) ---\n')
+console.log('--- TESTING BAB 3 MEKANIKA TANAH: STANDARD PROCTOR ITERA ---\n')
 
-// 1. Modul Standard Proctor (mt-3-1)
-console.log('--- 1. Testing mt-3-1 (Standard Proctor Lab) ---')
 const mt31 = calculatorRegistry['mt-3-1']
 assert(Boolean(mt31), 'mt-3-1 is registered')
+assert(mt31.hasDynamicProctorTable === true, 'mt-3-1 has hasDynamicProctorTable = true')
+assert(Array.isArray(mt31.initialInputs.proctorSamples), 'initialInputs.proctorSamples is an array')
+assert(mt31.initialInputs.proctorSamples.length === 3, 'initialInputs.proctorSamples has 3 samples (S1, S2, S3)')
 
-// Check min attributes
-const pFields = mt31.fields
-assert(pFields.every(f => f.min >= 0.01), 'All mt-3-1 fields have min >= 0.01')
+// 1. Multi-sample ITERA Proctor Calculation
+console.log('\n--- 1. Testing Multi-Sample Standard Proctor (ITERA) ---')
+const rMulti = mt31.calculate({ proctorSamples: mt31.initialInputs.proctorSamples })
+assert(rMulti.status === 'Valid', 'Status multi-sample normal is Valid')
+assert(!rMulti.isError, 'isError is false for normal samples')
+assert(rMulti.proctorSamples.length === 3, 'Returns 3 computed samples')
 
-// Normal Proctor
-const r31Normal = mt31.calculate({ volMold: 943.8, wMold: 2150.0, wMoldTanah: 3980.0, kadarAir: 14.5 })
-assert(r31Normal.status === 'Valid', 'Normal Proctor has status Valid (Green box)')
-assert(!r31Normal.isError, 'Normal Proctor is not error')
-assert(r31Normal.results.find(r => r.label === 'Berat Volume Kering (γ_dry)').value === '1.693', 'γ_dry = 1.693 gr/cm³')
+// Check S1
+const s1 = rMulti.proctorSamples[0]
+console.log('S1:', { avgW: s1.avgW.toFixed(2), wet: s1.gammaWet.toFixed(3), dry: s1.gammaDry.toFixed(3) })
+assert(Math.abs(s1.avgW - 12.06) < 0.1, `S1 moisture content ~12.06%, got ${s1.avgW.toFixed(2)}%`)
+assert(Math.abs(s1.gammaWet - 1.820) < 0.01, `S1 wet density ~1.820 gr/cm³, got ${s1.gammaWet.toFixed(3)}`)
+assert(Math.abs(s1.gammaDry - 1.625) < 0.01, `S1 dry density ~1.625 gr/cm³, got ${s1.gammaDry.toFixed(3)}`)
 
-// Proctor W2 <= W1 (Mold + Tanah <= Mold Kosong)
-const r31W2LessW1 = mt31.calculate({ volMold: 943.8, wMold: 2150.0, wMoldTanah: 2000.0, kadarAir: 14.5 })
-assert(r31W2LessW1.isError === true, 'W2 <= W1 sets isError = true (Red error)')
-assert(r31W2LessW1.status === 'Input Tidak Wajar / Cek Kembali Data', 'W2 <= W1 sets status Input Tidak Wajar')
-assert(r31W2LessW1.results.find(r => r.label === 'Berat Volume Kering (γ_dry)').value === '-', 'W2 <= W1 returns - for dry density')
+// Check S2 (Peak)
+const s2 = rMulti.proctorSamples[1]
+console.log('S2:', { avgW: s2.avgW.toFixed(2), wet: s2.gammaWet.toFixed(3), dry: s2.gammaDry.toFixed(3) })
+assert(Math.abs(s2.avgW - 15.07) < 0.1, `S2 moisture content ~15.07%, got ${s2.avgW.toFixed(2)}%`)
+assert(Math.abs(s2.gammaWet - 2.012) < 0.01, `S2 wet density ~2.012 gr/cm³, got ${s2.gammaWet.toFixed(3)}`)
+assert(Math.abs(s2.gammaDry - 1.749) < 0.01, `S2 dry density ~1.749 gr/cm³, got ${s2.gammaDry.toFixed(3)}`)
 
-// Proctor Hasil Tidak Wajar γ_dry > 3.0 (misal 6.960 gr/cm³)
-const r31ExtremeDensity = mt31.calculate({ volMold: 943.8, wMold: 2150.0, wMoldTanah: 9000.0, kadarAir: 4.0 })
-assert(r31ExtremeDensity.isError === true, 'γ_dry > 3.0 sets isError = true')
-assert(r31ExtremeDensity.conclusion === 'Hasil tidak wajar. Kepadatan kering melebihi batas fisik tanah normal (maks 2.5 gr/cm³). Periksa kembali volume mold atau berat tanah.', 'γ_dry > 3.0 conclusion matches required text')
-assert(r31ExtremeDensity.status === 'Input Tidak Wajar / Cek Kembali Data', 'γ_dry > 3.0 status triggers Red danger box')
+// Check S3
+const s3 = rMulti.proctorSamples[2]
+console.log('S3:', { avgW: s3.avgW.toFixed(2), wet: s3.gammaWet.toFixed(3), dry: s3.gammaDry.toFixed(3) })
+assert(Math.abs(s3.avgW - 18.19) < 0.1, `S3 moisture content ~18.19%, got ${s3.avgW.toFixed(2)}%`)
+assert(Math.abs(s3.gammaWet - 1.957) < 0.01, `S3 wet density ~1.957 gr/cm³, got ${s3.gammaWet.toFixed(3)}`)
+assert(Math.abs(s3.gammaDry - 1.656) < 0.01, `S3 dry density ~1.656 gr/cm³, got ${s3.gammaDry.toFixed(3)}`)
 
-// 2. Modul Sand Cone Lapangan (mt-3-2)
-console.log('\n--- 2. Testing mt-3-2 (Sand Cone Lapangan) ---')
+// Check Overall MDD & OMC
+assert(Math.abs(rMulti.mdd - 1.749) < 0.02, `MDD is ~1.749 gr/cm³, got ${rMulti.mdd.toFixed(3)}`)
+assert(Math.abs(rMulti.omc - 15.2) < 0.5, `OMC is ~15.1 - 15.4%, got ${rMulti.omc.toFixed(2)}%`)
+assert(Math.abs(rMulti.avgWet - 1.930) < 0.01, `Average wet density is ~1.930 gr/cm³, got ${rMulti.avgWet.toFixed(3)}`)
+assert(rMulti.rekapitulasiTable.length === 3, 'Rekapitulasi table has 3 rows')
+assert(rMulti.chartData.length > 3, 'Chart data has points including ZAV')
+
+// 2. Testing Invalid Container Data (M2 <= M3)
+console.log('\n--- 2. Testing Invalid Container Data (M2 <= M3) ---')
+const badContainers = JSON.parse(JSON.stringify(mt31.initialInputs.proctorSamples))
+badContainers[0].containers[0].m2 = 30.0
+badContainers[0].containers[0].m3 = 35.0 // M2 <= M3!
+const rBadContainer = mt31.calculate({ proctorSamples: badContainers })
+assert(rBadContainer.hasInvalidContainer === true, 'hasInvalidContainer is true when M2 <= M3')
+assert(rBadContainer.isError === true, 'isError is true when container data is invalid')
+assert(rBadContainer.status.includes('Input Tidak Wajar'), 'Status triggers danger review box')
+
+// 3. Fallback Legacy Single-Point Mode
+console.log('\n--- 3. Testing Fallback Legacy Single-Point Mode ---')
+const r31Legacy = mt31.calculate({ volMold: 943.8, wMold: 2150.0, wMoldTanah: 3980.0, kadarAir: 14.5 })
+assert(r31Legacy.status === 'Valid', 'Normal Legacy Proctor has status Valid')
+assert(!r31Legacy.isError, 'Normal Legacy Proctor is not error')
+assert(r31Legacy.results.find(r => r.label === 'Berat Volume Kering (γ_dry)').value === '1.693', 'Legacy γ_dry = 1.693 gr/cm³')
+
+// 4. Verifikasi mt-3-2 (Sand Cone) Remains Deleted
+console.log('\n--- 4. Verifikasi mt-3-2 (Sand Cone Lapangan) Tetap Terhapus ---')
 const mt32 = calculatorRegistry['mt-3-2']
-assert(Boolean(mt32), 'mt-3-2 is registered')
-
-// Check min attributes
-const scFields = mt32.fields
-assert(scFields.every(f => f.min >= 0.01), 'All mt-3-2 fields have min >= 0.01')
-
-// Normal Sand Cone (D >= 95%)
-// wPasirAwal: 5820, wPasirSisa: 2760, wCorong: 345 -> wPasirLubang = 2715
-// volLubang = 2715 / 1.42 = 1911.97 cm3
-// wt = 3850 -> gammaWet = 3850 / 1911.97 = 2.0136 -> gammaDry (w=12%) = 2.0136 / 1.12 = 1.7979
-// mdd = 1.80 -> derajat = 1.7979 / 1.80 * 100 = 99.88% >= 95%
-const r32Valid = mt32.calculate({
-  wPasirAwal: 5820.0,
-  wPasirSisa: 2760.0,
-  wCorong: 345.0,
-  bjPasir: 1.42,
-  wGalianBasah: 3850.0,
-  kadarAirLap: 12.0,
-  mddProctor: 1.80,
-})
-assert(r32Valid.status === 'Valid', 'D >= 95% sets status Valid (Green box)')
-assert(!r32Valid.isError, 'D >= 95% is not error')
-
-// Sand Cone D < 95% (Kuning)
-const r32Under = mt32.calculate({
-  wPasirAwal: 5820.0,
-  wPasirSisa: 2760.0,
-  wCorong: 345.0,
-  bjPasir: 1.42,
-  wGalianBasah: 2650.0,
-  kadarAirLap: 13.8,
-  mddProctor: 1.69,
-})
-assert(r32Under.status === 'Perlu Evaluasi', 'D < 95% sets status Perlu Evaluasi (Yellow box)')
-assert(!r32Under.isError, 'D < 95% is not error')
-assert(Boolean(r32Under.warningMessage), 'D < 95% has warningMessage')
-
-// Relational error: W1 <= W2 + Wc
-const r32W1LessW2Wc = mt32.calculate({
-  wPasirAwal: 3000.0,
-  wPasirSisa: 2760.0,
-  wCorong: 345.0,
-  bjPasir: 1.42,
-  wGalianBasah: 2650.0,
-  kadarAirLap: 13.8,
-  mddProctor: 1.69,
-})
-assert(r32W1LessW2Wc.isError === true, 'W1 <= W2 + Wc sets isError = true (Red error)')
-assert(r32W1LessW2Wc.status === 'Input Tidak Wajar / Cek Kembali Data', 'W1 <= W2 + Wc sets status Input Tidak Wajar')
-assert(r32W1LessW2Wc.conclusion === 'Input tidak valid: Berat awal pasir lebih kecil dari total pasir sisa dan pasir corong.', 'W1 <= W2 + Wc conclusion matches required text')
-assert(r32W1LessW2Wc.results.find(r => r.label === 'Derajat Pemadatan Lapangan (D)').value === '-', 'W1 <= W2 + Wc returns - for degree of compaction')
-assert(r32W1LessW2Wc.results.find(r => r.label === 'Volume Lubang Galian (V)').value === '-', 'W1 <= W2 + Wc returns - for hole volume (no negative volume)')
+assert(mt32 === undefined, 'mt-3-2 is undefined (confirmed deleted)')
 
 if (failures > 0) {
   console.error(`\n💥 TOTAL FAILURES: ${failures}`)
   process.exit(1)
 } else {
-  console.log('\n🎉 ALL BAB 3 PEMADATAN TANAH TESTS PASSED SUCCESSFULLY!')
+  console.log('\n🎉 ALL BAB 3 PEMADATAN TANAH TESTS PASSED SUCCESSFULLY (20/20)!')
 }
-

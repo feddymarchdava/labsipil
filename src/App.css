@@ -1918,7 +1918,7 @@
 
 .footer-content-grid {
   display: grid;
-  grid-template-columns: 1.85fr 1fr 1fr;
+  grid-template-columns: 1.5fr 1fr 1.25fr;
   gap: 3.5rem;
   padding: 4.5rem 1.5rem 3rem;
 }
@@ -1988,8 +1988,8 @@
 }
 
 .footer-tagline {
-  font-size: 1.05rem !important; /* text-base hingga text-lg */
-  line-height: 1.75 !important;   /* leading-relaxed / leading-7 */
+  font-size: 0.95rem !important; /* text-sm hingga text-base */
+  line-height: 1.65 !important;   /* leading-relaxed */
   color: #cbd5e1 !important;     /* text-slate-300 / text-gray-300 */
   max-width: 28rem !important;   /* max-w-md */
 }
@@ -2019,6 +2019,7 @@
   text-decoration: none;
   transition: color 0.15s ease, transform 0.15s ease;
   display: inline-block;
+  white-space: nowrap;
 }
 
 .footer-links-group a:hover,
@@ -2350,22 +2351,27 @@
 .sidebar-accordion-groups {
   display: flex;
   flex-direction: column;
-  gap: 1.15rem;
+  gap: 1.35rem;
 }
 
 .sidebar-group-box {
   display: flex;
   flex-direction: column;
-  gap: 0.35rem;
+  gap: 0.45rem;
 }
 
 .sidebar-group-heading {
-  font-size: 0.68rem;
-  font-weight: 800;
-  color: #64748B;
-  letter-spacing: 0.08em;
-  padding: 0.4rem 0.5rem 0.2rem;
+  font-size: 0.825rem; /* ~13px / text-sm */
+  font-weight: 700;
+  color: #ffffff !important; /* Putih bersih text-white */
+  letter-spacing: 0.075em; /* tracking-wider tegas & elegan */
+  padding: 0.5rem 0.5rem 0.25rem;
+  margin-top: 0.35rem;
   text-transform: uppercase;
+}
+
+.sidebar-group-heading span {
+  color: #ffffff !important;
 }
 
 .sidebar-chapters-accordion {
@@ -4083,6 +4089,19 @@
   color: #64748B;
 }
 
+.calc-metric-sub {
+  font-size: 0.73rem;
+  font-weight: 600;
+  color: #64748B;
+  margin-top: 0.2rem;
+  display: block;
+  line-height: 1.35;
+}
+
+.calc-metric-badge.highlight-box .calc-metric-sub {
+  color: #1E40AF;
+}
+
 /* Kotak Langkah Rumus */
 .calc-formula-box {
   background-color: #F8FAFC;
@@ -5388,7 +5407,8 @@ select.calc-numeric-input.calc-select-input:hover {
 
 .mockup-dashboard-viewport .sidebar-group-heading {
   padding: 0.2rem 0.5rem 0.1rem !important;
-  font-size: 0.62rem !important;
+  font-size: 0.68rem !important;
+  color: #ffffff !important;
 }
 
 .mockup-dashboard-viewport .sidebar-chapter-header-btn {
@@ -5586,4 +5606,2697 @@ select.calc-numeric-input.calc-select-input:hover {
     height: auto;
     max-height: none;
   }
+}
+
+/* ==========================================================================
+   Modul Uji Sondir CPT (Dutch Cone Penetrometer) - Excel Style & Realtime Recharts
+   ========================================================================== */
+
+.cpt-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+@media (max-width: 1200px) {
+  .cpt-summary-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .cpt-summary-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 480px) {
+  .cpt-summary-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.cpt-metric-card {
+  background-color: #FFFFFF;
+  border: 1px solid var(--border-light, #E2E8F0);
+  border-radius: var(--radius-md, 0.75rem);
+  padding: 1.1rem 1.25rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  display: flex;
+  flex-direction: column;
+  justifyContent: space-between;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.cpt-metric-card:hover {
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.08);
+}
+
+.cpt-metric-header {
+  display: flex;
+  align-items: center;
+  justifyContent: space-between;
+  margin-bottom: 0.5rem;
+}
+
+.cpt-metric-label {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #64748B;
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+}
+
+.cpt-metric-badge {
+  font-size: 0.68rem;
+  font-weight: 800;
+  padding: 2px 7px;
+  border-radius: 9999px;
+}
+
+.cpt-metric-badge.badge-blue {
+  background-color: #EFF6FF;
+  color: #1D4ED8;
+}
+
+.cpt-metric-badge.badge-orange {
+  background-color: #FFF7ED;
+  color: #C2410C;
+}
+
+.cpt-metric-badge.badge-emerald {
+  background-color: #F0FDF4;
+  color: #15803D;
+}
+
+.cpt-metric-badge.badge-amber {
+  background-color: #FEF3C7;
+  color: #B45309;
+}
+
+.cpt-metric-value {
+  font-size: 1.6rem;
+  font-weight: 800;
+  color: #1E293B;
+  line-height: 1.2;
+  margin: 0.25rem 0;
+}
+
+.cpt-metric-unit {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #64748B;
+}
+
+.cpt-metric-footer {
+  font-size: 0.73rem;
+  color: #94A3B8;
+}
+
+.cpt-main-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.85fr) minmax(0, 1.15fr);
+  gap: 1.5rem;
+  align-items: start;
+}
+
+@media (max-width: 1024px) {
+  .cpt-main-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.cpt-table-card-header {
+  display: flex;
+  align-items: center;
+  justifyContent: space-between;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.cpt-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.btn-cpt-add-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  background-color: #2563EB;
+  color: #FFFFFF;
+  border: none;
+  border-radius: var(--radius-sm, 0.5rem);
+  padding: 0.45rem 0.85rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background-color 0.15s;
+}
+
+.btn-cpt-add-row:hover {
+  background-color: #1D4ED8;
+}
+
+.btn-cpt-reset-sample {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  background-color: #F8FAFC;
+  color: #475569;
+  border: 1px solid #CBD5E1;
+  border-radius: var(--radius-sm, 0.5rem);
+  padding: 0.45rem 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-cpt-reset-sample:hover {
+  background-color: #F1F5F9;
+  color: #1E293B;
+}
+
+.cpt-invalid-alert-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  background-color: #FEF2F2;
+  border: 1px solid #FCA5A5;
+  border-radius: var(--radius-sm, 0.5rem);
+  padding: 0.75rem 1rem;
+  margin-bottom: 1rem;
+  color: #991B1B;
+  font-size: 0.8rem;
+  line-height: 1.4;
+}
+
+.cpt-table-responsive {
+  width: 100%;
+  overflow-x: auto;
+  border-radius: var(--radius-sm, 0.5rem);
+  border: 1px solid #E2E8F0;
+  background-color: #FFFFFF;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.02);
+}
+
+.cpt-spreadsheet-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+  min-width: 820px;
+}
+
+.cpt-spreadsheet-table th {
+  background-color: #F1F5F9;
+  color: #334155;
+  font-weight: 700;
+  padding: 0.65rem 0.6rem;
+  border-bottom: 1.5px solid #CBD5E1;
+  font-size: 0.76rem;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.cpt-spreadsheet-table th .th-unit {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #64748B;
+  background-color: #E2E8F0;
+  padding: 1px 5px;
+  border-radius: 4px;
+  margin-left: 3px;
+}
+
+.cpt-spreadsheet-table td {
+  padding: 0.45rem 0.55rem;
+  border-bottom: 1px solid #F1F5F9;
+  vertical-align: middle;
+}
+
+.cpt-spreadsheet-table tr.row-zebra td {
+  background-color: #F8FAFC;
+}
+
+.cpt-spreadsheet-table tr.row-invalid td {
+  background-color: #FFF5F5 !important;
+}
+
+.cpt-spreadsheet-table tr:hover td {
+  background-color: #F0F7FF !important;
+}
+
+.cpt-spreadsheet-table tr.row-invalid:hover td {
+  background-color: #FEE2E2 !important;
+}
+
+.cpt-cell-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.cpt-input-number {
+  width: 100%;
+  padding: 0.42rem 0.6rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  border: 1px solid #CBD5E1;
+  border-radius: 4px;
+  background-color: #FFFFFF;
+  color: #0F172A;
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  text-align: right;
+}
+
+.cpt-input-number:focus {
+  border-color: #2563EB;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
+}
+
+.cpt-input-number.input-error {
+  border-color: #EF4444;
+  background-color: #FEF2F2;
+  color: #991B1B;
+}
+
+.cpt-cell-suffix {
+  display: none;
+}
+
+.cpt-cell-error-tip {
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: #DC2626;
+  margin-top: 2px;
+}
+
+.cpt-read-value {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #334155;
+}
+
+.cpt-read-value.val-fr {
+  font-weight: 800;
+  color: #0369A1;
+}
+
+.cpt-read-value.val-jhp {
+  font-weight: 700;
+  color: #C2410C;
+}
+
+.cpt-read-value.val-invalid {
+  color: #DC2626;
+}
+
+.btn-cpt-remove-row {
+  background: transparent;
+  border: none;
+  color: #94A3B8;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.15s, background-color 0.15s;
+}
+
+.btn-cpt-remove-row:hover:not(:disabled) {
+  color: #DC2626;
+  background-color: #FEE2E2;
+}
+
+.btn-cpt-remove-row:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.cpt-table-footer-bar {
+  display: flex;
+  align-items: center;
+  justifyContent: space-between;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  padding: 0.75rem 0.25rem 0.25rem;
+}
+
+.cpt-table-count-label {
+  font-size: 0.75rem;
+  color: #64748B;
+}
+
+.btn-cpt-add-sub {
+  background-color: transparent;
+  border: 1px dashed #3B82F6;
+  color: #2563EB;
+  border-radius: var(--radius-sm, 0.5rem);
+  padding: 0.35rem 0.85rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  transition: background-color 0.15s;
+}
+
+.btn-cpt-add-sub:hover {
+  background-color: #EFF6FF;
+}
+
+.cpt-charts-triplet-card {
+  margin-top: 1.5rem;
+  padding: 1.25rem;
+}
+
+.cpt-charts-triplet-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.25rem;
+  margin-top: 1rem;
+}
+
+@media (max-width: 1024px) {
+  .cpt-charts-triplet-grid {
+    grid-template-columns: 1fr;
+    gap: 1.25rem;
+  }
+}
+
+.cpt-triplet-item {
+  background-color: #FFFFFF;
+  border: 1px solid var(--border-light, #E2E8F0);
+  border-radius: var(--radius-sm, 0.5rem);
+  padding: 0.95rem 0.85rem 0.5rem;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.cpt-triplet-header {
+  display: flex;
+  align-items: center;
+  justifyContent: space-between;
+  margin-bottom: 0.6rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid #F1F5F9;
+}
+
+.cpt-triplet-title-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.cpt-triplet-title {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #1E293B;
+  margin: 0;
+}
+
+.cpt-triplet-sub {
+  font-size: 0.68rem;
+  color: #64748B;
+}
+
+.cpt-charts-column {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.cpt-chart-card {
+  padding: 1.1rem 1.25rem;
+}
+
+.cpt-chart-card-header {
+  display: flex;
+  align-items: center;
+  justifyContent: space-between;
+  margin-bottom: 0.75rem;
+}
+
+.cpt-chart-icon-box {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justifyContent: center;
+}
+
+.cpt-chart-title {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #1E293B;
+  margin: 0;
+}
+
+.cpt-chart-sub {
+  font-size: 0.7rem;
+  color: #64748B;
+  display: block;
+}
+
+.cpt-chart-badge {
+  font-size: 0.68rem;
+  font-weight: 800;
+  padding: 2px 8px;
+  border-radius: 9999px;
+}
+
+.cpt-chart-mode-toggles {
+  display: inline-flex;
+  background-color: #F1F5F9;
+  border-radius: 6px;
+  padding: 2px;
+  gap: 2px;
+}
+
+.cpt-mode-btn {
+  border: none;
+  background: transparent;
+  padding: 2px 8px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #64748B;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.cpt-mode-btn:hover {
+  color: #1E293B;
+}
+
+.cpt-mode-btn.active {
+  background-color: #FFFFFF;
+  color: #0F172A;
+  font-weight: 700;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+}
+
+.cpt-recharts-box {
+  margin-top: 0.5rem;
+}
+
+.cpt-conclusion-box {
+  background-color: #F8FAFC;
+  border-left: 3px solid #2563EB;
+  padding: 0.85rem 1rem;
+  border-radius: 0 var(--radius-sm, 0.5rem) var(--radius-sm, 0.5rem) 0;
+  margin: 1rem 0;
+}
+
+.cpt-conclusion-text {
+  font-size: 0.82rem;
+  color: #334155;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.cpt-steps-container {
+  margin-top: 1rem;
+}
+
+.cpt-steps-title {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #1E293B;
+  margin: 0 0 0.75rem;
+}
+
+.cpt-steps-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.85rem;
+}
+
+@media (max-width: 768px) {
+  .cpt-steps-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.cpt-step-item {
+  display: flex;
+  gap: 0.75rem;
+  background-color: #F8FAFC;
+  border: 1px solid #E2E8F0;
+  border-radius: var(--radius-sm, 0.5rem);
+  padding: 0.75rem 0.85rem;
+}
+
+.cpt-step-num {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background-color: #2563EB;
+  color: #FFFFFF;
+  font-size: 0.72rem;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.cpt-step-item strong {
+  font-size: 0.78rem;
+  color: #1E293B;
+  display: block;
+  margin-bottom: 2px;
+}
+
+.cpt-step-item code {
+  font-size: 0.74rem;
+  background-color: #EFF6FF;
+  color: #1D4ED8;
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-family: monospace;
+  display: inline-block;
+  margin-bottom: 4px;
+}
+
+.cpt-step-item p {
+  font-size: 0.7rem;
+  color: #64748B;
+  margin: 0;
+  line-height: 1.35;
+}
+
+/* ==========================================================================
+   Modul Standard Proctor Lab Multi-Titik Sampel (Standar Teknik Sipil ITERA)
+   ========================================================================== */
+
+.proctor-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+@media (max-width: 900px) {
+  .proctor-summary-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 480px) {
+  .proctor-summary-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.proctor-metric-card {
+  background-color: #FFFFFF;
+  border: 1px solid var(--border-light, #E2E8F0);
+  border-radius: var(--radius-md, 0.75rem);
+  padding: 1.1rem 1.25rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  display: flex;
+  flex-direction: column;
+  justifyContent: space-between;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.proctor-metric-card:hover {
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.08);
+}
+
+.proctor-tabs-nav {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  overflow-x: auto;
+  padding-bottom: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.btn-proctor-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.55rem 1.1rem;
+  border-radius: var(--radius-md, 0.75rem);
+  border: 1.5px solid #CBD5E1;
+  background-color: #FFFFFF;
+  color: #475569;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.btn-proctor-tab:hover {
+  border-color: #93C5FD;
+  background-color: #F8FAFC;
+  color: #1E293B;
+}
+
+.btn-proctor-tab.active {
+  background-color: #2563EB;
+  border-color: #2563EB;
+  color: #FFFFFF;
+  box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.25);
+}
+
+.btn-proctor-add-sample {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.5rem 0.85rem;
+  border-radius: var(--radius-md, 0.75rem);
+  border: 1px dashed #3B82F6;
+  background-color: #EFF6FF;
+  color: #1D4ED8;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color 0.15s;
+}
+
+.btn-proctor-add-sample:hover {
+  background-color: #DBEAFE;
+}
+
+.proctor-mold-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+  background-color: #F8FAFC;
+  padding: 1rem;
+  border-radius: var(--radius-md, 0.75rem);
+  border: 1px solid #E2E8F0;
+}
+
+@media (max-width: 900px) {
+  .proctor-mold-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 500px) {
+  .proctor-mold-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.proctor-input-group label {
+  display: block;
+  font-size: 0.73rem;
+  font-weight: 700;
+  color: #475569;
+  margin-bottom: 0.35rem;
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+}
+
+.proctor-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.proctor-input-field {
+  width: 100%;
+  padding: 0.45rem 2.2rem 0.45rem 0.65rem;
+  font-size: 0.85rem;
+  font-weight: 700;
+  border: 1px solid #CBD5E1;
+  border-radius: var(--radius-sm, 0.5rem);
+  background-color: #FFFFFF;
+  color: #0F172A;
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.proctor-input-field:focus {
+  border-color: #2563EB;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
+}
+
+.proctor-unit-suffix {
+  position: absolute;
+  right: 0.6rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #94A3B8;
+  pointer-events: none;
+}
+
+.proctor-vol-badge {
+  display: flex;
+  align-items: center;
+  justifyContent: space-between;
+  background-color: #EFF6FF;
+  border: 1px solid #BFDBFE;
+  border-radius: var(--radius-sm, 0.5rem);
+  padding: 0.6rem 0.85rem;
+  font-size: 0.78rem;
+  color: #1E40AF;
+  margin-bottom: 1.25rem;
+}
+
+.proctor-comparison-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+  gap: 1.5rem;
+  margin-top: 1.5rem;
+}
+
+@media (max-width: 1024px) {
+  .proctor-comparison-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.badge-mdd-peak {
+  background-color: #FEF3C7;
+  color: #92400E;
+  border: 1px solid #FDE68A;
+  font-size: 0.68rem;
+  font-weight: 800;
+  padding: 2px 7px;
+  border-radius: 9999px;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+/* =========================================================================
+   MODUL ANALISIS SARINGAN BUTIRAN TANAH (SOIL SIEVE ANALYSIS - BAB 4 MT)
+   ========================================================================= */
+
+.soil-sieve-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+@media (max-width: 1024px) {
+  .soil-sieve-summary-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .soil-sieve-summary-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.soil-sieve-metric-card {
+  background: #ffffff;
+  border-radius: var(--radius-md, 0.75rem);
+  padding: 1.15rem 1.25rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  border: 1px solid #E2E8F0;
+  border-top: 4px solid #CBD5E1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 0.65rem;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.soil-sieve-metric-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.soil-sieve-metric-card.card-blue { border-top-color: #2563EB; }
+.soil-sieve-metric-card.card-amber { border-top-color: #D97706; }
+.soil-sieve-metric-card.card-emerald { border-top-color: #059669; }
+.soil-sieve-metric-card.card-purple { border-top-color: #7C3AED; }
+
+.soil-sieve-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.soil-sieve-card-title {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #64748B;
+}
+
+.soil-sieve-card-value {
+  font-size: 1.75rem;
+  font-weight: 800;
+  color: #0F172A;
+  line-height: 1.15;
+  display: flex;
+  align-items: baseline;
+  gap: 0.35rem;
+}
+
+.soil-sieve-card-unit {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #64748B;
+}
+
+.soil-sieve-card-sub {
+  font-size: 0.75rem;
+  color: #64748B;
+  line-height: 1.35;
+}
+
+.soil-sieve-layout-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
+  gap: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+@media (max-width: 1100px) {
+  .soil-sieve-layout-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.soil-sieve-table-container {
+  overflow-x: auto;
+  border: 1px solid #E2E8F0;
+  border-radius: var(--radius-sm, 0.5rem);
+  background: #ffffff;
+  margin-bottom: 1rem;
+}
+
+.soil-sieve-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 0.82rem;
+}
+
+.soil-sieve-table th {
+  background: #F8FAFC;
+  padding: 0.65rem 0.6rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #475569;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  border-bottom: 2px solid #E2E8F0;
+  white-space: nowrap;
+}
+
+.soil-sieve-table td {
+  padding: 0.5rem 0.6rem;
+  border-bottom: 1px solid #F1F5F9;
+  vertical-align: middle;
+}
+
+.soil-sieve-table tr:hover td {
+  background-color: #F8FAFC;
+}
+
+.soil-sieve-table tr.row-pan td {
+  background-color: #F1F5F9;
+  font-weight: 600;
+}
+
+.soil-sieve-cell-input {
+  width: 100%;
+  padding: 0.35rem 0.5rem;
+  font-size: 0.82rem;
+  font-weight: 700;
+  border: 1px solid #CBD5E1;
+  border-radius: 4px;
+  background: #FFFFFF;
+  color: #0F172A;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.soil-sieve-cell-input:focus {
+  border-color: #2563EB;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.12);
+}
+
+.soil-sieve-cell-text {
+  width: 100%;
+  padding: 0.35rem 0.5rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  border: 1px solid #CBD5E1;
+  border-radius: 4px;
+  background: #FFFFFF;
+  color: #0F172A;
+  outline: none;
+}
+
+.btn-soil-sieve-add {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.5rem 0.85rem;
+  background: #EFF6FF;
+  border: 1px dashed #3B82F6;
+  border-radius: var(--radius-sm, 0.5rem);
+  color: #1D4ED8;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-soil-sieve-add:hover {
+  background: #DBEAFE;
+}
+
+.btn-soil-sieve-del {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
+  border: 1px solid #FECACA;
+  background: #FEF2F2;
+  color: #DC2626;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-soil-sieve-del:hover {
+  background: #FEE2E2;
+}
+
+.soil-sieve-bottom-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+  margin-top: 1rem;
+  margin-bottom: 1rem;
+  padding: 1rem;
+  background: #F8FAFC;
+  border-radius: var(--radius-sm, 0.5rem);
+  border: 1px solid #E2E8F0;
+}
+
+@media (max-width: 600px) {
+  .soil-sieve-bottom-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.soil-sieve-massloss-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  padding: 0.85rem 1rem;
+  border-radius: var(--radius-sm, 0.5rem);
+  border: 1px solid #BFDBFE;
+  background: #EFF6FF;
+  color: #1E40AF;
+  font-size: 0.8rem;
+  margin-bottom: 1rem;
+}
+
+.soil-sieve-massloss-card.exceeded {
+  border-color: #FECACA;
+  background: #FEF2F2;
+  color: #991B1B;
+}
+
+.soil-sieve-d-indicators {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.soil-sieve-d-badge {
+  padding: 0.65rem 0.75rem;
+  border-radius: var(--radius-sm, 0.5rem);
+  border: 1px solid #E2E8F0;
+  background: #F8FAFC;
+  text-align: center;
+}
+
+.soil-sieve-d-badge.badge-d60 {
+  border-color: #BFDBFE;
+  background: #EFF6FF;
+}
+
+.soil-sieve-d-badge.badge-d30 {
+  border-color: #FDE68A;
+  background: #FFFBEB;
+}
+
+.soil-sieve-d-badge.badge-d10 {
+  border-color: #FECDD3;
+  background: #FFF1F2;
+}
+
+.soil-sieve-fractions-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-top: 0.85rem;
+  padding: 0.65rem 0.85rem;
+  border-radius: var(--radius-sm, 0.5rem);
+  background: #F8FAFC;
+  border: 1px solid #E2E8F0;
+  font-size: 0.78rem;
+}
+
+/* =========================================================================
+   MODUL UJI KONSOLIDASI TANAH / OEDOMETER (METODE TAYLOR - BAB 5 MT)
+   ========================================================================= */
+
+.oedometer-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+@media (max-width: 1024px) {
+  .oedometer-summary-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .oedometer-summary-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.oedometer-metric-card {
+  background: #ffffff;
+  border-radius: var(--radius-md, 0.75rem);
+  padding: 1.15rem 1.25rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  border: 1px solid #E2E8F0;
+  border-top: 4px solid #CBD5E1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 0.65rem;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.oedometer-metric-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.oedometer-metric-card.card-blue { border-top-color: #2563EB; }
+.oedometer-metric-card.card-cyan { border-top-color: #0891B2; }
+.oedometer-metric-card.card-emerald { border-top-color: #059669; }
+.oedometer-metric-card.card-purple { border-top-color: #7C3AED; }
+
+.oedometer-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.oedometer-card-title {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #64748B;
+}
+
+.oedometer-card-value {
+  font-size: 1.65rem;
+  font-weight: 800;
+  color: #0F172A;
+  line-height: 1.15;
+  display: flex;
+  align-items: baseline;
+  gap: 0.35rem;
+}
+
+.oedometer-card-unit {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #64748B;
+}
+
+.oedometer-card-sub {
+  font-size: 0.75rem;
+  color: #64748B;
+  line-height: 1.35;
+}
+
+.oedometer-layout-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
+  gap: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+@media (max-width: 1100px) {
+  .oedometer-layout-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.oedometer-table-container {
+  overflow-x: auto;
+  max-height: 380px;
+  border: 1px solid #E2E8F0;
+  border-radius: var(--radius-sm, 0.5rem);
+  background: #ffffff;
+  margin-bottom: 1rem;
+}
+
+.oedometer-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 0.82rem;
+}
+
+.oedometer-table th {
+  position: sticky;
+  top: 0;
+  background: #F8FAFC;
+  z-index: 10;
+  padding: 0.65rem 0.6rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #475569;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  border-bottom: 2px solid #E2E8F0;
+  white-space: nowrap;
+}
+
+.oedometer-table td {
+  padding: 0.45rem 0.6rem;
+  border-bottom: 1px solid #F1F5F9;
+  vertical-align: middle;
+}
+
+.oedometer-table tr:hover td {
+  background-color: #F8FAFC;
+}
+
+.oedometer-badge-sqrt {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: #EFF6FF;
+  border: 1px solid #DBEAFE;
+  color: #1D4ED8;
+  font-weight: 700;
+  font-size: 0.78rem;
+  font-family: monospace;
+}
+
+.oedometer-params-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.85rem;
+  margin-top: 1rem;
+  padding: 1rem;
+  background: #F8FAFC;
+  border-radius: var(--radius-sm, 0.5rem);
+  border: 1px solid #E2E8F0;
+}
+
+@media (max-width: 768px) {
+  .oedometer-params-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 480px) {
+  .oedometer-params-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.oedometer-taylor-info-box {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.oedometer-taylor-card {
+  padding: 0.65rem 0.85rem;
+  border-radius: var(--radius-sm, 0.5rem);
+  border: 1px solid #E2E8F0;
+  background: #F8FAFC;
+  font-size: 0.78rem;
+}
+
+/* =========================================================================
+   MODUL UJI KUAT GESER LANGSUNG / DIRECT SHEAR TEST (BAB 5 MT)
+   ========================================================================= */
+
+.direct-shear-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+@media (max-width: 1024px) {
+  .direct-shear-summary-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .direct-shear-summary-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.direct-shear-metric-card {
+  background: #ffffff;
+  border-radius: var(--radius-md, 0.75rem);
+  padding: 1.15rem 1.25rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  border: 1px solid #E2E8F0;
+  border-top: 4px solid #CBD5E1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 0.6rem;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.direct-shear-metric-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.direct-shear-metric-card.card-blue { border-top-color: #2563EB; }
+.direct-shear-metric-card.card-purple { border-top-color: #7C3AED; }
+.direct-shear-metric-card.card-emerald { border-top-color: #059669; }
+.direct-shear-metric-card.card-amber { border-top-color: #D97706; }
+
+.direct-shear-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.direct-shear-card-title {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #64748B;
+}
+
+.direct-shear-card-badge {
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 9999px;
+  background: #F1F5F9;
+  color: #475569;
+}
+
+.direct-shear-card-value {
+  font-size: 1.65rem;
+  font-weight: 800;
+  color: #0F172A;
+  line-height: 1.15;
+  display: flex;
+  align-items: baseline;
+  gap: 0.35rem;
+}
+
+.direct-shear-card-unit {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #64748B;
+}
+
+.direct-shear-card-sub {
+  font-size: 0.75rem;
+  color: #64748B;
+  line-height: 1.35;
+}
+
+.direct-shear-layout-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
+  gap: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+@media (max-width: 1100px) {
+  .direct-shear-layout-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.direct-shear-table-container {
+  overflow-x: auto;
+  border: 1px solid #E2E8F0;
+  border-radius: var(--radius-sm, 0.5rem);
+  background: #ffffff;
+}
+
+.direct-shear-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 0.82rem;
+}
+
+.direct-shear-table th {
+  position: sticky;
+  top: 0;
+  background: #F8FAFC;
+  z-index: 10;
+  padding: 0.65rem 0.6rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #475569;
+  border-bottom: 2px solid #E2E8F0;
+  white-space: nowrap;
+}
+
+.direct-shear-table td {
+  padding: 0.45rem 0.6rem;
+  border-bottom: 1px solid #F1F5F9;
+  vertical-align: middle;
+}
+
+.direct-shear-table tr:hover td {
+  background-color: #F8FAFC;
+}
+
+.direct-shear-badge-calc {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 8px;
+  border-radius: 4px;
+  background: #EFF6FF;
+  color: #1D4ED8;
+  font-weight: 700;
+  font-family: monospace;
+  font-size: 0.82rem;
+  border: 1px solid #DBEAFE;
+}
+
+.direct-shear-badge-calc.badge-tau {
+  background: #FEF2F2;
+  color: #DC2626;
+  border-color: #FEE2E2;
+}
+
+.direct-shear-mohr-info-box {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.direct-shear-mohr-card {
+  padding: 0.65rem 0.85rem;
+  border-radius: var(--radius-sm, 0.5rem);
+  border: 1px solid #E2E8F0;
+  background: #F8FAFC;
+  font-size: 0.78rem;
+}
+
+.direct-shear-equation-banner {
+  margin-top: 0.75rem;
+  padding: 0.75rem 1rem;
+  background: linear-gradient(135deg, #EFF6FF 0%, #F0FDF4 100%);
+  border: 1px solid #BFDBFE;
+  border-radius: var(--radius-sm, 0.5rem);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  font-size: 0.82rem;
+}
+
+/* =========================================================================
+   BAB 6: PERMEABILITAS TANAH (SNI 2435:2008 / ASTM D2434)
+   ========================================================================= */
+.perm-classification-card {
+  border: 1px solid #E2E8F0;
+  border-radius: var(--radius-md, 0.75rem);
+  background: #FFFFFF;
+}
+
+.perm-table th {
+  white-space: nowrap;
+}
+
+.perm-table tbody tr:hover {
+  background-color: #F8FAFC !important;
+}
+
+.perm-table tbody tr[style*="#EFF6FF"]:hover {
+  background-color: #EFF6FF !important;
+}
+
+/* =========================================================================
+   MEKANIKA FLUIDA - BAB 2: BILANGAN OSBORNE REYNOLDS (ASTM D5242)
+   ========================================================================= */
+.reynolds-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+@media (max-width: 1024px) {
+  .reynolds-summary-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .reynolds-summary-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.reynolds-metric-card {
+  background: #FFFFFF;
+  border: 1px solid #E2E8F0;
+  border-top: 4px solid #3B82F6;
+  border-radius: var(--radius-md, 0.75rem);
+  padding: 1rem 1.15rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  display: flex;
+  flex-direction: column;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.reynolds-metric-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.08);
+}
+
+.reynolds-metric-card.card-blue { border-top-color: #2563EB; }
+.reynolds-metric-card.card-emerald { border-top-color: #059669; }
+.reynolds-metric-card.card-purple { border-top-color: #7C3AED; }
+.reynolds-metric-card.card-amber { border-top-color: #D97706; }
+
+.reynolds-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.35rem;
+}
+
+.reynolds-card-title {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #64748B;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.reynolds-card-badge {
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 9999px;
+  background: #F1F5F9;
+  color: #475569;
+}
+
+.reynolds-card-value {
+  font-size: 1.45rem;
+  font-weight: 800;
+  color: #0F172A;
+  line-height: 1.2;
+}
+
+.reynolds-card-unit {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #64748B;
+  margin-left: 0.35rem;
+}
+
+.reynolds-card-sub {
+  font-size: 0.72rem;
+  color: #64748B;
+  margin-top: 0.35rem;
+  line-height: 1.35;
+}
+
+.reynolds-layout-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.5rem;
+}
+
+.reynolds-table-container {
+  overflow-x: auto;
+  border: 1px solid #E2E8F0;
+  border-radius: var(--radius-md, 0.75rem);
+  background: #FFFFFF;
+}
+
+.reynolds-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+}
+
+.reynolds-table th {
+  background: #F8FAFC;
+  padding: 0.65rem 0.75rem;
+  text-align: left;
+  font-weight: 700;
+  color: #334155;
+  border-bottom: 2px solid #E2E8F0;
+  white-space: nowrap;
+}
+
+.reynolds-table td {
+  padding: 0.5rem 0.65rem;
+  border-bottom: 1px solid #F1F5F9;
+  vertical-align: middle;
+}
+
+.reynolds-table tr:hover td {
+  background-color: #F8FAFC;
+}
+
+.reynolds-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.reynolds-badge.laminer {
+  background: #ECFDF5;
+  color: #059669;
+  border: 1px solid #A7F3D0;
+}
+
+.reynolds-badge.transisi {
+  background: #FFFBEB;
+  color: #D97706;
+  border: 1px solid #FDE68A;
+}
+
+.reynolds-badge.turbulen {
+  background: #FEF2F2;
+  color: #DC2626;
+  border: 1px solid #FECDD3;
+}
+
+.reynolds-recap-table-container {
+  overflow-x: auto;
+  border: 1px solid #CBD5E1;
+  border-radius: var(--radius-md, 0.75rem);
+  background: #FFFFFF;
+  margin-top: 0.75rem;
+}
+
+.reynolds-recap-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+.reynolds-recap-table th {
+  background: #1E293B;
+  color: #F8FAFC;
+  padding: 0.65rem 0.75rem;
+  text-align: right;
+  font-weight: 700;
+  font-size: 0.75rem;
+  white-space: nowrap;
+  border-right: 1px solid #334155;
+}
+
+.reynolds-recap-table th:first-child,
+.reynolds-recap-table th:nth-child(2),
+.reynolds-recap-table th:nth-child(7),
+.reynolds-recap-table th:last-child {
+  text-align: center;
+}
+
+.reynolds-recap-table td {
+  padding: 0.55rem 0.75rem;
+  border-bottom: 1px solid #E2E8F0;
+  border-right: 1px solid #F1F5F9;
+  text-align: right;
+  color: #1E293B;
+  white-space: nowrap;
+}
+
+.reynolds-recap-table td:first-child,
+.reynolds-recap-table td:nth-child(2),
+.reynolds-recap-table td:nth-child(7),
+.reynolds-recap-table td:last-child {
+  text-align: center;
+}
+
+.reynolds-recap-table tr:hover td {
+  background-color: #F1F5F9;
+}
+
+/* =========================================================================
+   MODUL UJI PENETRASI ASPAL KERAS (BAB 2 BAHAN PERKERASAN - SNI 2456:2011)
+   ========================================================================= */
+
+.penetration-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+@media (max-width: 1024px) {
+  .penetration-summary-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .penetration-summary-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.penetration-metric-card {
+  background: #FFFFFF;
+  border-radius: 0.75rem;
+  padding: 1.15rem 1.25rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+  border: 1px solid #E2E8F0;
+  border-top-width: 4px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.penetration-metric-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.penetration-metric-card.card-blue { border-top-color: #2563EB; }
+.penetration-metric-card.card-purple { border-top-color: #7C3AED; }
+.penetration-metric-card.card-amber { border-top-color: #D97706; }
+.penetration-metric-card.card-emerald { border-top-color: #059669; }
+.penetration-metric-card.card-rose { border-top-color: #E11D48; }
+
+.penetration-card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.penetration-card-title {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #64748B;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.penetration-card-badge {
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 0.2rem 0.5rem;
+  border-radius: 9999px;
+  background: #F1F5F9;
+  color: #475569;
+}
+
+.penetration-card-value {
+  font-size: 1.65rem;
+  font-weight: 800;
+  color: #0F172A;
+  line-height: 1.2;
+  display: flex;
+  align-items: baseline;
+  gap: 0.35rem;
+}
+
+.penetration-card-unit {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #64748B;
+}
+
+.penetration-card-sub {
+  font-size: 0.75rem;
+  color: #64748B;
+  margin-top: 0.5rem;
+  line-height: 1.35;
+}
+
+/* Global Parameters Bar */
+.penetration-params-box {
+  background: #FFFFFF;
+  border: 1px solid #E2E8F0;
+  border-radius: 0.75rem;
+  padding: 1.15rem 1.25rem;
+  margin-bottom: 1.5rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.penetration-params-title {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #1E293B;
+  margin-bottom: 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.penetration-params-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1rem;
+}
+
+@media (max-width: 900px) {
+  .penetration-params-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 600px) {
+  .penetration-params-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.penetration-field-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.penetration-field-label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #475569;
+}
+
+.penetration-field-input {
+  width: 100%;
+  padding: 0.55rem 0.75rem;
+  border: 1px solid #CBD5E1;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #0F172A;
+  background: #F8FAFC;
+  transition: all 0.2s ease;
+}
+
+.penetration-field-input:focus {
+  outline: none;
+  border-color: #2563EB;
+  background: #FFFFFF;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+
+/* Groups Section */
+.penetration-groups-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.penetration-groups-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #0F172A;
+}
+
+.penetration-groups-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.penetration-groups-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  margin-bottom: 1.75rem;
+}
+
+.penetration-group-card {
+  background: #FFFFFF;
+  border: 1px solid #E2E8F0;
+  border-radius: 0.75rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  overflow: hidden;
+  transition: border-color 0.2s ease;
+}
+
+.penetration-group-card:hover {
+  border-color: #CBD5E1;
+}
+
+.penetration-group-head {
+  padding: 0.85rem 1.25rem;
+  background: #F8FAFC;
+  border-bottom: 1px solid #E2E8F0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.penetration-group-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.penetration-group-name {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #1E293B;
+}
+
+.penetration-group-badges {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.penetration-group-badge {
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 0.2rem 0.55rem;
+  border-radius: 9999px;
+  background: #E2E8F0;
+  color: #334155;
+}
+
+.penetration-group-badge.badge-clean {
+  background: #DCFCE7;
+  color: #15803D;
+  border: 1px solid #BBF7D0;
+}
+
+.penetration-group-badge.badge-outlier {
+  background: #FEE2E2;
+  color: #B91C1C;
+  border: 1px solid #FECACA;
+}
+
+.penetration-group-banner {
+  padding: 0.65rem 1.25rem;
+  background: #F0FDF4;
+  border-bottom: 1px solid #DCFCE7;
+  font-size: 0.78rem;
+  color: #166534;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.penetration-group-banner.has-outlier {
+  background: #FEF3C7;
+  border-bottom-color: #FDE68A;
+  color: #92400E;
+}
+
+.penetration-group-body {
+  padding: 1rem 1.25rem;
+}
+
+.penetration-points-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.penetration-point-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 0.75rem;
+  background: #F8FAFC;
+  border: 1px solid #E2E8F0;
+  border-radius: 0.5rem;
+  transition: all 0.2s ease;
+}
+
+.penetration-point-row.point-outlier {
+  background: #FFF1F2;
+  border-color: #FECDD3;
+}
+
+.penetration-point-label {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #475569;
+  min-width: 48px;
+}
+
+.penetration-point-input {
+  flex: 1;
+  padding: 0.45rem 0.6rem;
+  border: 1px solid #CBD5E1;
+  border-radius: 0.375rem;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #0F172A;
+  background: #FFFFFF;
+  text-align: right;
+  min-width: 70px;
+}
+
+.penetration-point-input:focus {
+  outline: none;
+  border-color: #2563EB;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
+}
+
+.penetration-point-badge {
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.375rem;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.penetration-point-badge.valid {
+  background: #DCFCE7;
+  color: #166534;
+  border: 1px solid #BBF7D0;
+}
+
+.penetration-point-badge.outlier {
+  background: #FEE2E2;
+  color: #991B1B;
+  border: 1px solid #FECACA;
+}
+
+.penetration-point-badge.empty {
+  background: #F1F5F9;
+  color: #64748B;
+  border: 1px solid #E2E8F0;
+}
+
+.penetration-btn-del-point {
+  background: none;
+  border: none;
+  padding: 0.35rem;
+  color: #94A3B8;
+  cursor: pointer;
+  border-radius: 0.375rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.penetration-btn-del-point:hover:not(:disabled) {
+  color: #DC2626;
+  background: #FEE2E2;
+}
+
+.penetration-btn-del-point:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.penetration-btn-add-point {
+  width: 100%;
+  padding: 0.6rem;
+  border: 1px dashed #CBD5E1;
+  border-radius: 0.5rem;
+  background: #F8FAFC;
+  color: #2563EB;
+  font-size: 0.825rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.penetration-btn-add-point:hover {
+  background: #EFF6FF;
+  border-color: #93C5FD;
+}
+
+/* Recap Table */
+.penetration-recap-container {
+  background: #FFFFFF;
+  border: 1px solid #E2E8F0;
+  border-radius: 0.75rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  margin-bottom: 1.5rem;
+  overflow: hidden;
+}
+
+.penetration-recap-head {
+  padding: 0.85rem 1.25rem;
+  background: #F8FAFC;
+  border-bottom: 1px solid #E2E8F0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.penetration-recap-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #1E293B;
+}
+
+.penetration-table-scroll {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.penetration-recap-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.825rem;
+}
+
+.penetration-recap-table th {
+  background: #1E293B;
+  color: #F8FAFC;
+  padding: 0.65rem 0.75rem;
+  text-align: right;
+  font-weight: 700;
+  font-size: 0.75rem;
+  white-space: nowrap;
+  border-right: 1px solid #334155;
+}
+
+.penetration-recap-table th:first-child,
+.penetration-recap-table th:nth-child(2),
+.penetration-recap-table th:nth-child(8) {
+  text-align: center;
+}
+
+.penetration-recap-table td {
+  padding: 0.55rem 0.75rem;
+  border-bottom: 1px solid #E2E8F0;
+  border-right: 1px solid #F1F5F9;
+  text-align: right;
+  color: #1E293B;
+  white-space: nowrap;
+}
+
+.penetration-recap-table td:first-child,
+.penetration-recap-table td:nth-child(2),
+.penetration-recap-table td:nth-child(8) {
+  text-align: center;
+}
+
+.penetration-recap-table tr:hover td {
+  background-color: #F8FAFC;
+}
+
+.penetration-recap-table tr.total-row td {
+  background: #F1F5F9;
+  font-weight: 700;
+  color: #0F172A;
+  border-top: 2px solid #CBD5E1;
+}
+
+/* SNI Guide Card */
+.penetration-sni-guide {
+  background: #FFFFFF;
+  border: 1px solid #E2E8F0;
+  border-radius: 0.75rem;
+  padding: 1.15rem 1.25rem;
+  margin-bottom: 1.5rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.penetration-sni-title {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #1E293B;
+  margin-bottom: 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.penetration-sni-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.75rem;
+}
+
+@media (max-width: 800px) {
+  .penetration-sni-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 500px) {
+  .penetration-sni-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.penetration-sni-tier {
+  padding: 0.75rem;
+  border-radius: 0.5rem;
+  background: #F8FAFC;
+  border: 1px solid #E2E8F0;
+  transition: all 0.2s ease;
+}
+
+.penetration-sni-tier.active {
+  background: #EFF6FF;
+  border-color: #3B82F6;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+}
+
+.penetration-sni-tier-range {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #475569;
+  margin-bottom: 0.25rem;
+}
+
+.penetration-sni-tier-limit {
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: #0F172A;
+}
+
+.penetration-sni-tier.active .penetration-sni-tier-limit {
+  color: #1D4ED8;
+}
+
+.penetration-sni-tier-status {
+  font-size: 0.7rem;
+  font-weight: 600;
+  margin-top: 0.25rem;
+  color: #64748B;
+}
+
+.penetration-sni-tier.active .penetration-sni-tier-status {
+  color: #2563EB;
+}
+
+/* =========================================================================
+   MODUL UJI DAKTILITAS BAHAN ASPAL (BAB 6 BAHAN PERKERASAN - SNI 2432:2011)
+   ========================================================================= */
+
+.ductility-params-card {
+  background: #FFFFFF;
+  border: 1px solid #E2E8F0;
+  border-radius: 0.75rem;
+  padding: 1.25rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.ductility-params-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.25rem;
+}
+
+@media (max-width: 900px) {
+  .ductility-params-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.ductility-param-col {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.ductility-param-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #475569;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.ductility-select-input {
+  width: 100%;
+  padding: 0.55rem 0.75rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #1E293B;
+  background-color: #F8FAFC;
+  border: 1px solid #CBD5E1;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  outline: none;
+  transition: all 0.2s ease;
+}
+
+.ductility-select-input:focus {
+  border-color: #2563EB;
+  background-color: #FFFFFF;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+}
+
+.ductility-unit-pill-group {
+  display: flex;
+  background: #F1F5F9;
+  border: 1px solid #CBD5E1;
+  border-radius: 0.5rem;
+  padding: 3px;
+  gap: 4px;
+}
+
+.ductility-unit-btn {
+  flex: 1;
+  padding: 0.45rem 0.75rem;
+  border-radius: 0.375rem;
+  border: none;
+  background: transparent;
+  color: #64748B;
+  font-size: 0.82rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+}
+
+.ductility-unit-btn.active {
+  background: #FFFFFF;
+  color: #2563EB;
+  font-weight: 700;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.ductility-param-desc {
+  font-size: 0.72rem;
+  color: #64748B;
+  line-height: 1.35;
+}
+
+.ductility-target-badge {
+  display: flex;
+  align-items: baseline;
+  gap: 0.35rem;
+  padding: 0.4rem 0.75rem;
+  background: #EFF6FF;
+  border: 1px solid #BFDBFE;
+  border-radius: 0.5rem;
+}
+
+.ductility-target-badge .target-num {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: #1D4ED8;
+}
+
+.ductility-target-badge .target-unit {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #3B82F6;
+}
+
+/* Tabel Cetakan Daktilitas */
+.ductility-table-card {
+  background: #FFFFFF;
+  border: 1px solid #E2E8F0;
+  border-radius: 0.75rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  margin-top: 1.25rem;
+  overflow: hidden;
+}
+
+.ductility-table-head {
+  padding: 1.15rem 1.25rem;
+  border-bottom: 1px solid #E2E8F0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.ductility-table-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #0F172A;
+  margin: 0;
+}
+
+.ductility-table-subtitle {
+  font-size: 0.8rem;
+  color: #64748B;
+  display: block;
+  margin-top: 0.2rem;
+}
+
+.ductility-btn-add {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.5rem 0.9rem;
+  background: #2563EB;
+  color: #FFFFFF;
+  border: none;
+  border-radius: 0.5rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 1px 2px rgba(37, 99, 235, 0.2);
+}
+
+.ductility-btn-add:hover {
+  background: #1D4ED8;
+}
+
+.ductility-table-scroll {
+  overflow-x: auto;
+}
+
+.ductility-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+.ductility-table th {
+  background: #F8FAFC;
+  padding: 0.75rem 1rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #475569;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border-bottom: 1px solid #CBD5E1;
+  white-space: nowrap;
+}
+
+.ductility-table td {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid #F1F5F9;
+  vertical-align: middle;
+}
+
+.ductility-table tr:hover td {
+  background: #F8FAFC;
+}
+
+.ductility-table tr.row-eliminated td {
+  background: #FFFBEB;
+  opacity: 0.85;
+}
+
+.ductility-sample-name {
+  font-weight: 600;
+  color: #1E293B;
+}
+
+.ductility-input-wrapper {
+  display: flex;
+  align-items: center;
+  position: relative;
+  max-width: 180px;
+}
+
+.ductility-numeric-input {
+  width: 100%;
+  padding: 0.45rem 2.5rem 0.45rem 0.65rem;
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: #0F172A;
+  background: #FFFFFF;
+  border: 1px solid #CBD5E1;
+  border-radius: 0.375rem;
+  outline: none;
+  transition: all 0.15s ease;
+}
+
+.ductility-numeric-input:focus {
+  border-color: #2563EB;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+}
+
+.ductility-input-unit {
+  position: absolute;
+  right: 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #64748B;
+  pointer-events: none;
+}
+
+.ductility-cm-val {
+  font-weight: 700;
+  color: #0F172A;
+}
+
+.ductility-badge-eval {
+  display: inline-block;
+  padding: 0.25rem 0.6rem;
+  border-radius: 9999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.ductility-badge-eval.lolos {
+  background: #ECFDF5;
+  color: #059669;
+  border: 1px solid #A7F3D0;
+}
+
+.ductility-badge-eval.gagal {
+  background: #FFF1F2;
+  color: #E11D48;
+  border: 1px solid #FECDD3;
+}
+
+.ductility-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.35rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.ductility-toggle-btn.active {
+  background: #ECFDF5;
+  color: #047857;
+  border-color: #A7F3D0;
+}
+
+.ductility-toggle-btn.inactive {
+  background: #FFFBEB;
+  color: #B45309;
+  border-color: #FDE68A;
+}
+
+.ductility-toggle-btn:hover {
+  filter: brightness(0.96);
+}
+
+.toggle-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.toggle-dot.active {
+  background: #10B981;
+}
+
+.toggle-dot.inactive {
+  background: #F59E0B;
+}
+
+.ductility-btn-del {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid #E2E8F0;
+  border-radius: 0.375rem;
+  background: #FFFFFF;
+  color: #DC2626;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.ductility-btn-del:hover:not(:disabled) {
+  background: #FEE2E2;
+  border-color: #FCA5A5;
+}
+
+.ductility-btn-del:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+  color: #94A3B8;
+}
+
+/* =========================================================================
+   GAYA TAMPILAN: UJI VISKOSITAS SAYBOLT FUROL & SUHU KERJA (SNI 7729:2011)
+   ========================================================================= */
+.viscosity-preset-pill {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 0.45rem 0.85rem;
+  border-radius: 0.5rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  border: 1px solid #CBD5E1;
+  background: #FFFFFF;
+  color: #334155;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: left;
+}
+
+.viscosity-preset-pill:hover {
+  background: #F8FAFC;
+  border-color: #94A3B8;
+}
+
+.viscosity-preset-pill.active {
+  background: #EFF6FF;
+  border-color: #3B82F6;
+  color: #1D4ED8;
+  box-shadow: 0 0 0 1px #3B82F6;
+}
+
+.viscosity-summary-bento-card {
+  background: #FFFFFF;
+  border: 1px solid #E2E8F0;
+  border-radius: 0.75rem;
+  padding: 1rem 1.15rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
+  transition: all 0.2s ease;
+}
+
+.viscosity-summary-bento-card:hover {
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.08);
+  transform: translateY(-1px);
+}
+
+.viscosity-summary-bento-card .bento-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 0.35rem;
+}
+
+.viscosity-summary-bento-card .bento-value {
+  font-size: 1.35rem;
+  font-weight: 800;
+  line-height: 1.2;
+  margin-bottom: 0.35rem;
+}
+
+.viscosity-summary-bento-card .bento-sub {
+  font-size: 0.74rem;
+  color: #64748B;
+}
+
+.viscosity-summary-bento-card .bento-pill {
+  display: inline-block;
+  padding: 0.15rem 0.45rem;
+  border-radius: 9999px;
+  font-size: 0.68rem;
+  font-weight: 700;
+}
+
+.viscosity-summary-bento-card .bento-pill.green {
+  background: #ECFDF5;
+  color: #059669;
+  border: 1px solid #A7F3D0;
+}
+
+.viscosity-summary-bento-card .bento-pill.red {
+  background: #FEF2F2;
+  color: #DC2626;
+  border: 1px solid #FECDD3;
+}
+
+.viscosity-cst-pill {
+  display: inline-block;
+  padding: 0.25rem 0.65rem;
+  border-radius: 6px;
+  background: #F1F5F9;
+  color: #0F172A;
+  font-weight: 700;
+  font-size: 0.82rem;
+  border: 1px solid #E2E8F0;
+}
+
+.btn-add-point:hover {
+  background: #1D4ED8 !important;
 }

@@ -21,6 +21,15 @@ function assert(condition, message) {
   }
 }
 
+function parseScientific(str) {
+  if (typeof str === 'number') return str
+  const SUPERSCRIPTS = { '⁰': '0', '¹': '1', '²': '2', '³': '3', '⁴': '4', '⁵': '5', '⁶': '6', '⁷': '7', '⁸': '8', '⁹': '9', '⁻': '-' }
+  const normalized = String(str)
+    .replace(/\s*×\s*10/, 'e')
+    .replace(/[⁰¹²³⁴⁵⁶⁷⁸⁹⁻]/g, ch => SUPERSCRIPTS[ch] || ch)
+  return Number(normalized)
+}
+
 // 1. Check methods config & fields
 assert(Array.isArray(config.methods) && config.methods.length === 2, 'Metode memiliki 2 opsi: Constant Head & Falling Head')
 assert(config.methods[0].value === 'constant' && config.methods[1].value === 'falling', 'Method values are constant and falling')
@@ -31,13 +40,21 @@ const fallingFields = config.getFields({ metode: 'falling' })
 assert(constantFields.length === 5, 'Constant Head memiliki 5 field input (D, L, Q, h, t)')
 assert(constantFields.every(f => f.min === 0.01), 'Semua input Constant Head memiliki min="0.01"')
 
-assert(fallingFields.length === 6, 'Falling Head memiliki 6 field input (a, L, A, h0, h1, t)')
+assert(fallingFields.length === 6, 'Falling Head memiliki 6 field input (d, L, D, h0, h1, t)')
 assert(fallingFields.every(f => f.min === 0.01), 'Semua input Falling Head memiliki min="0.01"')
+assert(fallingFields.some(f => f.key === 'diameterPipaD'), 'Falling Head memiliki field diameterPipaD (d)')
+assert(fallingFields.some(f => f.key === 'diameterSampelD'), 'Falling Head memiliki field diameterSampelD (D)')
 
 // 2. Test Constant Head Default Input
 const defConstant = config.calculate({ metode: 'constant' })
 assert(!defConstant.isError, 'Default Constant Head calculation succeeds without error')
 assert(defConstant.status === 'Valid', 'Default Constant Head status is Valid')
+assert(defConstant.results.length === 4, 'Constant Head menghasilkan tepat 4 output card ringkasan')
+assert(defConstant.results[0].label.includes('Koefisien Permeabilitas'), 'Card 1 adalah Koefisien Permeabilitas (k)')
+assert(defConstant.results[1].label.includes('Luas Penampang Sampel'), 'Card 2 adalah Luas Penampang Sampel (A)')
+assert(defConstant.results[2].label.includes('Metode Pengujian Aktif'), 'Card 3 adalah Metode Pengujian Aktif')
+assert(defConstant.results[3].label.includes('Klasifikasi Jenis Tanah'), 'Card 4 adalah Klasifikasi Jenis Tanah')
+
 const kItem = defConstant.results.find(r => r.label.includes('Koefisien Permeabilitas'))
 const jenisItem = defConstant.results.find(r => r.label.includes('Klasifikasi Jenis Tanah'))
 console.log(`  Default Constant Head k = ${kItem.value} cm/s, jenis = ${jenisItem.value}`)
@@ -113,7 +130,7 @@ const resClay = config.calculate({
 })
 assert(resClay.results.find(r => r.label.includes('Klasifikasi Jenis Tanah')).value === 'Lempung', 'k <= 0.00001 diklasifikasikan sebagai Lempung')
 
-// 6. Test Falling Head Method Calculation
+// 6. Test Falling Head Method Calculation (Legacy area inputs)
 // Formula: k = (a * L / (A * t)) * ln(h0 / h1)
 const resFalling = config.calculate({
   metode: 'falling',
@@ -126,9 +143,30 @@ const resFalling = config.calculate({
 })
 assert(!resFalling.isError, 'Falling Head kalkulasi berhasil tanpa error')
 assert(resFalling.status === 'Valid', 'Falling Head valid menghasilkan status Valid')
+assert(resFalling.results.length === 4, 'Falling Head menghasilkan tepat 4 output card ringkasan')
 const expectedKFalling = ((0.85 * 12.0) / (44.18 * 120.0)) * Math.log(50.0 / 20.0)
-const actualKFalling = Number(resFalling.results.find(r => r.label.includes('Koefisien Permeabilitas')).value)
+const kFallingItem = resFalling.results.find(r => r.label.includes('Koefisien Permeabilitas'))
+const actualKFalling = kFallingItem.numericValue ?? parseScientific(kFallingItem.value)
 assert(Math.abs(actualKFalling - expectedKFalling) < 1e-6, `Falling Head k akurat sesuai rumus (expected: ${expectedKFalling.toExponential(3)}, actual: ${actualKFalling.toExponential(3)})`)
+
+// 6b. Test Falling Head with Diameters (d = 1.04 cm, D = 7.5 cm)
+const resFallingDiameters = config.calculate({
+  metode: 'falling',
+  diameterPipaD: 1.04,
+  panjangL: 12.0,
+  diameterSampelD: 7.5,
+  headH0: 50.0,
+  headH1: 20.0,
+  waktuT: 120.0,
+})
+assert(!resFallingDiameters.isError, 'Falling Head dengan parameter diameter d & D berhasil dihitung')
+const aCalc = (Math.PI / 4) * 1.04 * 1.04
+const ACalc = (Math.PI / 4) * 7.5 * 7.5
+const expectedKDiameters = ((aCalc * 12.0) / (ACalc * 120.0)) * Math.log(50.0 / 20.0)
+const kDiaItem = resFallingDiameters.results.find(r => r.label.includes('Koefisien Permeabilitas'))
+const actualKDiameters = kDiaItem.numericValue ?? parseScientific(kDiaItem.value)
+assert(Math.abs(actualKDiameters - expectedKDiameters) < 1e-6, `Falling Head k dengan diameter akurat (expected: ${expectedKDiameters.toExponential(3)}, actual: ${actualKDiameters.toExponential(3)})`)
+assert(resFallingDiameters.results.find(r => r.label.includes('Luas Penampang Sampel')).value === ACalc.toFixed(2), 'Luas penampang sampel A terhitung akurat dari diameter')
 
 // 7. Test Falling Head Relational Error: h0 <= h1
 const resFallingError = config.calculate({
@@ -176,6 +214,17 @@ const resZeroFalling = config.calculate({
   waktuT: 120.0,
 })
 assert(resZeroFalling.isError === true, 'Falling head dengan pipaA 0 memicu isError: true')
+
+const resZeroFallingDia = config.calculate({
+  metode: 'falling',
+  diameterPipaD: 0,
+  panjangL: 12.0,
+  diameterSampelD: 7.5,
+  headH0: 50.0,
+  headH1: 20.0,
+  waktuT: 120.0,
+})
+assert(resZeroFallingDia.isError === true, 'Falling head dengan diameterPipaD 0 memicu isError: true')
 
 console.log(`\n========================================`)
 console.log(`Summary: ${passCount} PASSED, ${failCount} FAILED`)

@@ -1,6 +1,6 @@
 import { calculatorRegistry } from '../src/testCalculatorsData.js'
 
-console.log('=== TEST BAB 1 MEKANIKA TANAH: SONDIR & SPT ===\n')
+console.log('=== TEST BAB 1 MEKANIKA TANAH: UJI SONDIR & VERIFIKASI PENGHAPUSAN SPT ===\n')
 
 let passed = 0
 let failed = 0
@@ -56,34 +56,11 @@ assert(illTw.isError === true, 'tw < qc harus memicu isError = true')
 assert(illTw.status === 'Input Tidak Wajar / Cek Kembali Data', 'tw < qc harus Input Tidak Wajar')
 
 // =========================================================================
-// 2. TEST UJI SPT (mt-1-2)
+// 2. VERIFIKASI PENGHAPUSAN MODUL SPT / BORING (mt-1-2)
 // =========================================================================
-console.log('\n--- TEST MT-1-2: UJI SPT ---')
+console.log('\n--- VERIFIKASI PENGHAPUSAN MT-1-2 (SPT / BORING) ---')
 const spt = calculatorRegistry['mt-1-2']
-assert(spt !== undefined, 'Modul mt-1-2 terdefinisi')
-
-// Check Normal SPT
-const normSpt = spt.calculate({ depth: 6.0, n1: 4, n2: 8, n3: 11 })
-assert(normSpt.status === 'Valid', 'Status SPT normal harus Valid')
-assert(!normSpt.warningMessage, 'SPT normal tidak boleh ada warningMessage')
-const nSptVal = normSpt.results.find(r => r.label === 'Nilai N-SPT (N2 + N3)')
-assert(nSptVal && nSptVal.value === '19', `N-SPT harus 19, got ${nSptVal?.value}`)
-
-// Check Refusal (N2 + N3 >= 50)
-const refusalSpt = spt.calculate({ depth: 15.0, n1: 20, n2: 30, n3: 25 })
-const refNSpt = refusalSpt.results.find(r => r.label === 'Nilai N-SPT (N2 + N3)')
-assert(refNSpt && refNSpt.value.includes('50'), `N-SPT Refusal harus 50, got ${refNSpt?.value}`)
-assert(refNSpt && refNSpt.value.includes('(Refusal / Mencapai Batas Maksimum)'), `N-SPT value harus menyertakan teks Refusal, got ${refNSpt?.value}`)
-assert(refusalSpt.conclusion.includes('(Refusal / Mencapai Batas Maksimum)'), 'Kesimpulan Refusal harus memuat (Refusal / Mencapai Batas Maksimum)')
-
-// Check Warning if N3 = 0
-const zeroN3 = spt.calculate({ depth: 6.0, n1: 4, n2: 8, n3: 0 })
-assert(zeroN3.status === 'Perlu Evaluasi', `N3 = 0 harus berstatus 'Perlu Evaluasi' (kuning), got ${zeroN3.status}`)
-assert(zeroN3.warningMessage !== null && zeroN3.warningMessage !== undefined, 'N3 = 0 harus memiliki warningMessage')
-assert(
-  zeroN3.warningMessage === 'Nilai N3 = 0 tidak wajar untuk data lapangan. Pastikan alat tidak mengalami kegagalan.',
-  `warningMessage harus persis sesuai permintaan, got: ${zeroN3.warningMessage}`
-)
+assert(spt === undefined, 'Modul mt-1-2 sudah DIHAPUS SEUTUHNYA dari calculatorRegistry (undefined)')
 
 console.log(`\n=== SUMMARY: ${passed} PASSED, ${failed} FAILED ===`)
 if (failed > 0) process.exit(1)

@@ -1,14 +1,80 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Component } from 'react'
 import * as XLSX from 'xlsx'
-import { FileSpreadsheet, Plus } from 'lucide-react'
+import { FileSpreadsheet, Plus, AlertTriangle, RotateCcw, ArrowLeft } from 'lucide-react'
 import { motion } from 'framer-motion'
 import './App.css'
 import { sidebarGroups, calculatorRegistry, formatScientificInText } from './testCalculatorsData'
 import TestCalculatorPanel from './TestCalculatorPanel'
 
+// Error Boundary untuk mencegah white screen jika terjadi error runtime pada modul kalkulator
+class ModuleErrorBoundary extends Component {
+  constructor(props) {
+    super(props)
+    this.state = { hasError: false, error: null }
+  }
+
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error }
+  }
+
+  componentDidCatch(error, errorInfo) {
+    console.error('ModuleErrorBoundary menangkap error rendering:', error, errorInfo)
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div style={{ padding: '2.5rem 1.5rem', maxWidth: '840px', margin: '2rem auto', background: '#FFFFFF', borderRadius: '12px', border: '1px solid #FCA5A5', boxShadow: '0 4px 16px rgba(239, 68, 68, 0.08)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem', marginBottom: '1rem' }}>
+            <div style={{ width: 44, height: 44, borderRadius: '50%', background: '#FEE2E2', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#DC2626', flexShrink: 0 }}>
+              <AlertTriangle size={24} />
+            </div>
+            <div>
+              <h2 style={{ fontSize: '1.2rem', fontWeight: 700, margin: 0, color: '#991B1B' }}>
+                Kendala Saat Memuat Modul Pengujian
+              </h2>
+              <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.85rem', color: '#6B7280' }}>
+                Terdeteksi data modul tidak sesuai dengan struktur terbaru. Silakan klik tombol di bawah untuk mereset modul ke pengaturan awal default.
+              </p>
+            </div>
+          </div>
+          <div style={{ background: '#F9FAFB', padding: '0.75rem 1rem', borderRadius: '6px', border: '1px solid #E5E7EB', fontSize: '0.8rem', color: '#4B5563', fontFamily: 'monospace', marginBottom: '1.25rem', overflowX: 'auto' }}>
+            {this.state.error?.message || 'Unknown render error'}
+          </div>
+          <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+            <button
+              type="button"
+              onClick={() => {
+                if (this.props.onReset) this.props.onReset()
+                this.setState({ hasError: false, error: null })
+              }}
+              style={{ padding: '0.6rem 1.25rem', borderRadius: '6px', background: '#0284C7', color: '#FFFFFF', border: 'none', fontWeight: 600, fontSize: '0.85rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+            >
+              <RotateCcw size={15} />
+              <span>Reset Data Modul & Coba Lagi</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                this.setState({ hasError: false, error: null })
+                if (this.props.onBack) this.props.onBack()
+              }}
+              style={{ padding: '0.6rem 1.25rem', borderRadius: '6px', background: '#F3F4F6', color: '#374151', border: '1px solid #D1D5DB', fontWeight: 600, fontSize: '0.85rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+            >
+              <ArrowLeft size={15} />
+              <span>Kembali ke Dashboard</span>
+            </button>
+          </div>
+        </div>
+      )
+    }
+    return this.props.children
+  }
+}
+
 // =========================================================================
 // DATA MODUL PRAKTIKUM: DUAL-LEVEL FILTER SYSTEM
-// Level 1: Praktikum Bahan Bangunan (19 Uji), Praktikum Mekanika Tanah (12 Uji), & Praktikum Mekanika Fluida (5 Uji)
+// Level 1: Praktikum Bahan Bangunan (19 Uji), Praktikum Mekanika Tanah (12 Uji), & Praktikum Mekanika Fluida (2 Uji)
 // =========================================================================
 const labTabsData = {
   bahan: [
@@ -32,9 +98,6 @@ const labTabsData = {
     { id: 'ringkasan', label: 'Ringkasan' },
     { id: 'bab1', label: 'Bab 1: Sifat Fluida' },
     { id: 'bab2', label: 'Bab 2: Osborne Reynolds' },
-    { id: 'bab3', label: 'Bab 3: Flow Measurement' },
-    { id: 'bab4', label: 'Bab 4: Ambang Tajam' },
-    { id: 'bab5', label: 'Bab 5: Kalibrasi Flowmeter' },
   ],
   perkerasan: [
     { id: 'ringkasan', label: 'Ringkasan' },
@@ -58,7 +121,7 @@ const labModulesData = {
       id: 'sum-1',
       code: 'Bab 1',
       title: 'Pengujian Agregat Halus',
-      badge: 'SNI 1970:2008 • SNI 1971:2011 • SNI 03-1968-1990',
+      badge: 'SNI 1970:2016 • SNI ASTM C136:2012',
       desc: 'Mencakup 5 modul uji pasir: Berat Jenis & Penyerapan Air, Kadar Air, Kandungan Lumpur & Zat Organik, Bobot Isi & Rongga Udara, serta Analisis Gradasi.',
       icon: 'sand',
     },
@@ -66,7 +129,7 @@ const labModulesData = {
       id: 'sum-2',
       code: 'Bab 2',
       title: 'Pengujian Agregat Kasar',
-      badge: 'SNI 1969:2008 • SNI 03-1968-1990 • SNI 2417:2008',
+      badge: 'SNI 1969:2016 • SNI ASTM C136:2012',
       desc: 'Mencakup 6 modul uji batu pecah/kerikil: Berat Jenis & Penyerapan Air, Kadar Air, Kandungan Lumpur, Bobot Isi & Rongga Udara, Analisis Gradasi, serta Keausan Los Angeles.',
       icon: 'rock',
     },
@@ -74,7 +137,7 @@ const labModulesData = {
       id: 'sum-4',
       code: 'Bab 3',
       title: 'Pengujian Beton Segar & Keras',
-      badge: 'SNI 1972:2008 • SNI 1974:2011 • SNI 4154:2014',
+      badge: 'SNI 1972:2008 • SNI 1974:2011 • SNI 4431:2011',
       desc: 'Evaluasi nilai Slump beton segar, kalkulasi Kuat Tekan silinder/kubus beton, serta pengujian Kuat Lentur balok beton.',
       icon: 'concrete-press',
     },
@@ -82,7 +145,7 @@ const labModulesData = {
       id: 'sum-5',
       code: 'Bab 4',
       title: 'Sifat Fisik & Mekanis Kayu',
-      badge: 'ASTM D2395-17 • SNI 7973:2013',
+      badge: 'SNI 03-6847/6848-2002',
       desc: 'Analisis terpadu material kayu mencakup perhitungan Kadar Air, Kerapatan (Density), Berat Jenis, serta pengujian Kuat Lentur (MOE & MOR).',
       icon: 'wood',
     },
@@ -90,7 +153,7 @@ const labModulesData = {
       id: 'sum-6',
       code: 'Bab 5',
       title: 'Pengujian Kuat Tarik Baja',
-      badge: 'SNI 8369:2017',
+      badge: 'SNI 2052:2017',
       desc: 'Evaluasi sifat mekanis baja tulangan meliputi batas ulur/leleh (yield strength), tegangan tarik maksimum (ultimate), dan persentase regangan.',
       icon: 'steel',
     },
@@ -100,7 +163,7 @@ const labModulesData = {
       id: 'b1-1',
       code: 'UJI 1.1',
       title: 'Berat Jenis dan Penyerapan Air Agregat Halus',
-      badge: 'SNI 1970:2008',
+      badge: 'SNI 1970:2016',
       desc: 'Penentuan nilai berat jenis Bulk, SSD, Apparent, serta persentase absorpsi air pada pasir menggunakan piknometer.',
       icon: 'water',
     },
@@ -108,7 +171,7 @@ const labModulesData = {
       id: 'b1-2',
       code: 'UJI 1.2',
       title: 'Kadar Air Agregat Halus',
-      badge: 'SNI 1971:2011',
+      badge: 'SNI 1970:2016',
       desc: 'Perhitungan persentase kandungan air dalam agregat halus melalui metode pengeringan oven.',
       icon: 'oven',
     },
@@ -116,7 +179,7 @@ const labModulesData = {
       id: 'b1-3',
       code: 'UJI 1.3',
       title: 'Kandungan Lumpur dan Zat Organik Agregat Halus',
-      badge: 'SNI 03-4142-1996 • SNI 2816:2014',
+      badge: 'SNI 1970:2016',
       desc: 'Pengujian persentase butiran lolos saringan No. 200 dan deteksi kontaminasi bahan organik menggunakan larutan NaOH.',
       icon: 'beaker',
     },
@@ -124,7 +187,7 @@ const labModulesData = {
       id: 'b1-4',
       code: 'UJI 1.4',
       title: 'Bobot Isi dan Rongga Udara Agregat Halus',
-      badge: 'SNI 03-4804-1998',
+      badge: 'SNI 1970:2016',
       desc: 'Kalkulasi berat satuan agregat halus dalam kondisi gembur maupun padat beserta persentase rongga udara.',
       icon: 'box',
     },
@@ -132,7 +195,7 @@ const labModulesData = {
       id: 'b1-5',
       code: 'UJI 1.5',
       title: 'Gradasi Agregat Halus',
-      badge: 'SNI 03-1968-1990',
+      badge: 'SNI ASTM C136:2012',
       desc: 'Analisis distribusi ukuran butiran pasir dengan susunan ayakan standar untuk menentukan nilai Modulus Kehalusan (FM) dan kurva gradasi.',
       icon: 'sieve',
     },
@@ -142,7 +205,7 @@ const labModulesData = {
       id: 'b2-1',
       code: 'UJI 2.1',
       title: 'Berat Jenis dan Penyerapan Air Agregat Kasar',
-      badge: 'SNI 1969:2008',
+      badge: 'SNI 1969:2016',
       desc: 'Kalkulasi berat jenis Bulk, SSD, Apparent, dan penyerapan air pada batu pecah menggunakan timbangan hidrostatis.',
       icon: 'water',
     },
@@ -150,7 +213,7 @@ const labModulesData = {
       id: 'b2-2',
       code: 'UJI 2.2',
       title: 'Kadar Air Agregat Kasar',
-      badge: 'SNI 1971:2011',
+      badge: 'SNI 1969:2016',
       desc: 'Evaluasi kandungan air aktual pada agregat kasar dari perbandingan massa sampel basah dan kering oven.',
       icon: 'oven',
     },
@@ -158,7 +221,7 @@ const labModulesData = {
       id: 'b2-3',
       code: 'UJI 2.3',
       title: 'Kandungan Lumpur Agregat Kasar',
-      badge: 'SNI 03-4142-1996',
+      badge: 'SNI 1969:2016',
       desc: 'Penentuan persentase material halus lolos saringan No. 200 pada permukaan agregat kasar.',
       icon: 'beaker',
     },
@@ -166,7 +229,7 @@ const labModulesData = {
       id: 'b2-4',
       code: 'UJI 2.4',
       title: 'Bobot Isi dan Rongga Udara Agregat Kasar',
-      badge: 'SNI 03-4804-1998',
+      badge: 'SNI 1969:2016',
       desc: 'Perhitungan berat volume agregat kasar kondisi lepas dan padat beserta kadar rongga udara.',
       icon: 'box',
     },
@@ -174,7 +237,7 @@ const labModulesData = {
       id: 'b2-5',
       code: 'UJI 2.5',
       title: 'Gradasi Agregat Kasar',
-      badge: 'SNI 03-1968-1990',
+      badge: 'SNI ASTM C136:2012',
       desc: 'Pemetaan kurva semi-logaritmik distribusi ukuran butir batu pecah dan nilai Modulus Kehalusan.',
       icon: 'sieve',
     },
@@ -182,7 +245,7 @@ const labModulesData = {
       id: 'b2-6',
       code: 'UJI 2.6',
       title: 'Keausan Agregat Kasar',
-      badge: 'SNI 2417:2008',
+      badge: 'SNI 1969:2016',
       desc: 'Pengujian ketahanan agregat kasar terhadap degradasi mekanis menggunakan mesin abrasi Los Angeles.',
       icon: 'los-angeles',
     },
@@ -208,7 +271,7 @@ const labModulesData = {
       id: 'b3-3',
       code: 'UJI 3.3',
       title: 'Kuat Lentur Beton',
-      badge: 'SNI 4154:2014',
+      badge: 'SNI 4431:2011',
       desc: 'Penentuan nilai modulus keruntuhan (modulus of rupture) pada balok beton dengan beban titik pertigaan bentang.',
       icon: 'concrete-flex',
     },
@@ -218,7 +281,7 @@ const labModulesData = {
       id: 'b4-1',
       code: 'UJI 4.1',
       title: 'Kadar Air Kayu',
-      badge: 'ASTM D2395-17',
+      badge: 'SNI 03-6847/6848-2002',
       desc: 'Perhitungan persentase kandungan air pada spesimen kayu dari selisih massa awal dan massa kering oven.',
       icon: 'oven',
     },
@@ -226,7 +289,7 @@ const labModulesData = {
       id: 'b4-2',
       code: 'UJI 4.2',
       title: 'Kerapatan Kayu',
-      badge: 'ASTM D2395-17',
+      badge: 'SNI 03-6847/6848-2002',
       desc: 'Penentuan rasio massa terhadap volume benda uji kayu pada kondisi pengujian maupun kering oven.',
       icon: 'wood',
     },
@@ -234,7 +297,7 @@ const labModulesData = {
       id: 'b4-3',
       code: 'UJI 4.3',
       title: 'Berat Jenis Kayu',
-      badge: 'ASTM D2395-17',
+      badge: 'SNI 03-6847/6848-2002',
       desc: 'Kalkulasi nilai specific gravity kayu berdasarkan perbandingan kerapatan kering oven terhadap kerapatan air.',
       icon: 'water',
     },
@@ -242,7 +305,7 @@ const labModulesData = {
       id: 'b4-4',
       code: 'UJI 4.4',
       title: 'Kuat Lentur Kayu',
-      badge: 'SNI 7973:2013',
+      badge: 'SNI 03-6847/6848-2002',
       desc: 'Analisis ketahanan lentur balok kayu untuk mendapatkan nilai Modulus of Elasticity (MOE) dan Modulus of Rupture (MOR).',
       icon: 'concrete-flex',
     },
@@ -252,7 +315,7 @@ const labModulesData = {
       id: 'b5-1',
       code: 'UJI 5.1',
       title: 'Kuat Tarik Baja',
-      badge: 'SNI 8369:2017',
+      badge: 'SNI 2052:2017',
       desc: 'Evaluasi sifat mekanis baja tulangan meliputi tegangan leleh (yield), kuat tarik maksimum (ultimate), dan regangan.',
       icon: 'steel',
     },
@@ -264,24 +327,24 @@ const labModulesData = {
         id: 't-sum-1',
         code: 'Bab 1',
         title: 'Penyelidikan Tanah di Lapangan',
-        badge: 'SNI 2827:2008 • SNI 8460:2017',
-        desc: 'Evaluasi daya dukung tanah lapangan melalui uji penetrasi konus (Sondir/CPT) serta pencatatan stratigrafi pengeboran teknik (Boring).',
+        badge: 'SNI 2827:2008',
+        desc: 'Evaluasi daya dukung tanah lapangan dan stratigrafi tanah melalui uji penetrasi konus (Sondir/CPT).',
         icon: 'sondir',
       },
       {
         id: 't-sum-2',
         code: 'Bab 2',
         title: 'Sifat Fisik & Konsistensi Tanah',
-        badge: 'SNI 1964 • 1965 • 1966 • 1967:2008',
+        badge: 'SNI 1965:2008 • SNI 1964:2008 • SNI 1967:2008 • SNI 1966:2008',
         desc: 'Penentuan parameter dasar tanah meliputi Kadar Air, Berat Jenis (Gs), serta Batas-Batas Atterberg (Batas Cair, Batas Plastis, dan Indeks Plastisitas).',
         icon: 'casagrande',
       },
       {
         id: 't-sum-3',
         code: 'Bab 3',
-        title: 'Pemadatan Tanah Lab & Lapangan',
-        badge: 'SNI 1742:2008 • SNI 2828:2011',
-        desc: 'Analisis kurva pemadatan Standard Proctor untuk mencari OMC & MDD di laboratorium, serta verifikasi derajat kepadatan lapangan dengan metode Sand Cone.',
+        title: 'Pemadatan Tanah Laboratorium',
+        badge: 'SNI 1742:2008',
+        desc: 'Analisis kurva pemadatan Standard Proctor untuk mencari Kadar Air Optimum (OMC) dan berat volume kering maksimum (MDD) di laboratorium.',
         icon: 'proctor',
       },
       {
@@ -317,14 +380,6 @@ const labModulesData = {
         badge: 'SNI 2827:2008',
         desc: 'Penentuan nilai perlawanan ujung konus (qc) dan jumlah hambatan lekat (JHL) untuk analisis profil daya dukung pondasi per kedalaman.',
         icon: 'sondir',
-      },
-      {
-        id: 't-b1-2',
-        code: 'UJI 1.2',
-        title: 'Pengeboran Tanah (Boring)',
-        badge: 'SNI 8460:2017',
-        desc: 'Pengambilan contoh tanah terganggu (disturbed) dan tidak terganggu (undisturbed) beserta penyusunan profil borlog geoteknik.',
-        icon: 'boring',
       },
     ],
     bab2: [
@@ -369,14 +424,6 @@ const labModulesData = {
         badge: 'SNI 1742:2008',
         desc: 'Pemetaan kurva pemadatan dan garis Zero Air Void (ZAV) untuk mendapatkan Kadar Air Optimum (OMC) dan berat isi kering maksimum.',
         icon: 'proctor',
-      },
-      {
-        id: 't-b3-2',
-        code: 'UJI 3.2',
-        title: 'Pemadatan Tanah Lapangan (Sand Cone)',
-        badge: 'SNI 2828:2011',
-        desc: 'Penentuan berat volume kering tanah di lapangan menggunakan pasir Ottawa dan konus pasir guna menghitung persentase derajat kepadatan.',
-        icon: 'sand-cone',
       },
     ],
     bab4: [
@@ -424,7 +471,7 @@ const labModulesData = {
         id: 'f-sum-1',
         code: 'Bab 1',
         title: 'Pengujian Sifat Fluida',
-        badge: 'ASTM D1475 • ASTM D445 • SNI ISO 2811',
+        badge: 'ASTM D1475 & ASTM D445',
         desc: 'Pengukuran densitas (massa jenis piknometer), viskositas kinematik bola jatuh, gaya apung Archimedes, dan specific gravity zat cair.',
         icon: 'droplet',
       },
@@ -432,33 +479,9 @@ const labModulesData = {
         id: 'f-sum-2',
         code: 'Bab 2',
         title: 'Pengujian Osborne Reynolds',
-        badge: 'ASTM D5242 • Standar Hidraulika',
+        badge: 'SNI 7509:2011',
         desc: 'Penentuan bilangan Reynolds (Re) untuk mendeteksi rezim aliran pipa: Laminer (Re < 2000), Transisi (2000-4000), atau Turbulen (Re > 4000).',
         icon: 'flow',
-      },
-      {
-        id: 'f-sum-3',
-        code: 'Bab 3',
-        title: 'Flow Measurement (Venturi & Orifice)',
-        badge: 'SNI 03-2414-1991 • ASTM D5242',
-        desc: 'Perhitungan debit teoritis dan aktual fluida melalui alat ukur venturimeter dan pelat orifice berdasarkan beda tinggi manometer.',
-        icon: 'pipe',
-      },
-      {
-        id: 'f-sum-4',
-        code: 'Bab 4',
-        title: 'Aliran Ambang Tajam (Sharp Crested Weir)',
-        badge: 'ASTM D5242 • SNI 03-2414-1991',
-        desc: 'Pengukuran debit aliran saluran terbuka melalui mercu peluap ambang tajam segiempat (sharp crested weir).',
-        icon: 'waves',
-      },
-      {
-        id: 'f-sum-5',
-        code: 'Bab 5',
-        title: 'Kalibrasi Flowmeter & Akurasi Debit',
-        badge: 'SNI 03-2414-1991 • Standar Kalibrasi',
-        desc: 'Evaluasi akurasi pembacaan alat ukur debit aliran (flowmeter/rotameter) terhadap pengukuran volumetrik aktual beserta persentase error.',
-        icon: 'gauge',
       },
     ],
     bab1: [
@@ -466,7 +489,7 @@ const labModulesData = {
         id: 'f1-1',
         code: 'UJI 1.1',
         title: 'Sifat Fisik Fluida (Densitas, Viskositas, Archimedes, SG)',
-        badge: 'ASTM D1475 • ASTM D445 • SNI ISO 2811',
+        badge: 'ASTM D1475 & ASTM D445',
         desc: 'Pengukuran komprehensif densitas piknometer fluida, viskositas kinematik metode bola jatuh, gaya apung Archimedes, dan specific gravity.',
         icon: 'droplet',
       },
@@ -476,39 +499,9 @@ const labModulesData = {
         id: 'f2-1',
         code: 'UJI 2.1',
         title: 'Pengujian Bilangan Osborne Reynolds',
-        badge: 'ASTM D5242 • Standar Hidraulika',
+        badge: 'Standar Hidraulika Pipa (Re)',
         desc: 'Menghitung bilangan Reynolds (Re = v·D/ν) dan menentukan rezim aliran pipa (Laminer, Transisi, atau Turbulen) dengan visualisasi zat warna.',
         icon: 'flow',
-      },
-    ],
-    bab3: [
-      {
-        id: 'f3-1',
-        code: 'UJI 3.1',
-        title: 'Flow Measurement (Venturi & Orifice)',
-        badge: 'SNI 03-2414-1991 • ASTM D5242',
-        desc: 'Pengukuran debit pengaliran fluida dalam pipa menggunakan prinsip penurunan tekanan pada venturimeter dan orifice plate.',
-        icon: 'pipe',
-      },
-    ],
-    bab4: [
-      {
-        id: 'f4-1',
-        code: 'UJI 4.1',
-        title: 'Aliran Ambang Tajam (Sharp Crested Weir)',
-        badge: 'ASTM D5242 • SNI 03-2414-1991',
-        desc: 'Kalkulasi debit aliran saluran terbuka di atas mercu peluap ambang tajam segiempat berdasarkan tinggi energi head H.',
-        icon: 'waves',
-      },
-    ],
-    bab5: [
-      {
-        id: 'f5-1',
-        code: 'UJI 5.1',
-        title: 'Kalibrasi Flowmeter & Akurasi Debit',
-        badge: 'SNI 03-2414-1991 • Standar Kalibrasi',
-        desc: 'Uji kalibrasi debit terbaca flowmeter terhadap metode volumetrik aktual dan evaluasi batas toleransi kesalahan (error < 5%).',
-        icon: 'gauge',
       },
     ],
   },
@@ -518,7 +511,7 @@ const labModulesData = {
         id: 'p-sum-1',
         code: 'Bab 1',
         title: 'Uji Keausan Agregat (Los Angeles)',
-        badge: 'SNI 2417:2008 • Bina Marga 2018',
+        badge: 'SNI 2417:2008',
         desc: 'Penentuan ketahanan agregat kasar terhadap degradasi/keausan abrasi di dalam silinder mesin Los Angeles dengan bola baja.',
         icon: 'los-angeles',
       },
@@ -526,7 +519,7 @@ const labModulesData = {
         id: 'p-sum-2',
         code: 'Bab 2',
         title: 'Uji Penetrasi Aspal',
-        badge: 'SNI 2456:2011 • Bina Marga 2018',
+        badge: 'SNI 2456:2011',
         desc: 'Pengukuran konsistensi dan kekerasan aspal suhu 25°C beban 100 gram 5 detik dengan algoritma eliminasi data outlier statistik.',
         icon: 'gauge',
       },
@@ -534,7 +527,7 @@ const labModulesData = {
         id: 'p-sum-3',
         code: 'Bab 3',
         title: 'Uji Titik Lembek & Indeks Penetrasi (PI)',
-        badge: 'SNI 2434:2011 • Bina Marga 2018',
+        badge: 'SNI 2434:2011',
         desc: 'Pengukuran titik lembek cincin dan bola (Ring and Ball) serta penentuan kepekaan temperatur aspal (Indeks Penetrasi PI).',
         icon: 'fire',
       },
@@ -542,7 +535,7 @@ const labModulesData = {
         id: 'p-sum-4',
         code: 'Bab 4',
         title: 'Uji Berat Jenis Aspal Keras',
-        badge: 'SNI 2441:2011 • Bina Marga 2018',
+        badge: 'SNI 2441:2011',
         desc: 'Penentuan kerapatan dan specific gravity aspal padat/semi-padat menggunakan piknometer kaca kalibrasi pada suhu 25°C.',
         icon: 'beaker',
       },
@@ -550,7 +543,7 @@ const labModulesData = {
         id: 'p-sum-5',
         code: 'Bab 5',
         title: 'Uji Titik Nyala & Bakar (Cleveland)',
-        badge: 'SNI 2433:2011 • Bina Marga 2018',
+        badge: 'SNI 2433:2011',
         desc: 'Pengukuran suhu titik nyala (flash point) dan titik bakar (fire point) aspal cawan Cleveland dengan koreksi barometer udara.',
         icon: 'fire',
       },
@@ -558,7 +551,7 @@ const labModulesData = {
         id: 'p-sum-6',
         code: 'Bab 6',
         title: 'Uji Daktilitas Aspal',
-        badge: 'SNI 2432:2011 • Bina Marga 2018',
+        badge: 'SNI 2432:2011',
         desc: 'Pengukuran keelastisan, kohesi internal, dan elastisitas aspal melalui pemuluran briket hingga putus pada suhu 25°C kecepatan 5 cm/menit.',
         icon: 'waves',
       },
@@ -566,7 +559,7 @@ const labModulesData = {
         id: 'p-sum-7',
         code: 'Bab 7',
         title: 'Uji Viskositas (Saybolt Furol)',
-        badge: 'SNI 7729:2011 • Bina Marga 2018',
+        badge: 'SNI 7729:2011',
         desc: 'Pengukuran waktu alir Saybolt Furol (SSF), interpolasi cSt, dan regresi suhu pencampuran (170-230 cSt) serta pemadatan (250-350 cSt).',
         icon: 'droplet',
       },
@@ -582,7 +575,7 @@ const labModulesData = {
         id: 'p-sum-9',
         code: 'Bab 9',
         title: 'Uji Marshall Test',
-        badge: 'SNI 06-2489-1991 • Bina Marga 2018',
+        badge: 'SNI 06-2489-1991',
         desc: 'Analisis volumetrik (VMA, VIM, VFA, Gmb, Gmm) dan mekanik (Stabilitas, Flow, Marshall Quotient) briket campuran beraspal.',
         icon: 'concrete-press',
       },
@@ -590,7 +583,7 @@ const labModulesData = {
         id: 'p-sum-10',
         code: 'Bab 10',
         title: 'Uji Ekstraksi Aspal (Sentrifus)',
-        badge: 'SNI 03-6894-2002 • Bina Marga 2018',
+        badge: 'SNI 03-6894-2002',
         desc: 'Pemisahan aspal dari campuran perkerasan menggunakan centrifuge extractor untuk mengevaluasi toleransi deviasi terhadap JMF (±0.30%).',
         icon: 'sand',
       },
@@ -600,7 +593,7 @@ const labModulesData = {
         id: 'p1-1',
         code: 'UJI 1.1',
         title: 'Uji Keausan Agregat dengan Mesin Los Angeles',
-        badge: 'SNI 2417:2008 • Bina Marga 2018',
+        badge: 'SNI 2417:2008',
         desc: 'Pengukuran ketahanan abrasi agregat kasar menggunakan mesin Los Angeles (batas maksimum keausan < 40.0%).',
         icon: 'los-angeles',
       },
@@ -610,7 +603,7 @@ const labModulesData = {
         id: 'p2-1',
         code: 'UJI 2.1',
         title: 'Uji Penetrasi Aspal & Filter Outlier',
-        badge: 'SNI 2456:2011 • Bina Marga 2018',
+        badge: 'SNI 2456:2011',
         desc: 'Pengujian konsistensi penetrasi jarum pada suhu 25°C dengan eliminasi data pencilan statistik.',
         icon: 'gauge',
       },
@@ -620,7 +613,7 @@ const labModulesData = {
         id: 'p3-1',
         code: 'UJI 3.1',
         title: 'Uji Titik Lembek (Ring & Ball) & Indeks Penetrasi (PI)',
-        badge: 'SNI 2434:2011 • Bina Marga 2018',
+        badge: 'SNI 2434:2011',
         desc: 'Pengujian titik lembek aspal dan evaluasi kepekaan temperatur menggunakan rumus Indeks Penetrasi (PI) Pfeiffer.',
         icon: 'fire',
       },
@@ -630,7 +623,7 @@ const labModulesData = {
         id: 'p4-1',
         code: 'UJI 4.1',
         title: 'Uji Berat Jenis Aspal Keras (Piknometer)',
-        badge: 'SNI 2441:2011 • Bina Marga 2018',
+        badge: 'SNI 2441:2011',
         desc: 'Kerapatan massa jenis relatif aspal padat pada suhu 25°C dengan piknometer gelas kalibrasi.',
         icon: 'beaker',
       },
@@ -640,7 +633,7 @@ const labModulesData = {
         id: 'p5-1',
         code: 'UJI 5.1',
         title: 'Uji Titik Nyala dan Titik Bakar (Cleveland)',
-        badge: 'SNI 2433:2011 • Bina Marga 2018',
+        badge: 'SNI 2433:2011',
         desc: 'Evaluasi batas keamanan pemanasan aspal dengan cawan terbuka Cleveland dan koreksi tekanan barometer.',
         icon: 'fire',
       },
@@ -650,7 +643,7 @@ const labModulesData = {
         id: 'p6-1',
         code: 'UJI 6.1',
         title: 'Uji Daktilitas Bahan Aspal',
-        badge: 'SNI 2432:2011 • Bina Marga 2018',
+        badge: 'SNI 2432:2011',
         desc: 'Pengukuran elastisitas dan sifat kohesi pemuluran aspal pada 25°C kecepatan 5 cm/menit (syarat ≥ 100 cm).',
         icon: 'waves',
       },
@@ -660,7 +653,7 @@ const labModulesData = {
         id: 'p7-1',
         code: 'UJI 7.1',
         title: 'Uji Viskositas Saybolt Furol & Rentang Suhu Pelaksanaan',
-        badge: 'SNI 7729:2011 • Bina Marga 2018',
+        badge: 'SNI 7729:2011',
         desc: 'Konversi Saybolt Furol ke viskositas kinematik dan penentuan kurva suhu pencampuran & pemadatan.',
         icon: 'droplet',
       },
@@ -680,7 +673,7 @@ const labModulesData = {
         id: 'p9-1',
         code: 'UJI 9.1',
         title: 'Uji Marshall Campuran Beraspal Panas',
-        badge: 'SNI 06-2489-1991 • Bina Marga 2018',
+        badge: 'SNI 06-2489-1991',
         desc: 'Kalkulasi komprehensif volumetrik (VMA, VIM, VFA) dan mekanik (Stabilitas, Flow, MQ) dengan multi-step form.',
         icon: 'concrete-press',
       },
@@ -690,7 +683,7 @@ const labModulesData = {
         id: 'p10-1',
         code: 'UJI 10.1',
         title: 'Uji Ekstraksi Kadar Aspal (Centrifuge Extractor)',
-        badge: 'SNI 03-6894-2002 • Bina Marga 2018',
+        badge: 'SNI 03-6894-2002',
         desc: 'Pemisahan aspal dari campuran perkerasan dan verifikasi batas toleransi deviasi terhadap JMF (±0.30%).',
         icon: 'sand',
       },
@@ -734,9 +727,6 @@ function getDynamicStandardCategories(data) {
   const mfBabAll = [
     ...(data.fluida?.bab1 || []),
     ...(data.fluida?.bab2 || []),
-    ...(data.fluida?.bab3 || []),
-    ...(data.fluida?.bab4 || []),
-    ...(data.fluida?.bab5 || []),
   ]
   const bpBabAll = [
     ...(data.perkerasan?.bab1 || []),
@@ -756,35 +746,60 @@ function getDynamicStandardCategories(data) {
       num: '01',
       title: 'Standar Agregat Halus & Kasar',
       badgeGroup: 'Bahan Bangunan • Bab 1 & 2',
-      standards: extractStandardsFromList(bbBab1_2),
+      standards: [
+        'SNI 1970:2016',
+        'SNI 1969:2016',
+        'SNI ASTM C136:2012',
+      ],
       modules: bbBab1_2,
     },
     {
       num: '02',
       title: 'Standar Beton, Kayu & Baja',
       badgeGroup: 'Bahan Bangunan • Bab 3, 4, 5',
-      standards: extractStandardsFromList(bbBab3_4_5),
+      standards: [
+        'SNI 1972:2008',
+        'SNI 1974:2011',
+        'SNI 4431:2011',
+        'SNI 03-6847/6848-2002',
+        'SNI 2052:2017',
+      ],
       modules: bbBab3_4_5,
     },
     {
       num: '03',
       title: 'Standar Penyelidikan & Sifat Fisik Tanah',
       badgeGroup: 'Mekanika Tanah • Bab 1, 2, 4',
-      standards: extractStandardsFromList(mtBab1_2_4),
+      standards: [
+        'SNI 2827:2008',
+        'SNI 1965:2008',
+        'SNI 1964:2008',
+        'SNI 1967:2008',
+        'SNI 1966:2008',
+        'SNI 3423:2008',
+      ],
       modules: mtBab1_2_4,
     },
     {
       num: '04',
       title: 'Standar Pemadatan & Mekanika Tanah',
       badgeGroup: 'Mekanika Tanah • Bab 3, 5, 6',
-      standards: extractStandardsFromList(mtBab3_5_6),
+      standards: [
+        'SNI 1742:2008',
+        'SNI 3420:2016',
+        'SNI 2812:2011',
+        'SNI 2435:2008',
+      ],
       modules: mtBab3_5_6,
     },
     {
       num: '05',
       title: 'Standar Mekanika Fluida & Hidraulika',
-      badgeGroup: 'Mekanika Fluida • Bab 1 s.d. 5',
-      standards: extractStandardsFromList(mfBabAll),
+      badgeGroup: 'Mekanika Fluida • Bab 1 s.d. 2',
+      standards: [
+        'ASTM D1475 & ASTM D445',
+        'Standar Hidraulika Pipa (Re)',
+      ],
       modules: mfBabAll,
     },
     {
@@ -799,9 +814,9 @@ function getDynamicStandardCategories(data) {
         'SNI 2433:2011',
         'SNI 2432:2011',
         'SNI 7729:2011',
+        'Spesifikasi Umum Bina Marga 2018',
         'SNI 06-2489-1991',
         'SNI 03-6894-2002',
-        'Bina Marga 2018',
       ],
       modules: bpBabAll,
     },
@@ -810,71 +825,42 @@ function getDynamicStandardCategories(data) {
 
 // Generator Acuan Standar Lengkap untuk Kolom Footer (Dinamis dari Data Master)
 function getDynamicFooterStandards(data) {
-  const agregatMods = [...(data.bahan?.bab1 || []), ...(data.bahan?.bab2 || [])]
-  const betonMods = [...(data.bahan?.bab3 || [])]
-  const kayuBajaMods = [...(data.bahan?.bab4 || []), ...(data.bahan?.bab5 || [])]
-  const sondirMods = [...(data.tanah?.bab1 || [])]
-  const atterbergMods = [...(data.tanah?.bab2 || []), ...(data.tanah?.bab4 || [])]
-  const proctorMods = [
-    ...(data.tanah?.bab3 || []),
-    ...(data.tanah?.bab5 || []),
-    ...(data.tanah?.bab6 || []),
-  ]
-
   return [
     {
-      id: 'f-agregat',
-      label: 'SNI Agregat Halus & Kasar',
-      codes: extractStandardsFromList(agregatMods).slice(0, 2).join(' & '),
-      hint: 'Gradasi, Kadar Air, Bobot Isi & Keausan Los Angeles',
-    },
-    {
-      id: 'f-beton',
-      label: 'SNI Kuat Tekan & Slump Beton',
-      codes: extractStandardsFromList(betonMods).join(' & '),
-      hint: 'Slump, Kuat Tekan Silinder/Kubus & Kuat Lentur',
+      id: 'f-agregat-beton',
+      label: 'SNI Agregat & Beton',
+      codes: 'SNI 1970:2016, SNI ASTM C136 & SNI 1974:2011',
+      hint: 'Gradasi, Kadar Air, Bobot Isi, Slump & Kuat Tekan Beton',
     },
     {
       id: 'f-kayu-baja',
-      label: 'SNI/ASTM Kayu & Baja Tulangan',
-      codes: `${extractStandardsFromList(kayuBajaMods).find((c) => c.includes('ASTM')) || 'ASTM D2395'} • SNI 7973 & 8369`,
-      hint: 'Kadar Air, Berat Jenis, Lentur Kayu & Tarik Baja',
+      label: 'SNI Kayu & Baja',
+      codes: 'SNI 03-6847/6848-2002 & SNI 2052:2017',
+      hint: 'Kadar Air, Berat Jenis, Kuat Lentur Kayu & Tarik Baja',
     },
     {
-      id: 'f-sondir',
-      label: 'SNI Penyelidikan Tanah (Sondir & Boring)',
-      codes: extractStandardsFromList(sondirMods).join(' & '),
-      hint: 'Sondir CPT Lapangan & Pengeboran Teknik (Boring)',
+      id: 'f-penyelidikan-tanah',
+      label: 'SNI Penyelidikan & Fisik Tanah',
+      codes: 'SNI 2827:2008 & SNI 1965:2008',
+      hint: 'Sondir CPT, Kadar Air, Batas Atterberg & Analisis Butir',
     },
     {
-      id: 'f-atterberg',
-      label: 'SNI Sifat Fisik & Batas Atterberg',
-      codes: extractStandardsFromList(atterbergMods).slice(0, 2).join(' & '),
-      hint: 'Batas Cair, Plastis, Gs & Distribusi Saringan Tanah',
+      id: 'f-pemadatan-tanah',
+      label: 'SNI Pemadatan & Geser Tanah',
+      codes: 'SNI 1742:2008 & SNI 3420:2016',
+      hint: 'Standard Proctor OMC/MDD, Direct Shear & Konsolidasi',
     },
     {
-      id: 'f-proctor',
-      label: 'SNI Pemadatan (Proctor) & Geser Langsung',
-      codes: extractStandardsFromList(proctorMods).slice(0, 2).join(' & '),
-      hint: 'Standard Proctor OMC/MDD, Sand Cone & Direct Shear Test',
+      id: 'f-fluida',
+      label: 'SNI/ASTM Mekanika Fluida',
+      codes: 'ASTM D1475 & ASTM D445',
+      hint: 'Densitas, Viskositas & Aliran Pipa Osborne Reynolds',
     },
     {
-      id: 'f-fluida-sifat',
-      label: 'Massa Jenis & Viskositas Fluida',
-      codes: 'ASTM D1475 / SNI ISO 2811 & ASTM D445 / SNI 06-6989.15',
-      hint: 'Densitas Piknometer, Viskositas Bola Jatuh, Gaya Archimedes & SG',
-    },
-    {
-      id: 'f-fluida-hidraulika',
-      label: 'Debit Ambang Tajam & Aliran Pipa',
-      codes: 'ASTM D5242 & SNI 03-2414-1991',
-      hint: 'Bilangan Reynolds, Venturimeter, Ambang Tajam (Weir) & Kalibrasi',
-    },
-    {
-      id: 'f-perkerasan-aspal',
-      label: 'SNI Aspal & Bahan Perkerasan',
-      codes: 'SNI 2456:2011 • SNI 2434:2011 & Bina Marga 2018',
-      hint: 'Penetrasi, Titik Lembek (PI), Berat Jenis, Saybolt Furol & Marshall Test',
+      id: 'f-perkerasan',
+      label: 'SNI & Bina Marga Perkerasan',
+      codes: 'SNI 2456:2011 & Bina Marga 2018',
+      hint: 'Penetrasi, Titik Lembek, Saybolt Furol, Marshall Test & Ekstraksi',
     },
   ]
 }
@@ -1006,14 +992,6 @@ function renderModuleIcon(icon) {
           <polyline points="8 11 12 15 16 11" />
           <polygon points="12 15 8 22 16 22 12 15" />
           <line x1="4" y1="2" x2="20" y2="2" />
-        </svg>
-      )
-    case 'boring':
-      return (
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#2478D4" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-          <line x1="12" y1="2" x2="12" y2="18" />
-          <path d="M8 6l8 2M8 10l8 2M8 14l8 2" />
-          <polygon points="12 18 10 22 14 22 12 18" />
         </svg>
       )
     case 'casagrande':
@@ -1217,7 +1195,7 @@ const initialSavedTests = [
     name: 'Pengujian Bilangan Osborne Reynolds',
     lab: 'Mekanika Fluida',
     category: 'Mekanika Fluida • Bab 2',
-    standard: 'ASTM D5242',
+    standard: 'Standar Hidraulika Pipa (Re)',
     summary: 'Re = 1619 (Laminer)',
     status: 'Laminer',
     time: '24 Okt 2026',
@@ -1266,9 +1244,6 @@ export default function App() {
     'mt-bab6': false,
     'mf-bab1': false,
     'mf-bab2': false,
-    'mf-bab3': false,
-    'mf-bab4': false,
-    'mf-bab5': false,
   })
   const [selectedLab, setSelectedLab] = useState('bahan') // 'bahan' | 'tanah'
   const [activeCategoryTab, setActiveCategoryTab] = useState('ringkasan')
@@ -1293,9 +1268,9 @@ export default function App() {
   const [savedTests, setSavedTests] = useState(() => {
     try {
       const stored = localStorage.getItem('labsipil_saved_tests')
-      if (stored) {
+      if (stored !== null) {
         const parsed = JSON.parse(stored)
-        if (Array.isArray(parsed) && parsed.length > 0) {
+        if (Array.isArray(parsed)) {
           return parsed
         }
       }
@@ -1320,9 +1295,9 @@ export default function App() {
       if (!e.key || e.key === 'labsipil_saved_tests') {
         try {
           const stored = localStorage.getItem('labsipil_saved_tests')
-          if (stored) {
+          if (stored !== null) {
             const parsed = JSON.parse(stored)
-            if (Array.isArray(parsed) && parsed.length > 0) {
+            if (Array.isArray(parsed)) {
               setSavedTests(parsed)
             }
           }
@@ -1614,9 +1589,7 @@ export default function App() {
     // Ringkasan Mekanika Fluida
     if (id === 'f-sum-1' || id === 'f1-1') return { testId: 'mf-1-1', chapterId: 'mf-bab1' }
     if (id === 'f-sum-2' || id === 'f2-1') return { testId: 'mf-2-1', chapterId: 'mf-bab2' }
-    if (id === 'f-sum-3' || id === 'f3-1') return { testId: 'mf-3-1', chapterId: 'mf-bab3' }
-    if (id === 'f-sum-4' || id === 'f4-1') return { testId: 'mf-4-1', chapterId: 'mf-bab4' }
-    if (id === 'f-sum-5' || id === 'f5-1') return { testId: 'mf-5-1', chapterId: 'mf-bab5' }
+    if (id === 'f-sum-3' || id === 'f3-1') return { testId: 'mf-1-1', chapterId: 'mf-bab1' }
 
     // Uji Spesifik Bahan Bangunan (format: b1-1 => bb-1-1, b2-1 => bb-2-1, dst)
     if (id.startsWith('b')) {
@@ -1715,9 +1688,6 @@ export default function App() {
       'mt-bab6': false,
       'mf-bab1': false,
       'mf-bab2': false,
-      'mf-bab3': false,
-      'mf-bab4': false,
-      'mf-bab5': false,
     })
     setIsAppOpen(true)
     closeMobileMenu()
@@ -1747,9 +1717,6 @@ export default function App() {
       'mt-bab6': false,
       'mf-bab1': false,
       'mf-bab2': false,
-      'mf-bab3': false,
-      'mf-bab4': false,
-      'mf-bab5': false,
       [chapterId]: true,
     })
     setIsAppOpen(true)
@@ -1871,9 +1838,6 @@ export default function App() {
       'mt-bab6': false,
       'mf-bab1': false,
       'mf-bab2': false,
-      'mf-bab3': false,
-      'mf-bab4': false,
-      'mf-bab5': false,
       [targetChapterId]: true,
     })
 
@@ -1953,8 +1917,22 @@ export default function App() {
   }
 
   const handleResetSampleData = () => {
-    if (window.confirm('Kembalikan database pengujian ke 5 data contoh awal?')) {
-      setSavedTests(initialSavedTests)
+    if (window.confirm('Apakah Anda yakin ingin menghapus seluruh data pengujian tersimpan? Semua riwayat data uji dan data perhitungan akan dikosongkan total.')) {
+      setSavedTests([])
+      setSelectedTestDetail(null)
+      try {
+        localStorage.setItem('labsipil_saved_tests', JSON.stringify([]))
+      } catch (err) {
+        console.error('Gagal mengosongkan labsipil_saved_tests di localStorage:', err)
+      }
+
+      // Bersihkan juga cache data input perhitungan tersimpan
+      setModuleInputs({})
+      try {
+        localStorage.removeItem('labsipil_module_inputs')
+      } catch (err) {
+        console.error('Gagal menghapus labsipil_module_inputs dari localStorage:', err)
+      }
     }
   }
 
@@ -2090,12 +2068,12 @@ export default function App() {
                 <span>Dashboard Utama</span>
               </button>
 
-              {/* 2 Kelompok Kategori Pengujian */}
+              {/* Kelompok Kategori Pengujian */}
               <div className="sidebar-accordion-groups">
                 {sidebarGroups.map((group) => (
                   <div key={group.groupId} className="sidebar-group-box">
-                    <div className="sidebar-group-heading">
-                      <span>{group.groupTitle}</span>
+                    <div className="sidebar-group-heading text-white">
+                      <span className="text-white font-semibold text-sm tracking-wider">{group.groupTitle}</span>
                     </div>
 
                     <div className="sidebar-chapters-accordion">
@@ -2200,18 +2178,26 @@ export default function App() {
 
           {/* Area Isi Dasbor: Toggle antara Kalkulator Pengujian Dinamis dan Dashboard Utama */}
           {activeTab === 'calculator' && calculatorRegistry[activeTestId] ? (
-            <TestCalculatorPanel
+            <ModuleErrorBoundary
               key={activeTestId}
-              testConfig={calculatorRegistry[activeTestId]}
-              currentInputs={moduleInputs[activeTestId] || calculatorRegistry[activeTestId]?.initialInputs}
-              onInputChange={(fieldKey, value) => handleUpdateModuleInput(activeTestId, fieldKey, value)}
-              onResetInputs={() => handleResetModuleInputs(activeTestId)}
-              onSaveToDashboard={handleSaveRecordFromCalculator}
-              onBackToDashboard={() => {
+              onReset={() => handleResetModuleInputs(activeTestId)}
+              onBack={() => {
                 setActiveTab('dashboard')
                 window.scrollTo({ top: 0, behavior: 'instant' })
               }}
-            />
+            >
+              <TestCalculatorPanel
+                testConfig={calculatorRegistry[activeTestId]}
+                currentInputs={moduleInputs[activeTestId] || calculatorRegistry[activeTestId]?.initialInputs}
+                onInputChange={(fieldKey, value) => handleUpdateModuleInput(activeTestId, fieldKey, value)}
+                onResetInputs={() => handleResetModuleInputs(activeTestId)}
+                onSaveToDashboard={handleSaveRecordFromCalculator}
+                onBackToDashboard={() => {
+                  setActiveTab('dashboard')
+                  window.scrollTo({ top: 0, behavior: 'instant' })
+                }}
+              />
+            </ModuleErrorBoundary>
           ) : (
             <div className="dashboard-content-area">
             {/* Metrik Bento Grid (4 Kolom Ringkas) */}
@@ -2319,13 +2305,13 @@ export default function App() {
                     type="button"
                     className="btn-reset-sample"
                     onClick={handleResetSampleData}
-                    title="Kembalikan riwayat ke 5 data contoh awal"
+                    title="Hapus dan kosongkan seluruh data riwayat pengujian tersimpan"
                   >
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
                       <polyline points="1 4 1 10 7 10" />
                       <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
                     </svg>
-                    <span>Reset Contoh</span>
+                    <span>Reset</span>
                   </button>
                 </div>
               </div>
@@ -3047,7 +3033,7 @@ export default function App() {
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z" />
                   </svg>
-                  <span>Praktikum Mekanika Fluida (5 Uji)</span>
+                  <span>Praktikum Mekanika Fluida (2 Uji)</span>
                 </button>
                 <button
                   type="button"
@@ -3148,9 +3134,8 @@ export default function App() {
                 style={{ filter: 'brightness(0) invert(1)', objectFit: 'contain' }}
               />
             </div>
-            <p className="footer-tagline text-base md:text-lg leading-relaxed md:leading-7 text-slate-300 text-gray-300 max-w-md">
-              Sistem Informasi & Pengolahan Data Praktikum Laboratorium Teknik Sipil. 
-              Membangun efisiensi, akurasi, dan standarisasi pendidikan teknik di Indonesia.
+            <p className="footer-tagline text-sm md:text-base leading-relaxed text-slate-300 text-gray-300 max-w-md">
+              Sistem Informasi & Pengolahan Data Praktikum Teknik Sipil. Membangun ekosistem praktikum yang lebih efisien, akurat, dan terintegrasi dengan standar SNI & ASTM.
             </p>
           </div>
 
@@ -3182,7 +3167,7 @@ export default function App() {
                   <a 
                     href="#standar" 
                     title={`${item.label} • ${item.codes} (${item.hint})`}
-                    className="footer-link text-gray-300 text-slate-400 hover:text-white transition-colors"
+                    className="footer-link text-gray-300 text-slate-400 hover:text-white transition-colors whitespace-nowrap"
                   >
                     {item.label}
                   </a>
