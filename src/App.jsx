@@ -2834,7 +2834,7 @@ export default function App() {
 
             {/* Deskripsi Singkat */}
             <p className="hero-desc">
-              Platform kalkulasi dan pengolahan data laboratorium otomatis khusus mahasiswa serta asisten Teknik Sipil. Mencakup pengujian Bahan Bangunan (Agregat, Beton, Kayu, Baja), Mekanika Tanah, Mekanika Fluida, hingga Bahan Perkerasan Jalan (Aspal, JMF, & Marshall) yang terintegrasi penuh dengan standar SNI, ASTM, dan Spesifikasi Umum Bina Marga 2018.
+              Platform hitung otomatis praktikum Teknik Sipil. Mencakup uji Bahan Bangunan, Mekanika Tanah, Mekanika Fluida, hingga Bahan Perkerasan sesuai standar SNI, ASTM, & Bina Marga 2018.
             </p>
 
             {/* 1 Tombol Utama di Tengah */}
