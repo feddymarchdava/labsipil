@@ -798,7 +798,7 @@ function getDynamicStandardCategories(data) {
       badgeGroup: 'Mekanika Fluida • Bab 1 s.d. 2',
       standards: [
         'ASTM D1475 & ASTM D445',
-        'Standar Hidraulika Pipa (Re)',
+        'SNI 7509:2011',
       ],
       modules: mfBabAll,
     },
@@ -814,7 +814,7 @@ function getDynamicStandardCategories(data) {
         'SNI 2433:2011',
         'SNI 2432:2011',
         'SNI 7729:2011',
-        'Spesifikasi Umum Bina Marga 2018',
+        'Bina Marga 2018',
         'SNI 06-2489-1991',
         'SNI 03-6894-2002',
       ],
@@ -1219,7 +1219,94 @@ const initialSavedTests = [
   },
 ]
 
+/**
+ * Mengaktifkan scroll horizontal pada semua `.table-scroll-wrapper`:
+ *  - Mouse wheel (Shift tidak wajib) menggulir tabel ke kiri/kanan jika konten melebar
+ *    dan wrapper tidak sedang membutuhkan scroll vertikal.
+ *  - Middle-click (tombol tengah mouse) + drag menggeser tabel secara horizontal.
+ * Memakai event delegation di `document` agar tabel yang dirender dinamis ikut didukung.
+ */
+function useTableHorizontalScroll() {
+  useEffect(() => {
+    const SELECTOR = '.table-scroll-wrapper'
+    let dragState = null
+
+    const findWrapper = (target) =>
+      target instanceof Element ? target.closest(SELECTOR) : null
+
+    const canScrollX = (el) => el.scrollWidth > el.clientWidth + 1
+
+    // Mouse wheel -> scroll horizontal
+    const handleWheel = (e) => {
+      const wrapper = findWrapper(e.target)
+      if (!wrapper || !canScrollX(wrapper) || e.ctrlKey) return
+
+      // Jika user sudah scroll horizontal (trackpad / shift+wheel), biarkan perilaku native
+      if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) return
+
+      const maxScroll = wrapper.scrollWidth - wrapper.clientWidth
+      const nextLeft = wrapper.scrollLeft + e.deltaY
+      const atStart = wrapper.scrollLeft <= 0 && e.deltaY < 0
+      const atEnd = wrapper.scrollLeft >= maxScroll - 1 && e.deltaY > 0
+
+      // Di ujung tabel, teruskan scroll ke halaman agar tidak "terkunci"
+      if (atStart || atEnd) return
+
+      e.preventDefault()
+      wrapper.scrollLeft = Math.max(0, Math.min(maxScroll, nextLeft))
+    }
+
+    // Middle-click drag -> pan horizontal
+    const handleMouseDown = (e) => {
+      if (e.button !== 1) return
+      const wrapper = findWrapper(e.target)
+      if (!wrapper || !canScrollX(wrapper)) return
+
+      e.preventDefault() // matikan autoscroll bawaan browser
+      dragState = { wrapper, startX: e.clientX, startScrollLeft: wrapper.scrollLeft }
+      wrapper.classList.add('is-panning')
+    }
+
+    const handleMouseMove = (e) => {
+      if (!dragState) return
+      const dx = e.clientX - dragState.startX
+      dragState.wrapper.scrollLeft = dragState.startScrollLeft - dx
+    }
+
+    const endDrag = () => {
+      if (!dragState) return
+      dragState.wrapper.classList.remove('is-panning')
+      dragState = null
+    }
+
+    // Cegah autoscroll middle-click bawaan browser pada wrapper tabel
+    const handleAuxClick = (e) => {
+      if (e.button === 1 && findWrapper(e.target)) e.preventDefault()
+    }
+
+    document.addEventListener('wheel', handleWheel, { passive: false })
+    document.addEventListener('mousedown', handleMouseDown)
+    document.addEventListener('mousemove', handleMouseMove)
+    document.addEventListener('mouseup', endDrag)
+    document.addEventListener('auxclick', handleAuxClick)
+    window.addEventListener('blur', endDrag)
+
+    return () => {
+      document.removeEventListener('wheel', handleWheel)
+      document.removeEventListener('mousedown', handleMouseDown)
+      document.removeEventListener('mousemove', handleMouseMove)
+      document.removeEventListener('mouseup', endDrag)
+      document.removeEventListener('auxclick', handleAuxClick)
+      window.removeEventListener('blur', endDrag)
+    }
+  }, [])
+}
+
+
 export default function App() {
+  // Scroll horizontal (mouse wheel & middle-click drag) untuk semua tabel perhitungan
+  useTableHorizontalScroll()
+
   // State untuk SPA view toggle: false = Landing Page, true = Dasbor Aplikasi Penuh
   const [isAppOpen, setIsAppOpen] = useState(() => {
     if (typeof window !== 'undefined' && window.location.hash === '#dashboard') {
@@ -2318,6 +2405,7 @@ export default function App() {
 
               {/* Tabel Data */}
               <div className="records-table-wrapper">
+                <div className="table-scroll-wrapper">
                 <table className="records-table">
                   <thead>
                     <tr>
@@ -2407,6 +2495,7 @@ export default function App() {
                     )}
                   </tbody>
                 </table>
+                </div>
               </div>
             </div>
 
@@ -2745,7 +2834,7 @@ export default function App() {
 
             {/* Deskripsi Singkat */}
             <p className="hero-desc">
-              Platform hitung otomatis khusus mahasiswa dan asisten Teknik Sipil. Mulai dari uji bahan, mekanika tanah, hingga beton yang sesuai standar SNI & ASTM.
+              Platform kalkulasi dan pengolahan data laboratorium otomatis khusus mahasiswa serta asisten Teknik Sipil. Mencakup pengujian Bahan Bangunan (Agregat, Beton, Kayu, Baja), Mekanika Tanah, Mekanika Fluida, hingga Bahan Perkerasan Jalan (Aspal, JMF, & Marshall) yang terintegrasi penuh dengan standar SNI, ASTM, dan Spesifikasi Umum Bina Marga 2018.
             </p>
 
             {/* 1 Tombol Utama di Tengah */}
@@ -2899,9 +2988,9 @@ export default function App() {
                       </div>
                       <span className="point-category-tag">{cat.badgeGroup}</span>
                     </div>
-                    <div className={`point-standards-tags ${cat.standards.length > 6 ? 'grid grid-cols-2 gap-2' : 'flex flex-wrap gap-1.5'}`}>
+                    <div className={`point-standards-tags${cat.standards.length > 6 ? ' std-tags-grid' : ''}`}>
                       {cat.standards.map((std) => (
-                        <span key={std} className="std-badge-pill">
+                        <span key={std} className="std-badge-pill" title={std}>
                           {std}
                         </span>
                       ))}

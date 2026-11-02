@@ -1125,24 +1125,30 @@
   line-height: 1.6;
 }
 
-/* Dark Feature Banner */
+/* Dark Feature Banner
+   Layout: blok teks (judul/deskripsi/statistik) di atas selebar penuh,
+   lalu grid 3 kolom x 2 baris untuk 6 kartu standar di bawahnya. */
 .dark-feature-banner {
   border-radius: 20px;
   padding: 48px;
   background: radial-gradient(120% 120% at 20% 20%, #1E4E8C 0%, #0B2239 100%);
   color: var(--text-white);
   display: grid;
-  grid-template-columns: 1fr 1.35fr;
-  gap: 3rem;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 2.5rem;
   align-items: start;
   box-shadow: 0 20px 40px -10px rgba(11, 34, 57, 0.4);
   scroll-margin-top: 100px;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .dark-banner-left {
   display: flex;
   flex-direction: column;
   gap: 1.25rem;
+  min-width: 0;
+  max-width: 880px;
 }
 
 .banner-meta-summary {
@@ -1201,18 +1207,24 @@
   line-height: 1.7;
 }
 
-/* Kolom Kanan Dark Banner (Grid 2 Kolom Standar Dinamis) */
+/* Grid Kartu Standar: 3 kolom x 2 baris (desktop), tinggi kartu seragam */
 .dark-banner-right {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-auto-rows: 1fr;
   gap: 1.35rem;
+  align-items: stretch;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .banner-point-card {
   display: flex;
   flex-direction: column;
   gap: 1.15rem;
-  padding: 1.6rem 1.65rem;
+  min-width: 0;
+  height: 100%;
+  padding: 1.6rem 1.5rem;
   background-color: rgba(255, 255, 255, 0.045);
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: var(--radius-lg);
@@ -1268,33 +1280,80 @@
   line-height: 1.3;
 }
 
+/* Kontainer badge standar: gap & alignment seragam untuk semua kartu */
 .point-standards-tags {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.45rem;
+  align-items: stretch;
+  gap: 0.5rem;
+  width: 100%;
+  min-width: 0;
+}
+
+/* Badge SNI: grid 2 kolom di semua kartu (kompak, tanpa teks terpotong) */
+.point-standards-tags,
+.point-standards-tags.std-tags-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.4rem;
+  align-content: start;
 }
 
 .std-badge-pill {
-  font-size: 0.75rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  max-width: 100%;
+  padding: 0.3rem 0.35rem;
+  font-size: 0.68rem;
   font-weight: 600;
+  line-height: 1.3;
   color: #93C5FD;
   background-color: rgba(96, 165, 250, 0.1);
   border: 1px solid rgba(96, 165, 250, 0.22);
   border-radius: var(--radius-sm);
-  padding: 0.28rem 0.6rem;
-  line-height: 1.3;
-  white-space: nowrap;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
   text-align: center;
+  /* Teks SNI harus satu baris (tidak terpotong menjadi 2 baris) */
+  white-space: nowrap;
   transition: all 0.2s ease;
+}
+
+/* Badge dalam satu baris grid memiliki tinggi seragam */
+.point-standards-tags .std-badge-pill {
+  height: 100%;
 }
 
 .banner-point-card:hover .std-badge-pill {
   background-color: rgba(96, 165, 250, 0.18);
   border-color: rgba(96, 165, 250, 0.38);
   color: #BFDBFE;
+}
+
+/* Tablet: grid kartu 2 kolom */
+@media (max-width: 1024px) {
+  .dark-banner-right {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* Mobile: grid kartu 1 kolom; badge SNI tetap 2 kolom jika muat, kalau tidak 1 kolom */
+@media (max-width: 640px) {
+  .dark-feature-banner {
+    padding: 28px 20px;
+  }
+
+  .dark-banner-right {
+    grid-template-columns: minmax(0, 1fr);
+    grid-auto-rows: auto;
+  }
+}
+
+@media (max-width: 380px) {
+  .point-standards-tags,
+  .point-standards-tags.std-tags-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* ==========================================================================
@@ -2068,7 +2127,7 @@
   }
 
   .dark-feature-banner {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
     gap: 2.5rem;
     padding: 36px;
   }
@@ -2165,7 +2224,7 @@
   }
 
   .dark-banner-right {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .keunggulan-grid {
@@ -8300,3 +8359,147 @@ select.calc-numeric-input.calc-select-input:hover {
 .btn-add-point:hover {
   background: #1D4ED8 !important;
 }
+
+/* ==========================================================================
+   SCROLL HORIZONTAL TABEL & PERBAIKAN LAYOUT KALKULATOR
+   - Semua <table> dibungkus .table-scroll-wrapper (lihat TestCalculatorPanel.jsx & App.jsx)
+   - Panel/kolom grid & kartu wajib min-width: 0 agar tidak melebar melewati viewport
+   - JANGAN memakai overflow: hidden pada kartu pembungkus tabel (mematikan scroll)
+   ========================================================================== */
+
+/* Kolom/panel grid & kartu: boleh menyusut sesuai kontainer */
+.full-dashboard-main,
+.calc-panel-wrapper,
+.calc-top-header,
+.calc-grid-layout,
+.calc-input-column,
+.calc-output-column,
+.calc-card-box,
+.calc-recap-table-box,
+.calc-dynamic-table-wrap,
+.dashboard-content-area,
+.card {
+  min-width: 0;
+  max-width: 100%;
+}
+
+/* Grid 2 kolom kalkulator: minmax(0, 1fr) mencegah kolom melebar mengikuti isi tabel */
+.calc-grid-layout {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+}
+
+@media (max-width: 1024px) {
+  .calc-grid-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Kartu pembungkus tabel: pastikan overflow tidak dimatikan */
+.calc-card-box,
+.calc-recap-table-box,
+.calc-dynamic-table-wrap {
+  overflow: visible;
+}
+
+/* Wrapper scroll horizontal untuk SEMUA tabel */
+.table-scroll-wrapper {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 8px;
+  overscroll-behavior-x: contain;
+}
+
+/* Nonaktifkan scroll vertikal wrapper hanya jika tabel tidak butuh scroll vertikal sendiri
+   (tabel dengan header sticky di dalam container ber-max-height tetap diatur container induknya) */
+.oedometer-table-container .table-scroll-wrapper,
+.direct-shear-table-container .table-scroll-wrapper {
+  overflow-y: visible;
+}
+
+/* Indikator saat middle-click drag aktif */
+.table-scroll-wrapper.is-panning {
+  cursor: grabbing;
+  user-select: none;
+}
+
+/* Scrollbar horizontal yang jelas terlihat */
+.table-scroll-wrapper::-webkit-scrollbar {
+  height: 10px;
+}
+
+.table-scroll-wrapper::-webkit-scrollbar-track {
+  background: #F1F5F9;
+  border-radius: 999px;
+}
+
+.table-scroll-wrapper::-webkit-scrollbar-thumb {
+  background: #CBD5E1;
+  border-radius: 999px;
+}
+
+.table-scroll-wrapper::-webkit-scrollbar-thumb:hover {
+  background: #94A3B8;
+}
+
+.table-scroll-wrapper {
+  scrollbar-width: thin;
+  scrollbar-color: #CBD5E1 #F1F5F9;
+}
+
+/* Tabel di dalam wrapper: lebar mengikuti isi, semua kolom tetap utuh dalam satu baris */
+.table-scroll-wrapper > table {
+  width: 100%;
+  min-width: max-content;
+}
+
+.table-scroll-wrapper table th,
+.table-scroll-wrapper table td {
+  white-space: nowrap;
+}
+
+/* Container lama yang sudah punya overflow-x: tidak perlu scroll ganda */
+.calc-table-responsive,
+.calc-chart-table-wrap,
+.cpt-table-responsive,
+.records-table-wrapper,
+.soil-sieve-table-container,
+.oedometer-table-container,
+.direct-shear-table-container,
+.penetration-table-scroll,
+.reynolds-table-container,
+.reynolds-recap-table-container,
+.ductility-table-scroll {
+  min-width: 0;
+  max-width: 100%;
+}
+
+/* Padding atas area konten kalkulator di bawah sticky header agar judul kartu ringkasan tidak terpotong */
+.calc-panel-wrapper {
+  padding-top: 2.75rem;
+  scroll-padding-top: 6rem;
+}
+
+.calc-metrics-grid {
+  padding-top: 0.25rem;
+}
+
+.calc-metric-badge {
+  min-width: 0;
+  overflow: visible;
+}
+
+.calc-metric-label {
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 768px) {
+  .calc-panel-wrapper {
+    padding-top: 2rem;
+  }
+}
+

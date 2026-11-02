@@ -2070,6 +2070,7 @@ export default function TestCalculatorPanel({
                 </div>
 
                 <div className="calc-table-responsive">
+                  <div className="table-scroll-wrapper">
                   <table className="calc-custom-input-table">
                     <thead>
                       <tr>
@@ -2133,6 +2134,7 @@ export default function TestCalculatorPanel({
                       ))}
                     </tbody>
                   </table>
+                  </div>
                 </div>
               </div>
             )}
@@ -2409,6 +2411,7 @@ export default function TestCalculatorPanel({
                   </span>
                 </div>
                 <div style={{ overflowX: 'auto' }}>
+                  <div className="table-scroll-wrapper">
                   <table className="calc-custom-input-table" style={{ width: '100%', fontSize: '0.85rem' }}>
                     <thead>
                       <tr style={{ background: '#F8FAFC' }}>
@@ -2454,6 +2457,7 @@ export default function TestCalculatorPanel({
                       ))}
                     </tbody>
                   </table>
+                  </div>
                 </div>
               </div>
             )}
@@ -2680,6 +2684,7 @@ function DynamicSieveTable({
       </div>
 
       <div className="calc-table-responsive" style={{ overflowX: 'auto' }}>
+        <div className="table-scroll-wrapper">
         <table className="calc-custom-input-table">
           <thead>
             <tr>
@@ -2891,6 +2896,7 @@ function DynamicSieveTable({
             </tfoot>
           )}
         </table>
+        </div>
       </div>
 
       {/* Sieve Table Footer Summary */}
@@ -3157,6 +3163,7 @@ function GradationCurveChart({ chartData }) {
 
       {/* Tabel Rincian Data Fraksi Ayakan Standar */}
       <div className="calc-chart-table-wrap">
+        <div className="table-scroll-wrapper">
         <table className="calc-chart-table">
           <thead>
             <tr>
@@ -3201,6 +3208,7 @@ function GradationCurveChart({ chartData }) {
             })}
           </tbody>
         </table>
+        </div>
       </div>
     </div>
   )
@@ -3443,6 +3451,7 @@ function JmfVariationTable({ data }) {
       </div>
 
       <div style={{ overflowX: 'auto', marginTop: '0.75rem' }}>
+        <div className="table-scroll-wrapper">
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem', textAlign: 'left' }}>
           <thead>
             <tr style={{ backgroundColor: '#F1F5F9', borderBottom: '2px solid #CBD5E1', color: '#334155' }}>
@@ -3485,6 +3494,7 @@ function JmfVariationTable({ data }) {
             ))}
           </tbody>
         </table>
+        </div>
       </div>
 
       <div style={{ marginTop: '0.65rem', padding: '0.6rem 0.85rem', backgroundColor: '#F8FAFC', borderRadius: '0.5rem', fontSize: '0.72rem', color: '#64748B', display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem' }}>
@@ -3625,6 +3635,7 @@ function PermeabilityClassificationCard({ data }) {
       </div>
 
       <div style={{ overflowX: 'auto', marginTop: '1rem' }}>
+        <div className="table-scroll-wrapper">
         <table className="perm-table" style={{ width: '100%', borderCollapse: 'separate', borderSpacing: '0', fontSize: '0.8rem' }}>
           <thead>
             <tr style={{ backgroundColor: '#F8FAFC', textAlign: 'left', borderBottom: '2px solid #E2E8F0' }}>
@@ -3698,6 +3709,7 @@ function PermeabilityClassificationCard({ data }) {
             })}
           </tbody>
         </table>
+        </div>
       </div>
 
       <div style={{ marginTop: '0.85rem', padding: '0.75rem 1rem', borderRadius: '0.6rem', backgroundColor: '#F8FAFC', border: '1px solid #E2E8F0', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem' }}>
@@ -3940,6 +3952,7 @@ function DynamicCptSection({
 
         {/* Container Tabel Dinamis dengan Horizontal Scroll Responsif */}
         <div className="cpt-table-responsive">
+          <div className="table-scroll-wrapper">
           <table className="cpt-spreadsheet-table">
             <thead>
               <tr>
@@ -4046,6 +4059,7 @@ function DynamicCptSection({
               })}
             </tbody>
           </table>
+          </div>
         </div>
 
         {/* Bottom Actions of Table */}
@@ -4776,6 +4790,7 @@ function DynamicProctorSection({
               Sub-Pengujian 3 Kontainer Kadar Air (w) untuk {activeSample.name}:
             </h5>
             <div className="cpt-table-responsive">
+              <div className="table-scroll-wrapper">
               <table className="cpt-spreadsheet-table">
                 <thead>
                   <tr>
@@ -4880,6 +4895,7 @@ function DynamicProctorSection({
                   </tr>
                 </tbody>
               </table>
+              </div>
             </div>
           </div>
         </div>
@@ -4900,6 +4916,7 @@ function DynamicProctorSection({
           </div>
 
           <div className="cpt-table-responsive">
+            <div className="table-scroll-wrapper">
             <table className="cpt-spreadsheet-table">
               <thead>
                 <tr>
@@ -4940,6 +4957,7 @@ function DynamicProctorSection({
                 ))}
               </tbody>
             </table>
+            </div>
           </div>
 
           <div style={{ marginTop: '0.75rem', padding: '0.65rem 0.85rem', backgroundColor: '#F8FAFC', borderRadius: '0.5rem', fontSize: '0.73rem', color: '#475569', lineHeight: 1.4 }}>
@@ -5371,6 +5389,7 @@ function DynamicSoilSieveSection({
             </div>
 
             <div className="soil-sieve-table-container">
+              <div className="table-scroll-wrapper">
               <table className="soil-sieve-table">
                 <thead>
                   <tr>
@@ -5457,6 +5476,7 @@ function DynamicSoilSieveSection({
                   )}
                 </tbody>
               </table>
+              </div>
             </div>
 
             {/* Input Tambahan di Bawah Tabel */}
@@ -5965,6 +5985,7 @@ function DynamicOedometerSection({
             </div>
 
             <div className="oedometer-table-container">
+              <div className="table-scroll-wrapper">
               <table className="oedometer-table">
                 <thead>
                   <tr>
@@ -6032,6 +6053,7 @@ function DynamicOedometerSection({
                   ))}
                 </tbody>
               </table>
+              </div>
             </div>
 
             {/* Parameter Tambahan di Luar Tabel */}
@@ -6583,6 +6605,7 @@ function DynamicDirectShearSection({
           </div>
 
           <div className="direct-shear-table-container">
+            <div className="table-scroll-wrapper">
             <table className="direct-shear-table">
               <thead>
                 <tr>
@@ -6699,6 +6722,7 @@ function DynamicDirectShearSection({
                 })}
               </tbody>
             </table>
+            </div>
           </div>
 
           {/* Rincian Petunjuk Geoteknik */}
@@ -7352,6 +7376,7 @@ function DynamicPenetrationSection({
         </div>
 
         <div className="penetration-table-scroll">
+          <div className="table-scroll-wrapper">
           <table className="penetration-recap-table">
             <thead>
               <tr>
@@ -7407,6 +7432,7 @@ function DynamicPenetrationSection({
               </tr>
             </tbody>
           </table>
+          </div>
         </div>
       </div>
 
@@ -7877,6 +7903,7 @@ function DynamicReynoldsSection({
           </div>
 
           <div className="reynolds-table-container">
+            <div className="table-scroll-wrapper">
             <table className="reynolds-table">
               <thead>
                 <tr>
@@ -8039,6 +8066,7 @@ function DynamicReynoldsSection({
                 })}
               </tbody>
             </table>
+            </div>
           </div>
 
           {/* Petunjuk Teknis Pengujian */}
@@ -8087,6 +8115,7 @@ function DynamicReynoldsSection({
           </div>
 
           <div className="reynolds-recap-table-container">
+            <div className="table-scroll-wrapper">
             <table className="reynolds-recap-table">
               <thead>
                 <tr>
@@ -8135,6 +8164,7 @@ function DynamicReynoldsSection({
                 )}
               </tbody>
             </table>
+            </div>
           </div>
         </div>
 
@@ -8636,6 +8666,7 @@ function DynamicDuctilitySection({
         </div>
 
         <div className="ductility-table-scroll">
+          <div className="table-scroll-wrapper">
           <table className="ductility-table">
             <thead>
               <tr>
@@ -8738,6 +8769,7 @@ function DynamicDuctilitySection({
               })}
             </tbody>
           </table>
+          </div>
         </div>
       </div>
 
@@ -9178,6 +9210,7 @@ function DynamicViscositySection({
 
         {/* Tabel Data Titik */}
         <div style={{ overflowX: 'auto' }}>
+          <div className="table-scroll-wrapper">
           <table className="calc-table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
             <thead>
               <tr style={{ background: '#F8FAFC', borderBottom: '1px solid #E2E8F0', textAlign: 'left', color: '#475569', fontWeight: 600 }}>
@@ -9256,6 +9289,7 @@ function DynamicViscositySection({
               })}
             </tbody>
           </table>
+          </div>
         </div>
 
         {/* Baris Bawah Info Tambah Titik */}
@@ -9613,6 +9647,7 @@ function DynamicMultiSampleSection({
 
             {/* Tabel Baris Sampel Dinamis */}
             <div className="calc-table-responsive" style={{ overflowX: 'auto' }}>
+              <div className="table-scroll-wrapper">
               <table className="calc-custom-input-table" style={{ width: '100%', fontSize: '0.85rem' }}>
                 <thead>
                   <tr style={{ background: '#F8FAFC' }}>
@@ -9713,6 +9748,7 @@ function DynamicMultiSampleSection({
                   </tfoot>
                 )}
               </table>
+              </div>
             </div>
           </div>
         </div>
@@ -9828,6 +9864,7 @@ function DynamicMultiSampleSection({
               </div>
 
               <div style={{ overflowX: 'auto' }}>
+                <div className="table-scroll-wrapper">
                 <table className="calc-custom-input-table" style={{ width: '100%', fontSize: '0.85rem' }}>
                   <thead>
                     <tr style={{ background: '#F8FAFC' }}>
@@ -9873,6 +9910,7 @@ function DynamicMultiSampleSection({
                     ))}
                   </tbody>
                 </table>
+                </div>
               </div>
             </div>
           )}
@@ -10784,6 +10822,7 @@ function DynamicJmfMixSection({
         </div>
 
         <div style={{ overflowX: 'auto', border: '1px solid #E2E8F0', borderRadius: '6px' }}>
+          <div className="table-scroll-wrapper">
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem', textAlign: 'center' }}>
             <thead>
               <tr style={{ background: '#F8FAFC', color: '#334155', borderBottom: '2px solid #E2E8F0' }}>
@@ -10946,6 +10985,7 @@ function DynamicJmfMixSection({
               </tr>
             </tfoot>
           </table>
+          </div>
         </div>
       </div>
 
@@ -11296,6 +11336,7 @@ function DynamicJmfMixSection({
         </div>
 
         <div style={{ overflowX: 'auto', border: '1px solid #E2E8F0', borderRadius: '6px' }}>
+          <div className="table-scroll-wrapper">
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem', textAlign: 'center' }}>
             <thead>
               <tr style={{ background: '#F8FAFC', color: '#334155', borderBottom: '2px solid #E2E8F0' }}>
@@ -11343,6 +11384,7 @@ function DynamicJmfMixSection({
               })}
             </tbody>
           </table>
+          </div>
         </div>
       </div>
 
@@ -11358,6 +11400,7 @@ function DynamicJmfMixSection({
         </div>
 
         <div style={{ overflowX: 'auto', border: '1px solid #E2E8F0', borderRadius: '6px' }}>
+          <div className="table-scroll-wrapper">
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem', textAlign: 'center' }}>
             <thead>
               <tr style={{ background: '#F8FAFC', color: '#334155', borderBottom: '2px solid #E2E8F0' }}>
@@ -11435,6 +11478,7 @@ function DynamicJmfMixSection({
               })}
             </tbody>
           </table>
+          </div>
         </div>
       </div>
 
@@ -11971,6 +12015,7 @@ function DynamicMarshallSection({
               Tabel 12.2 Luas Permukaan Agregat Campuran Berdasarkan Faktor Luas Permukaan (FLP) Sesuai Spesifikasi.
             </p>
             <div style={{ overflowX: 'auto', border: '1px solid #E2E8F0', borderRadius: '6px' }}>
+              <div className="table-scroll-wrapper">
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem', textAlign: 'center' }}>
                 <thead>
                   <tr style={{ background: '#F8FAFC', color: '#334155', borderBottom: '2px solid #E2E8F0' }}>
@@ -12047,6 +12092,7 @@ function DynamicMarshallSection({
                   </tr>
                 </tfoot>
               </table>
+              </div>
             </div>
           </div>
         )}
@@ -12070,6 +12116,7 @@ function DynamicMarshallSection({
             </div>
 
             <div style={{ overflowX: 'auto', border: '1px solid #E2E8F0', borderRadius: '6px' }}>
+              <div className="table-scroll-wrapper">
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem', textAlign: 'center' }}>
                 <thead>
                   <tr style={{ background: '#F8FAFC', color: '#334155', borderBottom: '2px solid #E2E8F0' }}>
@@ -12194,6 +12241,7 @@ function DynamicMarshallSection({
                   ))}
                 </tbody>
               </table>
+              </div>
             </div>
           </div>
         )}
@@ -12277,6 +12325,7 @@ function DynamicMarshallSection({
             <span style={{ fontSize: '0.75rem', color: '#64748B' }}>Geser ke samping (scroll) untuk melihat seluruh kolom</span>
           </div>
           <div style={{ overflowX: 'auto', border: '1px solid #E2E8F0', borderRadius: '6px' }}>
+            <div className="table-scroll-wrapper">
             <table style={{ width: '100%', minWidth: '1200px', borderCollapse: 'collapse', fontSize: '0.75rem', textAlign: 'center' }}>
               <thead>
                 <tr style={{ background: '#F8FAFC', color: '#334155', borderBottom: '2px solid #E2E8F0' }}>
@@ -12339,6 +12388,7 @@ function DynamicMarshallSection({
                 ))}
               </tbody>
             </table>
+            </div>
           </div>
         </div>
 
@@ -12348,6 +12398,7 @@ function DynamicMarshallSection({
             Tabel 12.4 Hasil Stabilitas, Flow, dan Marshall Quotient Setiap Kadar Aspal
           </strong>
           <div style={{ overflowX: 'auto', border: '1px solid #E2E8F0', borderRadius: '6px' }}>
+            <div className="table-scroll-wrapper">
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem', textAlign: 'center' }}>
               <thead>
                 <tr style={{ background: '#F8FAFC', color: '#334155', borderBottom: '2px solid #E2E8F0' }}>
@@ -12386,6 +12437,7 @@ function DynamicMarshallSection({
                 ))}
               </tbody>
             </table>
+            </div>
           </div>
         </div>
 
@@ -12395,6 +12447,7 @@ function DynamicMarshallSection({
             Tabel 12.5 Penentuan Kadar Aspal Optimum (KAO) terhadap Spesifikasi Bina Marga 2018 (Divisi 6)
           </strong>
           <div style={{ overflowX: 'auto', border: '1px solid #E2E8F0', borderRadius: '6px' }}>
+            <div className="table-scroll-wrapper">
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem', textAlign: 'center' }}>
               <thead>
                 <tr style={{ background: '#F8FAFC', color: '#334155', borderBottom: '2px solid #E2E8F0' }}>
@@ -12447,6 +12500,7 @@ function DynamicMarshallSection({
                 ))}
               </tbody>
             </table>
+            </div>
           </div>
         </div>
       </div>
