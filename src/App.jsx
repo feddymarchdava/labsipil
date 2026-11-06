@@ -2115,21 +2115,20 @@ export default function App() {
               onClick={handleBackToLanding}
               title="Klik untuk kembali ke Beranda Landing Page"
             >
-              {/* Sebelah KIRI: Hanya gambar ikon logo huruf L baru warna putih */}
+              {/* Sebelah KIRI: Hanya gambar ikon logo huruf L baru */}
               <img 
                 src="/logo-l.png" 
                 alt="LabSipil Icon" 
-                className="sidebar-brand-icon h-11 w-auto object-contain brightness-0 invert" 
-                style={{ filter: 'brightness(0) invert(1)' }}
+                className="sidebar-brand-icon h-11 w-auto object-contain" 
               />
               
               {/* Sebelah KANAN: Teks yang ditumpuk (flex-col) */}
               <div className="sidebar-brand-text flex flex-col text-left">
-                <span className="sidebar-brand-name text-xl font-bold leading-tight">
-                  <span className="text-white">Lab</span>
-                  <span className="text-blue-500">Sipil</span>
+                <span className="sidebar-brand-name text-xl font-bold leading-tight" style={{ color: '#0F172A' }}>
+                  <span style={{ color: '#0F172A' }}>Lab</span>
+                  <span className="text-blue-600">Sipil</span>
                 </span>
-                <span className="sidebar-brand-sub text-[10px] text-gray-400 font-semibold tracking-wider uppercase">
+                <span className="sidebar-brand-sub text-[10px] text-slate-500 font-semibold tracking-wider uppercase">
                   SISTEM PENGOLAHAN DATA
                 </span>
               </div>
@@ -2988,7 +2987,7 @@ export default function App() {
                       </div>
                       <span className="point-category-tag">{cat.badgeGroup}</span>
                     </div>
-                    <div className={`point-standards-tags${cat.standards.length > 6 ? ' std-tags-grid' : ''}`}>
+                    <div className="point-standards-tags">
                       {cat.standards.map((std) => (
                         <span key={std} className="std-badge-pill" title={std}>
                           {std}
@@ -3219,28 +3218,28 @@ export default function App() {
               <img 
                 src="/logo-labsipil-baru.png" 
                 alt="LabSipil Logo" 
-                className="footer-logo-img h-14 md:h-16 w-auto object-contain mb-6 brightness-0 invert" 
-                style={{ filter: 'brightness(0) invert(1)', objectFit: 'contain' }}
+                className="footer-logo-img h-14 md:h-16 w-auto object-contain mb-6" 
+                style={{ objectFit: 'contain' }}
               />
             </div>
-            <p className="footer-tagline text-sm md:text-base leading-relaxed text-slate-300 text-gray-300 max-w-md">
+            <p className="footer-tagline text-sm md:text-base leading-relaxed text-slate-600 max-w-md">
               Sistem Informasi & Pengolahan Data Praktikum Teknik Sipil. Membangun ekosistem praktikum yang lebih efisien, akurat, dan terintegrasi dengan standar SNI & ASTM.
             </p>
           </div>
 
           <div className="footer-links-group">
-            <h4 className="footer-column-title text-white text-slate-100">Navigasi Halaman</h4>
+            <h4 className="footer-column-title text-slate-900">Navigasi Halaman</h4>
             <ul>
-              <li><a href="#beranda" className="footer-link text-gray-300 text-slate-400 hover:text-white transition-colors">Beranda</a></li>
-              <li><a href="#modul-uji" className="footer-link text-gray-300 text-slate-400 hover:text-white transition-colors">Modul Praktikum</a></li>
-              <li><a href="#cara-kerja" className="footer-link text-gray-300 text-slate-400 hover:text-white transition-colors">Cara Kerja</a></li>
-              <li><a href="#standar" className="footer-link text-gray-300 text-slate-400 hover:text-white transition-colors">Standar SNI/ASTM</a></li>
+              <li><a href="#beranda" className="footer-link text-slate-600 hover:text-blue-600 transition-colors">Beranda</a></li>
+              <li><a href="#modul-uji" className="footer-link text-slate-600 hover:text-blue-600 transition-colors">Modul Praktikum</a></li>
+              <li><a href="#cara-kerja" className="footer-link text-slate-600 hover:text-blue-600 transition-colors">Cara Kerja</a></li>
+              <li><a href="#standar" className="footer-link text-slate-600 hover:text-blue-600 transition-colors">Standar SNI/ASTM</a></li>
               <li>
                 <a
                   href="https://mail.google.com/mail/?view=cm&fs=1&to=feddymarchdava@gmail.com&su=Feedback%20Pengguna%20Web%20LabSipil"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="footer-link text-gray-300 text-slate-400 hover:text-white transition-colors"
+                  className="footer-link text-slate-600 hover:text-blue-600 transition-colors"
                 >
                   Kontak
                 </a>
@@ -3249,14 +3248,14 @@ export default function App() {
           </div>
 
           <div className="footer-links-group">
-            <h4 className="footer-column-title text-white text-slate-100">Standar Acuan</h4>
+            <h4 className="footer-column-title text-slate-900">Standar Acuan</h4>
             <ul>
               {dynamicFooterStandards.map((item) => (
                 <li key={item.id}>
                   <a 
                     href="#standar" 
                     title={`${item.label} • ${item.codes} (${item.hint})`}
-                    className="footer-link text-gray-300 text-slate-400 hover:text-white transition-colors whitespace-nowrap"
+                    className="footer-link text-slate-600 hover:text-blue-600 transition-colors whitespace-nowrap"
                   >
                     {item.label}
                   </a>
@@ -3266,10 +3265,10 @@ export default function App() {
           </div>
         </div>
 
-        <div className="footer-bottom-bar border-t border-slate-700 border-white/10">
+        <div className="footer-bottom-bar border-t border-slate-200">
           <div className="container bottom-inner">
-            <p className="footer-copyright text-slate-400">&copy; {new Date().getFullYear()} LabSipil.</p>
-            <p className="footer-compliance text-slate-400">Bersih • Minimalis • Bebas Rumus Manual</p>
+            <p className="footer-copyright text-slate-500">&copy; {new Date().getFullYear()} LabSipil.</p>
+            <p className="footer-compliance text-slate-500">Bersih • Minimalis • Bebas Rumus Manual</p>
           </div>
         </div>
       </footer>

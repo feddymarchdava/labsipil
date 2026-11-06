@@ -1,52 +1,76 @@
 /* ==========================================================================
-   LabSipil - Global CSS Variables & Base Styles
+   LabSipil - Global CSS Variables & Base Styles (UI/UX Pro Max & Impeccable)
    Sistem Informasi & Pengolahan Data Praktikum Teknik Sipil
-   Spesifikasi: Gaya Klinis, Minimalis, Modern SaaS Laboratorium
+   Spesifikasi: Clean Engineering SaaS, Zero AI-Slop, High Keterbacaan Lab
    ========================================================================== */
 
 :root {
-  /* Warna Utama & Latar Belakang */
-  --bg-primary: #FFFFFF;
-  --bg-secondary: #F8FAFC;
-  --bg-card: #FFFFFF;
+  /* Latar Belakang & Permukaan Bersih */
+  --bg-primary: #F8FAFC;       /* Slate 50 */
+  --bg-secondary: #F1F5F9;     /* Slate 100 */
+  --bg-card: #FFFFFF;          /* Pure White Card */
+  --bg-surface: #FFFFFF;
 
-  /* Tipografi Warna */
-  --text-heading: #12345A;    /* Deep Navy */
-  --text-body: #64748B;       /* Steel Gray */
-  --text-muted: #94A3B8;      /* Slate Light */
+  /* Tipografi Warna Terstruktur */
+  --text-heading: #0F172A;     /* Slate 900 (Teks Utama) */
+  --text-body: #475569;        /* Slate 600 (Teks Sekunder) */
+  --text-muted: #64748B;       /* Slate 500 (Label Satuan/Muted) */
   --text-white: #FFFFFF;
 
-  /* Warna Aksen */
-  --accent-primary: #2478D4;  /* Technical Blue */
-  --accent-hover: #1D63B2;    /* Darker Technical Blue */
-  --accent-soft: #EFF6FF;     /* Soft Blue Icon/Badge Box */
-  --accent-border: #DBEAFE;   /* Border for Soft Blue */
+  /* Warna Aksen Rekayasa Sipil (Engineering Blue) */
+  --accent-primary: #2563EB;   /* Primary Blue */
+  --accent-hover: #1D4ED8;     /* Darker Blue Hover */
+  --accent-soft: #EFF6FF;      /* Soft Blue Icon/Badge Box */
+  --accent-border: #DBEAFE;    /* Border for Soft Blue */
 
-  /* Garis Batas & Pembatas */
-  --border-light: #E2E8F0;
-  --border-subtle: #F1F5F9;
+  /* Status Spesifikasi Teknis (SNI / ASTM / Bina Marga 2018) */
+  --status-pass-bg: #F0FDF4;
+  --status-pass-border: #BBF7D0;
+  --status-pass-text: #15803D;
 
-  /* Banner Gelap */
-  --dark-banner-start: #1E4E8C;
-  --dark-banner-end: #0B2239;
-  --sidebar-dark: #12345A;
+  --status-fail-bg: #FEF2F2;
+  --status-fail-border: #FECACA;
+  --status-fail-text: #B91C1C;
 
-  /* Radius Sudut */
+  --status-warn-bg: #FFFBEB;
+  --status-warn-border: #FDE68A;
+  --status-warn-text: #B45309;
+
+  /* Garis Batas & Presisi 1px */
+  --border-light: #E2E8F0;     /* Slate 200 */
+  --border-subtle: #F1F5F9;    /* Slate 100 */
+  --border-strong: #CBD5E1;    /* Slate 300 */
+
+  /* Banner & Sidebar Tema Bersih (Clean Light-Blue & Crisp White) */
+  --dark-banner-start: #EFF6FF;
+  --dark-banner-end: #DBEAFE;
+  --sidebar-dark: #F8FAFC;
+
+  /* Radius Sudut Rapi (Presisi, Anti-Slop) */
+  --radius-xs: 4px;
   --radius-sm: 6px;
-  --radius-md: 10px;
-  --radius-lg: 16px;
-  --radius-xl: 20px;
-  --radius-2xl: 24px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-2xl: 20px;
   --radius-full: 9999px;
 
-  /* Bayangan Halus (Subtle Box Shadows) */
-  --shadow-subtle: 0 4px 20px rgba(0, 0, 0, 0.04);
-  --shadow-card: 0 2px 8px rgba(18, 52, 90, 0.04);
-  --shadow-card-hover: 0 12px 28px rgba(18, 52, 90, 0.08);
-  --shadow-mockup: 0 24px 60px -12px rgba(18, 52, 90, 0.15), 0 10px 24px -8px rgba(18, 52, 90, 0.08);
+  /* Bayangan Mikro Halus & Terukur */
+  --shadow-micro: 0 1px 2px rgba(15, 23, 42, 0.04);
+  --shadow-subtle: 0 1px 3px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04);
+  --shadow-card: 0 1px 3px rgba(15, 23, 42, 0.05);
+  --shadow-card-hover: 0 4px 12px -2px rgba(15, 23, 42, 0.08);
+  --shadow-focus: 0 0 0 3px rgba(37, 99, 235, 0.15);
 
-  /* Font Family */
-  --font-sans: 'Plus Jakarta Sans', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  /* Transisi Konsisten */
+  --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-normal: 200ms cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* Font Family Standar Industri */
+  --font-heading: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-body: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
 }
 
 /* CSS Reset Modern */
@@ -64,7 +88,7 @@ html {
 }
 
 body {
-  font-family: var(--font-sans);
+  font-family: var(--font-body);
   background-color: var(--bg-primary);
   color: var(--text-body);
   line-height: 1.6;
@@ -79,8 +103,9 @@ body {
   flex-direction: column;
 }
 
+/* Tipografi Heading */
 h1, h2, h3, h4, h5, h6 {
-  font-family: var(--font-sans);
+  font-family: var(--font-heading);
   color: var(--text-heading);
   letter-spacing: -0.025em;
   font-weight: 700;
@@ -89,7 +114,7 @@ h1, h2, h3, h4, h5, h6 {
 
 p {
   color: var(--text-body);
-  font-size: 1rem;
+  font-size: 0.95rem;
   line-height: 1.65;
 }
 
@@ -99,12 +124,37 @@ a {
 }
 
 button {
-  font-family: var(--font-sans);
+  font-family: var(--font-heading);
   cursor: pointer;
   border: none;
   background: none;
+  transition: var(--transition-fast);
+}
+
+input, select, textarea {
+  font-family: var(--font-body);
+  color: var(--text-heading);
+  transition: var(--transition-fast);
 }
 
 img, svg {
   display: block;
+}
+
+/* Keterbacaan Angka Laboratorium (Tabular Nums) */
+.tabular-nums,
+table,
+table td,
+table th,
+input[type="number"],
+.calc-numeric-input,
+.calc-metric-number,
+.calc-metric-val-row,
+.metric-value,
+.cpt-table-input,
+.matrix-table-input,
+.table-scroll-wrapper td {
+  font-variant-numeric: tabular-nums;
+  -webkit-font-feature-settings: "tnum" 1;
+  font-feature-settings: "tnum" 1;
 }

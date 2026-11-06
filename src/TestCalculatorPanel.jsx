@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import {
   Plus,
   Trash2,
@@ -52,6 +52,42 @@ import {
   DEFAULT_MT24_SAMPLES,
 } from './testCalculatorsData'
 
+// Komponen Tombol Bantu Geser Tabel Kiri-Kanan (Horizontal Scroll Nav)
+export function TableNavScrollButtons() {
+  return (
+    <div className="table-scroll-btn-group" aria-label="Navigasi geser tabel">
+      <button
+        type="button"
+        className="btn-table-scroll-nav"
+        onClick={(e) => {
+          const card = e.currentTarget.closest(
+            '.calc-recap-table-box, .calc-card-box, .cpt-spreadsheet-container, .soil-sieve-table-container, .reynolds-recap-table-container, .ductility-table-scroll, .penetration-table-scroll, .oedometer-table-container, .direct-shear-table-container, .calc-chart-table-wrap, .calc-input-column, .calc-output-column, div'
+          )
+          const wrapper = card?.querySelector('.table-scroll-wrapper')
+          if (wrapper) wrapper.scrollBy({ left: -240, behavior: 'smooth' })
+        }}
+        title="Geser kolom tabel ke kiri"
+      >
+        ◀ Geser
+      </button>
+      <button
+        type="button"
+        className="btn-table-scroll-nav"
+        onClick={(e) => {
+          const card = e.currentTarget.closest(
+            '.calc-recap-table-box, .calc-card-box, .cpt-spreadsheet-container, .soil-sieve-table-container, .reynolds-recap-table-container, .ductility-table-scroll, .penetration-table-scroll, .oedometer-table-container, .direct-shear-table-container, .calc-chart-table-wrap, .calc-input-column, .calc-output-column, div'
+          )
+          const wrapper = card?.querySelector('.table-scroll-wrapper')
+          if (wrapper) wrapper.scrollBy({ left: 240, behavior: 'smooth' })
+        }}
+        title="Geser kolom tabel ke kanan"
+      >
+        Geser ▶
+      </button>
+    </div>
+  )
+}
+
 export default function TestCalculatorPanel({ 
   testConfig, 
   currentInputs,
@@ -65,6 +101,64 @@ export default function TestCalculatorPanel({
   const [lastSavedId, setLastSavedId] = useState(null)
   const [sieveAlert, setSieveAlert] = useState(null)
   const [activeStepTab, setActiveStepTab] = useState(0)
+
+  // Fitur Interaktif Table Horizontal Scroll: Mouse Wheel & Middle-Click Drag
+  useEffect(() => {
+    // 1. Wheel-to-horizontal-scroll: putar roda mouse di atas tabel untuk menggeser horizontal
+    const handleGlobalWheel = (e) => {
+      const wrapper = e.target.closest('.table-scroll-wrapper')
+      if (wrapper && wrapper.scrollWidth > wrapper.clientWidth) {
+        if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
+          wrapper.scrollLeft += e.deltaY
+        }
+      }
+    }
+
+    // 2. Middle-click drag: tekan tombol tengah / makro mouse untuk drag-to-scroll tabel
+    let activeWrapper = null
+    let startX = 0
+    let startScroll = 0
+
+    const handleMouseDown = (e) => {
+      if (e.button === 1) { // Middle click / macro button
+        const wrapper = e.target.closest('.table-scroll-wrapper')
+        if (wrapper) {
+          e.preventDefault()
+          activeWrapper = wrapper
+          startX = e.clientX
+          startScroll = wrapper.scrollLeft
+          wrapper.classList.add('is-panning')
+        }
+      }
+    }
+
+    const handleMouseMove = (e) => {
+      if (activeWrapper) {
+        e.preventDefault()
+        const dx = e.clientX - startX
+        activeWrapper.scrollLeft = startScroll - dx
+      }
+    }
+
+    const handleMouseUp = () => {
+      if (activeWrapper) {
+        activeWrapper.classList.remove('is-panning')
+        activeWrapper = null
+      }
+    }
+
+    window.addEventListener('wheel', handleGlobalWheel, { passive: true })
+    window.addEventListener('mousedown', handleMouseDown)
+    window.addEventListener('mousemove', handleMouseMove)
+    window.addEventListener('mouseup', handleMouseUp)
+
+    return () => {
+      window.removeEventListener('wheel', handleGlobalWheel)
+      window.removeEventListener('mousedown', handleMouseDown)
+      window.removeEventListener('mousemove', handleMouseMove)
+      window.removeEventListener('mouseup', handleMouseUp)
+    }
+  }, [])
 
   // Reset tab index saat berganti modul pengujian
   useMemo(() => {
@@ -1660,6 +1754,11 @@ export default function TestCalculatorPanel({
             </svg>
             <span>Kembali ke Dashboard Utama</span>
           </button>
+          {calcOutput?.status && (
+            <span className={`calc-verdict-badge ${getVerdictClass()}`}>
+              {getVerdictLabel()}
+            </span>
+          )}
         </div>
 
         <div className="calc-title-section">
@@ -2406,12 +2505,14 @@ export default function TestCalculatorPanel({
                     <span>📋</span>
                     <span>{calcOutput.recapTable.title || 'Tabel Rekapitulasi Perbandingan Benda Uji'}</span>
                   </h4>
-                  <span style={{ fontSize: '0.75rem', background: '#EFF6FF', color: '#1D4ED8', padding: '2px 8px', borderRadius: '12px', fontWeight: 600 }}>
-                    Format Standar Laprak
-                  </span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <span style={{ fontSize: '0.75rem', background: '#EFF6FF', color: '#1D4ED8', padding: '2px 8px', borderRadius: '12px', fontWeight: 600 }}>
+                      Format Standar Laprak
+                    </span>
+                    <TableNavScrollButtons />
+                  </div>
                 </div>
-                <div style={{ overflowX: 'auto' }}>
-                  <div className="table-scroll-wrapper">
+                <div className="table-scroll-wrapper">
                   <table className="calc-custom-input-table" style={{ width: '100%', fontSize: '0.85rem' }}>
                     <thead>
                       <tr style={{ background: '#F8FAFC' }}>
@@ -2458,7 +2559,6 @@ export default function TestCalculatorPanel({
                     </tbody>
                   </table>
                   </div>
-                </div>
               </div>
             )}
 
@@ -3163,6 +3263,10 @@ function GradationCurveChart({ chartData }) {
 
       {/* Tabel Rincian Data Fraksi Ayakan Standar */}
       <div className="calc-chart-table-wrap">
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.65rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+          <span style={{ fontSize: '0.84rem', fontWeight: 600, color: '#1E293B' }}>Tabel Fraksi Saringan & Evaluasi Batas Amplop Gradasi</span>
+          <TableNavScrollButtons />
+        </div>
         <div className="table-scroll-wrapper">
         <table className="calc-chart-table">
           <thead>
@@ -6917,7 +7021,7 @@ function DynamicDirectShearSection({
             </h4>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', fontSize: '0.8rem', color: '#475569', lineHeight: 1.6 }}>
               {formulaSteps.map((step, idx) => (
-                <div key={idx} style={{ padding: '0.35rem 0.5rem', background: '#F8FAFC', borderRadius: '0.375rem', borderLeft: '3px solid #3B82F6', fontFamily: 'monospace', fontSize: '0.75rem' }}>
+                <div key={idx} style={{ padding: '0.35rem 0.5rem', background: '#F8FAFC', borderRadius: '0.375rem', border: '1px solid #E2E8F0', fontFamily: 'monospace', fontSize: '0.75rem' }}>
                   {step}
                 </div>
               ))}
@@ -7366,13 +7470,16 @@ function DynamicPenetrationSection({
 
       {/* 5. Tabel Rekapitulasi Analisis Statistik & Outlier Antar-Kelompok */}
       <div className="penetration-recap-container">
-        <div className="penetration-recap-head">
-          <span className="penetration-recap-title">
-            Tabel Rekapitulasi Analisis Statistik & Outlier Antar-Kelompok (SNI 2456:2011)
-          </span>
-          <span style={{ fontSize: '0.78rem', color: '#64748B' }}>
-            Data dieliminasi otomatis bila melampaui rentang [P̄ ± S]
-          </span>
+        <div className="penetration-recap-head" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
+          <div>
+            <span className="penetration-recap-title" style={{ display: 'block' }}>
+              Tabel Rekapitulasi Analisis Statistik & Outlier Antar-Kelompok (SNI 2456:2011)
+            </span>
+            <span style={{ fontSize: '0.78rem', color: '#64748B' }}>
+              Data dieliminasi otomatis bila melampaui rentang [P̄ ± S]
+            </span>
+          </div>
+          <TableNavScrollButtons />
         </div>
 
         <div className="penetration-table-scroll">
@@ -8103,7 +8210,7 @@ function DynamicReynoldsSection({
 
         {/* Panel C: Tabel Rekapitulasi Hasil Perhitungan Sesuai Laporan Manual */}
         <div className="calc-card-box">
-          <div className="calc-card-header" style={{ marginBottom: '0.5rem' }}>
+          <div className="calc-card-header" style={{ marginBottom: '0.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
             <div>
               <h3 className="calc-card-title" style={{ fontSize: '0.95rem', fontWeight: 700, color: '#0F172A' }}>
                 Tabel Rekapitulasi Hasil Perhitungan (Sesuai Lembar Laporan Manual)
@@ -8112,6 +8219,7 @@ function DynamicReynoldsSection({
                 Menampilkan hasil perhitungan Debit (Q), Kecepatan (v), Reynolds (Re), Rezim Aliran, Koefisien Gesek (f), serta nilai Logaritma:
               </p>
             </div>
+            <TableNavScrollButtons />
           </div>
 
           <div className="reynolds-recap-table-container">
@@ -8382,7 +8490,7 @@ function DynamicReynoldsSection({
           </h4>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', fontSize: '0.8rem', color: '#475569', lineHeight: 1.6 }}>
             {formulaSteps.map((step, idx) => (
-              <div key={idx} style={{ padding: '0.35rem 0.5rem', background: '#F8FAFC', borderRadius: '0.375rem', borderLeft: '3px solid #3B82F6', fontFamily: 'monospace', fontSize: '0.75rem' }}>
+              <div key={idx} style={{ padding: '0.35rem 0.5rem', background: '#F8FAFC', borderRadius: '0.375rem', border: '1px solid #E2E8F0', fontFamily: 'monospace', fontSize: '0.75rem' }}>
                 {step}
               </div>
             ))}
@@ -8654,15 +8762,18 @@ function DynamicDuctilitySection({
               Total {totalCount} cetakan ({nValid} diikutsertakan dalam rata-rata, {nEliminasi} dieliminasi/putus dini)
             </span>
           </div>
-          <button
-            type="button"
-            className="ductility-btn-add"
-            onClick={onAddSample}
-            title="Tambah baris cetakan benda uji baru"
-          >
-            <Plus size={16} />
-            <span>Tambah Sampel / Cetakan</span>
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+            <TableNavScrollButtons />
+            <button
+              type="button"
+              className="ductility-btn-add"
+              onClick={onAddSample}
+              title="Tambah baris cetakan benda uji baru"
+            >
+              <Plus size={16} />
+              <span>Tambah Sampel / Cetakan</span>
+            </button>
+          </div>
         </div>
 
         <div className="ductility-table-scroll">
@@ -9493,40 +9604,10 @@ function DynamicMultiSampleSection({
 
   return (
     <div className="calc-content-wrap">
-      {/* 1. Header Box */}
-      <div className="calc-header-box" style={{ marginBottom: '1.25rem' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '0.75rem' }}>
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.35rem' }}>
-              <span className="calc-badge-code" style={{ background: '#0284C7', color: '#fff', padding: '0.2rem 0.55rem', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 'bold' }}>
-                {testConfig.code}
-              </span>
-              <span style={{ fontSize: '0.8rem', color: '#64748B', fontWeight: 500 }}>
-                {testConfig.standard}
-              </span>
-              <span style={{ fontSize: '0.75rem', background: '#E0F2FE', color: '#0369A1', padding: '0.15rem 0.5rem', borderRadius: '4px', fontWeight: 600 }}>
-                Multi-Sampel Dinamis
-              </span>
-            </div>
-            <h1 style={{ fontSize: '1.35rem', fontWeight: 700, margin: 0, color: '#0F172A' }}>
-              {testConfig.name}
-            </h1>
-            <p style={{ margin: '0.35rem 0 0 0', fontSize: '0.85rem', color: '#475569', maxWidth: '850px', lineHeight: 1.5 }}>
-              {testConfig.desc}
-            </p>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <span className={`calc-verdict-badge ${getVerdictClass(calcOutput.verdictClass)}`}>
-              {getVerdictLabel(calcOutput.status)}
-            </span>
-          </div>
-        </div>
-      </div>
-
-      {/* 2. Grid 4 Kartu Bento Output Pengujian (Highlight Rata-rata) */}
-      <div className="calc-bento-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
+      {/* 1. Grid 4 Kartu Bento Output Pengujian (Highlight Rata-rata) */}
+      <div className="calc-bento-grid">
         {calcOutput.results.slice(0, 4).map((res, idx) => {
-          const borders = ['#0284C7', '#10B981', '#6366F1', '#F59E0B']
+          const borders = ['#2563EB', '#10B981', '#6366F1', '#F59E0B']
           const borderCol = borders[idx % borders.length]
           return (
             <div 
@@ -9858,13 +9939,15 @@ function DynamicMultiSampleSection({
                   <span>📋</span>
                   <span>{recapTable.title || 'Tabel Rekapitulasi Perbandingan Benda Uji'}</span>
                 </h3>
-                <span style={{ fontSize: '0.75rem', background: '#EFF6FF', color: '#1D4ED8', padding: '2px 8px', borderRadius: '12px', fontWeight: 600 }}>
-                  Format Laprak Resmi
-                </span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <span style={{ fontSize: '0.75rem', background: '#EFF6FF', color: '#1D4ED8', padding: '2px 8px', borderRadius: '12px', fontWeight: 600 }}>
+                    Format Laprak Resmi
+                  </span>
+                  <TableNavScrollButtons />
+                </div>
               </div>
 
-              <div style={{ overflowX: 'auto' }}>
-                <div className="table-scroll-wrapper">
+              <div className="table-scroll-wrapper">
                 <table className="calc-custom-input-table" style={{ width: '100%', fontSize: '0.85rem' }}>
                   <thead>
                     <tr style={{ background: '#F8FAFC' }}>
@@ -9910,7 +9993,6 @@ function DynamicMultiSampleSection({
                     ))}
                   </tbody>
                 </table>
-                </div>
               </div>
             </div>
           )}
@@ -10041,37 +10123,10 @@ function DynamicFlashPointSection({
 
   return (
     <div className="calc-content-wrap">
-      {/* 1. Header Ringkasan & Deskripsi Standar */}
-      <div className="calc-header-box" style={{ marginBottom: '1.25rem' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '0.75rem' }}>
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.35rem' }}>
-              <span className="calc-badge-code" style={{ background: '#0284C7', color: '#fff', padding: '0.2rem 0.55rem', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 'bold' }}>
-                {testConfig.code}
-              </span>
-              <span style={{ fontSize: '0.8rem', color: '#64748B', fontWeight: 500 }}>
-                {testConfig.standard}
-              </span>
-            </div>
-            <h1 style={{ fontSize: '1.35rem', fontWeight: 700, margin: 0, color: '#0F172A' }}>
-              {testConfig.name}
-            </h1>
-            <p style={{ margin: '0.35rem 0 0 0', fontSize: '0.85rem', color: '#475569', maxWidth: '850px', lineHeight: 1.5 }}>
-              {testConfig.desc}
-            </p>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <span className={`calc-verdict-badge ${getVerdictClass(calcOutput.verdictClass)}`}>
-              {getVerdictLabel(calcOutput.status)}
-            </span>
-          </div>
-        </div>
-      </div>
-
-      {/* 2. Grid 4 Kartu Bento Output Pengujian */}
-      <div className="calc-bento-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
+      {/* 1. Grid 4 Kartu Bento Output Pengujian */}
+      <div className="calc-bento-grid">
         {/* Kartu 1: Titik Nyala Terkoreksi */}
-        <div className="calc-bento-card highlight" style={{ borderLeft: '4px solid #0284C7' }}>
+        <div className="calc-bento-card highlight" style={{ borderLeft: '4px solid #2563EB' }}>
           <div className="calc-bento-label">Titik Nyala Terkoreksi (T_nyala)</div>
           <div className="calc-bento-value" style={{ color: isZeroSamples ? '#DC2626' : '#0284C7', fontSize: isZeroSamples ? '1.2rem' : '1.35rem' }}>
             {tNyalaResult}
@@ -10557,37 +10612,10 @@ function DynamicJmfMixSection({
 
   return (
     <div className="calc-content-wrap">
-      {/* 1. Header Ringkasan & Deskripsi Standar */}
-      <div className="calc-header-box" style={{ marginBottom: '1.25rem' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '0.75rem' }}>
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.35rem' }}>
-              <span className="calc-badge-code" style={{ background: '#0284C7', color: '#fff', padding: '0.2rem 0.55rem', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 'bold' }}>
-                {testConfig.code}
-              </span>
-              <span style={{ fontSize: '0.8rem', color: '#64748B', fontWeight: 500 }}>
-                {testConfig.standard}
-              </span>
-            </div>
-            <h1 style={{ fontSize: '1.35rem', fontWeight: 700, margin: 0, color: '#0F172A' }}>
-              {testConfig.name}
-            </h1>
-            <p style={{ margin: '0.35rem 0 0 0', fontSize: '0.85rem', color: '#475569', maxWidth: '850px', lineHeight: 1.5 }}>
-              {testConfig.desc}
-            </p>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <span className={`calc-verdict-badge ${getVerdictClass(calcOutput.verdictClass)}`}>
-              {getVerdictLabel(calcOutput.status)}
-            </span>
-          </div>
-        </div>
-      </div>
-
-      {/* 2. Grid 4 Kartu Bento Output Utama Pengujian */}
-      <div className="calc-bento-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
+      {/* 1. Grid 4 Kartu Bento Output Utama Pengujian */}
+      <div className="calc-bento-grid">
         {/* Kartu 1: KAA */}
-        <div className="calc-bento-card highlight" style={{ borderLeft: '4px solid #0284C7' }}>
+        <div className="calc-bento-card highlight" style={{ borderLeft: '4px solid #2563EB' }}>
           <div className="calc-bento-label">Kadar Aspal Acuan (KAA)</div>
           <div className="calc-bento-value" style={{ color: '#0284C7', fontSize: '1.35rem' }}>
             {kaaMurni.toFixed(2)}%
@@ -11644,37 +11672,10 @@ function DynamicMarshallSection({
 
   return (
     <div className="calc-content-wrap">
-      {/* 1. Header Ringkasan & Deskripsi Standar */}
-      <div className="calc-header-box" style={{ marginBottom: '1.25rem' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '0.75rem' }}>
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.35rem' }}>
-              <span className="calc-badge-code" style={{ background: '#0284C7', color: '#fff', padding: '0.2rem 0.55rem', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 'bold' }}>
-                {testConfig.code}
-              </span>
-              <span style={{ fontSize: '0.8rem', color: '#64748B', fontWeight: 500 }}>
-                {testConfig.standard}
-              </span>
-            </div>
-            <h1 style={{ fontSize: '1.35rem', fontWeight: 700, margin: 0, color: '#0F172A' }}>
-              {testConfig.name}
-            </h1>
-            <p style={{ margin: '0.35rem 0 0 0', fontSize: '0.85rem', color: '#475569', maxWidth: '850px', lineHeight: 1.5 }}>
-              {testConfig.desc}
-            </p>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <span className={`calc-verdict-badge ${getVerdictClass(calcOutput.verdictClass)}`}>
-              {getVerdictLabel(calcOutput.status)}
-            </span>
-          </div>
-        </div>
-      </div>
-
-      {/* 2. Grid 4 Kartu Bento Output Utama */}
-      <div className="calc-bento-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
+      {/* 1. Grid 4 Kartu Bento Output Utama */}
+      <div className="calc-bento-grid">
         {/* Kartu 1: Rekomendasi KAO */}
-        <div className="calc-bento-card highlight" style={{ borderLeft: '4px solid #0284C7' }}>
+        <div className="calc-bento-card highlight" style={{ borderLeft: '4px solid #2563EB' }}>
           <div className="calc-bento-label">Kadar Aspal Optimum (KAO)</div>
           <div className="calc-bento-value" style={{ color: '#0284C7', fontSize: '1.45rem' }}>
             6.5%
@@ -12318,13 +12319,16 @@ function DynamicMarshallSection({
 
         {/* Tabel 12.3 Hasil Analisis Data Volumetrik (17 Kolom) */}
         <div style={{ marginBottom: '1.5rem' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem', flexWrap: 'wrap', gap: '0.5rem' }}>
             <strong style={{ fontSize: '0.88rem', color: '#0F172A' }}>
               Tabel 12.3 Hasil Analisis Data Volumetrik Setiap Kadar Aspal (17 Kolom)
             </strong>
-            <span style={{ fontSize: '0.75rem', color: '#64748B' }}>Geser ke samping (scroll) untuk melihat seluruh kolom</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+              <span style={{ fontSize: '0.75rem', color: '#64748B' }}>Geser ke samping (scroll)</span>
+              <TableNavScrollButtons />
+            </div>
           </div>
-          <div style={{ overflowX: 'auto', border: '1px solid #E2E8F0', borderRadius: '6px' }}>
+          <div style={{ border: '1px solid #E2E8F0', borderRadius: '6px' }}>
             <div className="table-scroll-wrapper">
             <table style={{ width: '100%', minWidth: '1200px', borderCollapse: 'collapse', fontSize: '0.75rem', textAlign: 'center' }}>
               <thead>
@@ -12394,10 +12398,13 @@ function DynamicMarshallSection({
 
         {/* Tabel 12.4 Hasil Stabilitas, Flow, dan MQ */}
         <div style={{ marginBottom: '1.5rem' }}>
-          <strong style={{ fontSize: '0.88rem', color: '#0F172A', display: 'block', marginBottom: '0.5rem' }}>
-            Tabel 12.4 Hasil Stabilitas, Flow, dan Marshall Quotient Setiap Kadar Aspal
-          </strong>
-          <div style={{ overflowX: 'auto', border: '1px solid #E2E8F0', borderRadius: '6px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+            <strong style={{ fontSize: '0.88rem', color: '#0F172A' }}>
+              Tabel 12.4 Hasil Stabilitas, Flow, dan Marshall Quotient Setiap Kadar Aspal
+            </strong>
+            <TableNavScrollButtons />
+          </div>
+          <div style={{ border: '1px solid #E2E8F0', borderRadius: '6px' }}>
             <div className="table-scroll-wrapper">
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem', textAlign: 'center' }}>
               <thead>
