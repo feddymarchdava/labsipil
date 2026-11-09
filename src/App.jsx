@@ -1315,6 +1315,7 @@ export default function App() {
     return false
   })
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false)
   const [activeTab, setActiveTab] = useState('dashboard') // 'dashboard' | 'calculator'
   const [activeTestId, setActiveTestId] = useState('bb-1-1')
   const [openChapters, setOpenChapters] = useState({
@@ -1341,6 +1342,7 @@ export default function App() {
     if (chapterId) {
       setOpenChapters((prev) => ({ ...prev, [chapterId]: true }))
     }
+    setIsMobileSidebarOpen(false)
     window.scrollTo({ top: 0, behavior: 'instant' })
   }
 
@@ -1930,6 +1932,7 @@ export default function App() {
 
     setActiveTestId(targetTestId)
     setActiveTab('calculator')
+    setIsMobileSidebarOpen(false)
     if (window.location.hash !== '#dashboard') {
       window.history.pushState({ page: 'dashboard' }, '', '#dashboard')
     }
@@ -1939,6 +1942,7 @@ export default function App() {
   const handleBackToLanding = (e) => {
     if (e) e.preventDefault()
     setIsAppOpen(false)
+    setIsMobileSidebarOpen(false)
     if (window.location.hash === '#dashboard') {
       if (window.history.length > 1) {
         window.history.back()
@@ -2106,33 +2110,58 @@ export default function App() {
   if (isAppOpen) {
     return (
       <div className="full-dashboard-layout">
-        {/* Sidebar Kiri Gelap (#12345A) */}
-        <aside className="full-dashboard-sidebar">
+        {/* Backdrop Layar Gelap Transparan saat Drawer Terbuka di Layar Mobile/Tablet */}
+        {isMobileSidebarOpen && (
+          <div 
+            className="sidebar-mobile-backdrop" 
+            onClick={() => setIsMobileSidebarOpen(false)}
+            aria-label="Tutup Menu Navigasi"
+          />
+        )}
+
+        {/* Sidebar Kiri Dashboard (Bisa menjadi Slide-over Drawer di Mobile/Tablet) */}
+        <aside className={`full-dashboard-sidebar ${isMobileSidebarOpen ? 'drawer-open' : ''}`}>
           <div className="sidebar-top-section">
-            <button 
-              type="button" 
-              className="sidebar-brand-btn flex items-center gap-3" 
-              onClick={handleBackToLanding}
-              title="Klik untuk kembali ke Beranda Landing Page"
-            >
-              {/* Sebelah KIRI: Hanya gambar ikon logo huruf L baru */}
-              <img 
-                src="/logo-l.png" 
-                alt="LabSipil Icon" 
-                className="sidebar-brand-icon h-11 w-auto object-contain" 
-              />
-              
-              {/* Sebelah KANAN: Teks yang ditumpuk (flex-col) */}
-              <div className="sidebar-brand-text flex flex-col text-left">
-                <span className="sidebar-brand-name text-xl font-bold leading-tight" style={{ color: '#0F172A' }}>
-                  <span style={{ color: '#0F172A' }}>Lab</span>
-                  <span className="text-blue-600">Sipil</span>
-                </span>
-                <span className="sidebar-brand-sub text-[10px] text-slate-500 font-semibold tracking-wider uppercase">
-                  SISTEM PENGOLAHAN DATA
-                </span>
-              </div>
-            </button>
+            <div className="sidebar-brand-wrapper flex items-center justify-between">
+              <button 
+                type="button" 
+                className="sidebar-brand-btn flex items-center gap-3" 
+                onClick={handleBackToLanding}
+                title="Klik untuk kembali ke Beranda Landing Page"
+              >
+                {/* Sebelah KIRI: Hanya gambar ikon logo huruf L baru */}
+                <img 
+                  src="/logo-l.png" 
+                  alt="LabSipil Icon" 
+                  className="sidebar-brand-icon h-11 w-auto object-contain" 
+                />
+                
+                {/* Sebelah KANAN: Teks yang ditumpuk (flex-col) */}
+                <div className="sidebar-brand-text flex flex-col text-left">
+                  <span className="sidebar-brand-name text-xl font-bold leading-tight" style={{ color: '#0F172A' }}>
+                    <span style={{ color: '#0F172A' }}>Lab</span>
+                    <span className="text-blue-600">Sipil</span>
+                  </span>
+                  <span className="sidebar-brand-sub text-[10px] text-slate-500 font-semibold tracking-wider uppercase">
+                    SISTEM PENGOLAHAN DATA
+                  </span>
+                </div>
+              </button>
+
+              {/* Tombol Tutup Sidebar Khusus Layar Mobile (<1024px) */}
+              <button
+                type="button"
+                className="sidebar-close-btn"
+                onClick={() => setIsMobileSidebarOpen(false)}
+                aria-label="Tutup Menu Navigasi"
+                title="Tutup Menu"
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+            </div>
 
             {/* Area Navigasi Accordion Menu Dinamis (Bahan Bangunan & Mekanika Tanah) */}
             <div className="sidebar-accordion-wrapper">
@@ -2142,6 +2171,7 @@ export default function App() {
                 className={`sidebar-nav-item ${activeTab === 'dashboard' ? 'active' : ''}`}
                 onClick={() => {
                   setActiveTab('dashboard')
+                  setIsMobileSidebarOpen(false)
                   window.scrollTo({ top: 0, behavior: 'instant' })
                 }}
               >
@@ -2247,6 +2277,21 @@ export default function App() {
           {/* Topbar Dasbor */}
           <header className="dashboard-topbar">
             <div className="topbar-title-group">
+              {/* Tombol Hamburger Drawer Mobile (< 1024px) */}
+              <button
+                type="button"
+                className="dashboard-mobile-drawer-btn"
+                onClick={() => setIsMobileSidebarOpen(true)}
+                aria-label="Buka Menu Modul Uji"
+                title="Buka Menu Navigasi Modul"
+              >
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+                  <line x1="3" y1="12" x2="21" y2="12" />
+                  <line x1="3" y1="6" x2="21" y2="6" />
+                  <line x1="3" y1="18" x2="21" y2="18" />
+                </svg>
+              </button>
+
               <h1 className="dashboard-heading">
                 {activeTab === 'calculator' && calculatorRegistry[activeTestId]
                   ? calculatorRegistry[activeTestId].name
@@ -2789,16 +2834,30 @@ export default function App() {
           </button>
         </div>
 
-        {/* Mobile Dropdown Nav */}
+        {/* Mobile Dropdown Nav dengan Backdrop */}
         {mobileMenuOpen && (
-          <div className="mobile-dropdown">
-            <a href="#modul-uji" className="mobile-nav-link" onClick={closeMobileMenu}>Modul Uji</a>
-            <a href="#cara-kerja" className="mobile-nav-link" onClick={closeMobileMenu}>Cara Kerja</a>
-            <a href="#standar" className="mobile-nav-link" onClick={closeMobileMenu}>Standar SNI/ASTM</a>
-            <button type="button" className="btn-primary-solid btn-block" onClick={handleOpenApp}>
-              Mulai Hitung
-            </button>
-          </div>
+          <>
+            <div 
+              className="mobile-dropdown-backdrop" 
+              onClick={closeMobileMenu}
+              aria-label="Tutup Menu"
+            />
+            <div className="mobile-dropdown">
+              <a href="#modul-uji" className="mobile-nav-link" onClick={closeMobileMenu}>Modul Uji</a>
+              <a href="#cara-kerja" className="mobile-nav-link" onClick={closeMobileMenu}>Cara Kerja</a>
+              <a href="#standar" className="mobile-nav-link" onClick={closeMobileMenu}>Standar SNI/ASTM</a>
+              <button 
+                type="button" 
+                className="btn-primary-solid btn-block" 
+                onClick={() => {
+                  closeMobileMenu()
+                  handleOpenApp()
+                }}
+              >
+                <span>Mulai Hitung Sekarang →</span>
+              </button>
+            </div>
+          </>
         )}
       </header>
 
@@ -2826,7 +2885,7 @@ export default function App() {
               </div>
             </div>
 
-            {/* Judul H1 Ekstra Tebal */}
+            {/* Judul H1 Ekstra Tebal Responsif */}
             <h1 className="hero-h1">
               Selesaikan Hitungan Lab dan Laporan Praktikum Tanpa Ribet Rumus Manual.
             </h1>
@@ -2836,15 +2895,18 @@ export default function App() {
               Platform hitung otomatis praktikum Teknik Sipil. Mencakup uji Bahan Bangunan, Mekanika Tanah, Mekanika Fluida, hingga Bahan Perkerasan sesuai standar SNI, ASTM, & Bina Marga 2018.
             </p>
 
-            {/* 1 Tombol Utama di Tengah */}
+            {/* Tombol Aksi Utama (Tumpuk di Mobile) */}
             <div className="hero-cta-row">
               <button type="button" className="btn-primary-solid btn-lg" onClick={handleOpenApp}>
-                <span>Mulai Hitung</span>
+                <span>Mulai Hitung Sekarang</span>
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                   <line x1="5" y1="12" x2="19" y2="12" />
                   <polyline points="12 5 19 12 12 19" />
                 </svg>
               </button>
+              <a href="#standar" className="btn-ghost btn-lg">
+                Pelajari Standar SNI
+              </a>
             </div>
           </div>
         </section>

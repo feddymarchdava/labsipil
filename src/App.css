@@ -2125,7 +2125,7 @@
    ========================================================================== */
 @media (max-width: 1024px) {
   .hero-h1 {
-    font-size: 2.65rem;
+    font-size: clamp(2.15rem, 5vw, 2.85rem);
   }
 
   .six-cards-grid .feature-card {
@@ -2134,12 +2134,18 @@
 
   .dark-feature-banner {
     grid-template-columns: minmax(0, 1fr);
-    gap: 2.5rem;
-    padding: 36px;
+    gap: 2rem;
+    padding: 32px 24px;
+  }
+
+  .dark-banner-right {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1.15rem;
   }
 
   .keunggulan-grid {
     grid-template-columns: repeat(2, 1fr);
+    gap: 1.25rem;
   }
 
   .mockup-body {
@@ -2158,6 +2164,7 @@
 @media (max-width: 768px) {
   .nav-container {
     padding: 0 1.25rem;
+    height: 4.25rem;
   }
 
   .nav-menu-desktop {
@@ -2165,30 +2172,73 @@
   }
 
   .mobile-toggle-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    border-radius: var(--radius-sm);
+    background: #F1F5F9;
+    border: 1px solid #CBD5E1;
+  }
+
+  .mobile-dropdown-backdrop {
     display: block;
+    position: fixed;
+    inset: 0;
+    top: 4.25rem;
+    background: rgba(15, 23, 42, 0.45);
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
+    z-index: 85;
   }
 
   .mobile-dropdown {
     display: flex;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    z-index: 90;
+    background-color: #FFFFFF;
+    border-bottom: 1px solid var(--border-light);
+    box-shadow: 0 12px 30px -5px rgba(15, 23, 42, 0.15);
+    padding: 1.25rem 1.25rem 1.75rem;
+    gap: 0.85rem;
+  }
+
+  .mobile-nav-link {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-heading);
+    padding: 0.75rem 0;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    border-bottom: 1px solid var(--border-subtle);
   }
 
   .hero-h1 {
-    font-size: 2.15rem;
+    font-size: clamp(1.85rem, 5.5vw, 2.35rem);
+    line-height: 1.22;
   }
 
   .hero-desc {
     font-size: 1rem;
+    line-height: 1.65;
   }
 
   .hero-cta-row {
     flex-direction: column;
     width: 100%;
+    gap: 0.75rem;
   }
 
   .btn-primary-solid,
   .btn-ghost {
     width: 100%;
     justify-content: center;
+    min-height: 44px;
   }
 
   .mockup-body {
@@ -2201,16 +2251,18 @@
 
   .stepper-container {
     flex-direction: column;
-    gap: 2rem;
+    gap: 1.75rem;
+    position: relative;
+    padding-left: 0.5rem;
   }
 
   .stepper-line {
-    top: 0;
-    bottom: 0;
-    left: 24px;
+    top: 24px;
+    bottom: 24px;
+    left: 29px;
     right: auto;
     width: 2px;
-    height: 100%;
+    height: auto;
   }
 
   .step-item {
@@ -2221,8 +2273,17 @@
   }
 
   .step-circle {
+    width: 44px;
+    height: 44px;
     margin-bottom: 0;
     flex-shrink: 0;
+    z-index: 2;
+    background-color: var(--bg-primary);
+  }
+
+  .step-card {
+    flex: 1;
+    text-align: left;
   }
 
   .six-cards-grid .feature-card {
@@ -2235,15 +2296,162 @@
 
   .keunggulan-grid {
     grid-template-columns: 1fr;
+    gap: 1.25rem;
   }
 
   .footer-content-grid {
     grid-template-columns: 1fr;
     gap: 2.5rem;
+    padding: 3.5rem 1.25rem 2rem;
   }
 
   .demo-grid-calc {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .nav-container {
+    padding: 0 1rem;
+    height: 4rem;
+  }
+
+  .navbar-brand-logo,
+  .logo-img {
+    height: 34px !important;
+    max-width: 170px !important;
+  }
+
+  .hero-section {
+    padding: 2.75rem 0 1.75rem;
+  }
+
+  .hero-container {
+    padding: 0 1rem;
+  }
+
+  .hero-h1 {
+    font-size: clamp(1.75rem, 6vw, 2.15rem);
+    line-height: 1.2;
+    margin-bottom: 1.15rem;
+  }
+
+  .hero-desc {
+    font-size: 0.92rem;
+    line-height: 1.6;
+    margin-bottom: 1.75rem;
+  }
+
+  .dark-feature-banner {
+    padding: 24px 16px;
+    gap: 1.75rem;
+  }
+
+  .banner-title {
+    font-size: 1.55rem;
+  }
+
+  .banner-text {
+    font-size: 0.9rem;
+    line-height: 1.6;
+  }
+
+  .banner-meta-summary {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.5rem;
+    text-align: center;
+    padding-top: 0.75rem;
+  }
+
+  .banner-meta-item {
+    align-items: center;
+  }
+
+  .banner-meta-item strong {
+    font-size: 1rem;
+  }
+
+  .banner-meta-item span {
+    font-size: 0.7rem;
+  }
+
+  .dark-banner-right {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+
+  .banner-point-card {
+    padding: 1.25rem 1.15rem;
+  }
+
+  .point-standards-tags {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+  }
+
+  .std-badge-pill {
+    font-size: 11px !important;
+    padding: 6px 4px !important;
+    word-break: break-word !important;
+    text-align: center !important;
+  }
+
+  .mockup-header {
+    padding: 0 0.85rem;
+  }
+
+  .system-status {
+    display: none;
+  }
+
+  .url-bar {
+    padding: 0.2rem 0.65rem;
+    font-size: 0.72rem;
+  }
+
+  .cta-box {
+    padding: 2.75rem 1.25rem;
+  }
+
+  .cta-title {
+    font-size: 1.65rem;
+  }
+
+  .cta-desc {
+    font-size: 0.95rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .hero-cta-row {
+    flex-direction: column;
+    width: 100%;
+    gap: 0.75rem;
+  }
+
+  .hero-cta-row .btn-primary-solid,
+  .hero-cta-row .btn-ghost,
+  .hero-cta-row button,
+  .hero-cta-row a {
+    width: 100% !important;
+    justify-content: center !important;
+    min-height: 44px;
+  }
+
+  .cta-actions {
+    flex-direction: column;
+    width: 100%;
+    gap: 0.75rem;
+  }
+
+  .cta-actions .btn-primary-solid,
+  .cta-actions .btn-ghost-white,
+  .cta-actions button,
+  .cta-actions a {
+    width: 100% !important;
+    justify-content: center !important;
+    min-height: 44px;
   }
 }
 
@@ -2253,9 +2461,13 @@
 .full-dashboard-layout {
   display: flex;
   min-height: 100vh;
+  min-height: 100dvh;
   width: 100%;
+  max-width: 100vw;
   background-color: var(--bg-secondary);
   color: var(--text-heading);
+  position: relative;
+  overflow-x: hidden;
 }
 
 /* Sidebar Kiri Bersih (#F8FAFC) */
@@ -2271,11 +2483,70 @@
   position: sticky;
   top: 0;
   height: 100vh;
+  height: 100dvh;
   max-height: 100vh;
+  max-height: 100dvh;
   overflow-y: auto;
   border-right: 1px solid #E2E8F0;
   scrollbar-width: thin;
   scrollbar-color: #CBD5E1 transparent;
+  z-index: 40;
+}
+
+.sidebar-brand-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  border-bottom: 1px solid #E2E8F0;
+  margin-bottom: 1rem;
+}
+
+.sidebar-close-btn {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-sm);
+  background: #EFF6FF;
+  border: 1px solid #BFDBFE;
+  color: #1E40AF;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all 0.2s ease;
+}
+
+.sidebar-close-btn:hover {
+  background: #DBEAFE;
+  color: #1D4ED8;
+}
+
+.dashboard-mobile-drawer-btn {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+  min-height: 40px;
+  border-radius: var(--radius-sm);
+  background: #EFF6FF;
+  border: 1px solid #BFDBFE;
+  color: #1E40AF;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all 0.2s ease;
+  padding: 0;
+}
+
+.dashboard-mobile-drawer-btn:hover {
+  background: #DBEAFE;
+  color: #1D4ED8;
+}
+
+.dashboard-mobile-drawer-btn:active {
+  transform: scale(0.96);
 }
 
 .full-dashboard-sidebar::-webkit-scrollbar {
@@ -2307,13 +2578,11 @@
   gap: 0.75rem;
   background: none;
   border: none;
-  padding: 0 0 1rem 0;
-  border-bottom: 1px solid #E2E8F0;
-  margin-bottom: 1rem;
+  padding: 0 0 0.5rem 0;
   cursor: pointer;
   text-align: left;
   transition: opacity 0.2s ease, transform 0.2s ease;
-  width: 100%;
+  flex: 1;
 }
 
 .sidebar-brand-btn:hover {
@@ -3623,114 +3892,320 @@
   }
 }
 
-/* Responsif Dasbor */
+/* =========================================================================
+   RESPONSIF DASBOR & KALKULATOR (MOBILE-FIRST / TABLET / DESKTOP)
+   ========================================================================= */
+
+/* Recharts responsive container anti-overflow */
+.calc-chart-recharts-wrap,
+.cpt-recharts-box,
+.recharts-responsive-container,
+.recharts-wrapper {
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+}
+
 @media (max-width: 1024px) {
+  /* Tampilkan tombol pembuka drawer dan tombol tutup di sidebar */
+  .dashboard-mobile-drawer-btn {
+    display: inline-flex !important;
+  }
+
+  .sidebar-close-btn {
+    display: inline-flex !important;
+  }
+
+  /* Overlay / backdrop drawer */
+  .sidebar-mobile-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.45);
+    backdrop-filter: blur(3px);
+    -webkit-backdrop-filter: blur(3px);
+    z-index: 998;
+  }
+
+  /* Ubah sidebar menjadi slide-over drawer */
   .full-dashboard-sidebar {
-    width: 250px;
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    bottom: 0 !important;
+    width: 290px !important;
+    max-width: 85vw !important;
+    height: 100vh !important;
+    height: 100dvh !important;
+    max-height: 100dvh !important;
+    z-index: 999 !important;
+    transform: translateX(-100%) !important;
+    transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
+    box-shadow: 0 20px 40px rgba(15, 23, 42, 0.25) !important;
   }
 
+  .full-dashboard-sidebar.drawer-open {
+    transform: translateX(0) !important;
+  }
+
+  /* Main area menempati 100% lebar layar */
+  .full-dashboard-main {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+  }
+
+  /* Bento metrics 2 kolom pada tablet */
   .bento-metrics-container {
-    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-    gap: 1rem;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 1rem !important;
   }
 
+  .calc-bento-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 0.75rem !important;
+  }
+
+  /* Layout kalkulator bertumpuk 1 kolom vertikal */
   .calc-grid-layout {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr) !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 1.5rem !important;
+  }
+
+  .calc-input-column,
+  .calc-output-column {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
   }
 }
 
 @media (max-width: 768px) {
+  /* Pastikan layout dasbor tidak pecah secara vertikal */
   .full-dashboard-layout {
-    flex-direction: column;
+    height: 100vh;
+    height: 100dvh;
+    max-height: 100dvh;
+    overflow: hidden;
   }
 
-  .full-dashboard-sidebar {
-    width: 100%;
-    height: auto;
-    position: static;
-    border-right: none;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-  }
-
-  .sidebar-accordion-wrapper {
-    max-height: 280px;
+  .full-dashboard-main {
+    height: 100%;
+    overflow-y: auto;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
   }
 
   .dashboard-topbar {
-    padding: 1rem 1.25rem;
-    flex-direction: column;
-    align-items: flex-start;
+    padding: 0.85rem 1rem !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 0.75rem !important;
+    min-height: 58px;
+  }
+
+  .topbar-title-group {
+    display: flex !important;
+    align-items: center !important;
+    gap: 0.75rem !important;
+    min-width: 0 !important;
+    flex: 1 !important;
+  }
+
+  .dashboard-heading {
+    font-size: 1.05rem !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
   }
 
   .dashboard-content-area {
-    padding: 1.25rem 1.25rem 5.75rem 1.25rem;
+    padding: 1.25rem 1rem 5.5rem 1rem !important;
   }
 
   .calc-panel-wrapper {
-    padding: 1.25rem;
+    padding: 1.25rem 0.85rem 4rem !important;
   }
 
-  .bento-metrics-container {
-    grid-template-columns: 1fr;
-  }
-
+  /* Kontrol panel riwayat pengujian */
   .records-panel-header {
-    flex-direction: column;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 1rem !important;
   }
 
   .records-panel-controls {
-    width: 100%;
+    width: 100% !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 0.65rem !important;
   }
 
-  .records-search-input {
-    width: 100%;
-    min-width: 100%;
+  .records-search-input,
+  .records-filter-select,
+  .btn-add-record,
+  .btn-reset-sample {
+    width: 100% !important;
+    min-width: 100% !important;
+    min-height: 44px !important;
+    font-size: 16px !important;
+    box-sizing: border-box;
   }
 
   .modal-form-grid-2 {
-    grid-template-columns: 1fr;
+    grid-template-columns: 1fr !important;
   }
 
-  .calc-grid-layout {
-    grid-template-columns: 1fr;
-  }
-
+  /* Form & input baris kalkulator */
   .calc-field-row {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 0.5rem;
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 0.5rem !important;
   }
 
   .calc-field-right-col {
-    width: 100%;
-    align-items: stretch;
+    width: 100% !important;
+    align-items: stretch !important;
   }
 
   .calc-field-inline-error {
-    text-align: left;
+    text-align: left !important;
   }
 
   .calc-input-unit-group {
-    width: 100%;
+    width: 100% !important;
   }
 
   .input-parameter-besar,
   .calc-numeric-input {
-    flex: 1;
-    width: auto;
+    flex: 1 !important;
+    width: auto !important;
+    font-size: 16px !important;
   }
 
   .calc-metrics-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: 1fr !important;
   }
 
   .calc-actions-footer {
-    flex-direction: column;
+    flex-direction: column !important;
+    gap: 0.75rem !important;
   }
 
   .btn-save-to-dashboard,
   .btn-open-table-direct {
-    width: 100%;
+    width: 100% !important;
+    min-height: 44px !important;
+    justify-content: center !important;
+  }
+}
+
+@media (max-width: 640px) {
+  .calc-top-header {
+    padding: 1.15rem 1rem !important;
+    gap: 0.75rem !important;
+  }
+
+  .calc-top-actions {
+    flex-direction: row !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    gap: 0.5rem !important;
+  }
+
+  .btn-back-to-dash {
+    font-size: 0.75rem !important;
+    padding: 0.4rem 0.8rem !important;
+    min-height: 40px !important;
+  }
+
+  .calc-verdict-badge {
+    font-size: 0.75rem !important;
+    padding: 0.35rem 0.75rem !important;
+  }
+
+  .calc-main-title {
+    font-size: 1.15rem !important;
+    line-height: 1.3 !important;
+  }
+
+  .calc-main-desc {
+    font-size: 0.8rem !important;
+    line-height: 1.45 !important;
+  }
+
+  /* Pembatasan lebar kolom pertama tabel agar tidak mendominasi layar HP */
+  .table-scroll-wrapper table th:first-child,
+  .table-scroll-wrapper table td:first-child {
+    max-width: 140px !important;
+    min-width: 110px !important;
+    width: 130px !important;
+    white-space: normal !important;
+    word-break: break-word !important;
+    font-size: 11.5px !important;
+    line-height: 1.35 !important;
+    padding: 6px 8px !important;
+  }
+
+  .table-scroll-wrapper table td,
+  .table-scroll-wrapper table th {
+    padding: 6px 8px !important;
+    font-size: 12px !important;
+  }
+
+  .calc-table-numeric-input,
+  .cpt-table-input,
+  .table-input-number,
+  .calc-custom-input-table input {
+    min-width: 72px !important;
+    width: 72px !important;
+    font-size: 16px !important;
+    padding: 0.35rem 0.4rem !important;
+  }
+
+  /* Recharts responsive height on mobile */
+  .calc-chart-recharts-wrap {
+    min-height: 280px !important;
+    height: 280px !important;
+    padding: 0.5rem 0.25rem 0.25rem 0.15rem !important;
+  }
+
+  .btn-floating-export {
+    bottom: 1.25rem !important;
+    right: 1.25rem !important;
+    padding: 0.65rem 1.1rem !important;
+    font-size: 0.82rem !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .bento-metrics-container {
+    grid-template-columns: 1fr !important;
+    gap: 0.75rem !important;
+  }
+
+  .calc-bento-grid {
+    grid-template-columns: 1fr !important;
+    gap: 0.65rem !important;
+  }
+
+  .calc-bento-card {
+    padding: 12px 14px !important;
+    min-height: auto !important;
+  }
+
+  .calc-bento-value {
+    font-size: clamp(1.2rem, 4.5vw, 1.55rem) !important;
+  }
+
+  .topbar-title-group {
+    gap: 0.5rem !important;
+  }
+
+  .dashboard-heading {
+    font-size: 0.95rem !important;
   }
 }
 
