@@ -10,7 +10,10 @@ import {
   Info,
   Check,
   TrendingUp,
+  FileSpreadsheet,
 } from 'lucide-react'
+import ExcelExportModal from './components/ExcelExportModal'
+import { calculatorRegistry as defaultRegistry } from './testCalculatorsData'
 import {
   ResponsiveContainer,
   LineChart,
@@ -94,13 +97,16 @@ export default function TestCalculatorPanel({
   onInputChange,
   onResetInputs,
   onSaveToDashboard, 
-  onBackToDashboard 
+  onBackToDashboard,
+  calculatorRegistry = defaultRegistry,
+  allModuleInputs = {},
 }) {
   const inputs = currentInputs || testConfig.initialInputs
   const [savedNotification, setSavedNotification] = useState(false)
   const [lastSavedId, setLastSavedId] = useState(null)
   const [sieveAlert, setSieveAlert] = useState(null)
   const [activeStepTab, setActiveStepTab] = useState(0)
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false)
 
   // Fitur Interaktif Table Horizontal Scroll: Mouse Wheel & Middle-Click Drag
   useEffect(() => {
@@ -1742,18 +1748,31 @@ export default function TestCalculatorPanel({
       {/* Header Pengujian */}
       <div className="calc-top-header">
         <div className="calc-top-actions">
-          <button 
-            type="button" 
-            className="btn-back-to-dash" 
-            onClick={onBackToDashboard}
-            title="Kembali ke Dashboard Utama"
-          >
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <line x1="19" y1="12" x2="5" y2="12" />
-              <polyline points="12 19 5 12 12 5" />
-            </svg>
-            <span>Kembali ke Dashboard Utama</span>
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', flexWrap: 'wrap' }}>
+            <button 
+              type="button" 
+              className="btn-back-to-dash" 
+              onClick={onBackToDashboard}
+              title="Kembali ke Dashboard Utama"
+            >
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="19" y1="12" x2="5" y2="12" />
+                <polyline points="12 19 5 12 12 5" />
+              </svg>
+              <span>Kembali ke Dashboard Utama</span>
+            </button>
+
+            {/* Tombol Export ke Excel Modular di Top Header */}
+            <button
+              type="button"
+              className="btn-export-excel-action"
+              onClick={() => setIsExportModalOpen(true)}
+              title="Export blangko pengujian laboratorium ke format Microsoft Excel (.xlsx)"
+            >
+              <FileSpreadsheet size={15} style={{ color: '#059669', flexShrink: 0 }} />
+              <span>Export ke Excel</span>
+            </button>
+          </div>
           {calcOutput?.status && (
             <span className={`calc-verdict-badge ${getVerdictClass()}`}>
               {getVerdictLabel()}
@@ -2682,6 +2701,28 @@ export default function TestCalculatorPanel({
         </div>
       </div>
       )}
+
+      {/* Tombol Floating CTA: Export ke Excel pada Halaman Kalkulator */}
+      <button
+        type="button"
+        className="btn-floating-export fixed bottom-8 right-8 z-50 bg-emerald-600 hover:bg-emerald-700 text-white rounded-full shadow-lg"
+        onClick={() => setIsExportModalOpen(true)}
+        title="Export blangko pengujian ke file Microsoft Excel (.xlsx)"
+      >
+        <FileSpreadsheet size={19} className="btn-floating-export-icon" />
+        <span>Export ke Excel</span>
+      </button>
+
+      {/* Modal Export Excel Modular */}
+      <ExcelExportModal
+        isOpen={isExportModalOpen}
+        onClose={() => setIsExportModalOpen(false)}
+        currentTestConfig={testConfig}
+        currentInputs={inputs}
+        currentCalcOutput={calcOutput}
+        calculatorRegistry={calculatorRegistry}
+        allModuleInputs={allModuleInputs}
+      />
     </div>
   )
 }

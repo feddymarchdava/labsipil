@@ -2327,6 +2327,8 @@ export default function App() {
                   setActiveTab('dashboard')
                   window.scrollTo({ top: 0, behavior: 'instant' })
                 }}
+                calculatorRegistry={calculatorRegistry}
+                allModuleInputs={moduleInputs}
               />
             </ModuleErrorBoundary>
           ) : (
