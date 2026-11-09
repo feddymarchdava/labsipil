@@ -639,6 +639,26 @@
   flex-direction: column;
 }
 
+.mockup-image-wrapper {
+  width: 100%;
+  max-width: 100%;
+  overflow: hidden;
+  background-color: #F8FAFC;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-bottom-left-radius: var(--radius-xl);
+  border-bottom-right-radius: var(--radius-xl);
+}
+
+.mockup-preview-img {
+  width: 100%;
+  max-width: 100%;
+  height: auto;
+  display: block;
+  object-fit: contain;
+}
+
 /* Header Mockup Jendela */
 .mockup-header {
   height: 45px;
@@ -3896,14 +3916,25 @@
    RESPONSIF DASBOR & KALKULATOR (MOBILE-FIRST / TABLET / DESKTOP)
    ========================================================================= */
 
-/* Recharts responsive container anti-overflow */
+/* Recharts container responsif & anti-clipping */
 .calc-chart-recharts-wrap,
-.cpt-recharts-box,
-.recharts-responsive-container,
-.recharts-wrapper {
+.cpt-recharts-box {
   width: 100% !important;
   max-width: 100% !important;
   min-width: 0 !important;
+  height: auto;
+  overflow: visible;
+  position: relative;
+}
+
+.recharts-responsive-container {
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+}
+
+.recharts-surface {
+  overflow: visible !important;
 }
 
 @media (max-width: 1024px) {
@@ -4165,11 +4196,13 @@
     padding: 0.35rem 0.4rem !important;
   }
 
-  /* Recharts responsive height on mobile */
-  .calc-chart-recharts-wrap {
-    min-height: 280px !important;
-    height: 280px !important;
-    padding: 0.5rem 0.25rem 0.25rem 0.15rem !important;
+  /* Recharts container adaptif di layar HP */
+  .calc-chart-recharts-wrap,
+  .cpt-recharts-box {
+    min-height: 300px;
+    height: auto !important;
+    padding: 0.5rem 0.25rem 0.5rem 0.15rem !important;
+    overflow: visible !important;
   }
 
   .btn-floating-export {

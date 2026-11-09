@@ -9857,7 +9857,7 @@ function DynamicMultiSampleSection({
               </div>
 
               <div className="calc-chart-recharts-wrap" style={{ width: '100%', height: 320, marginTop: '0.5rem' }}>
-                <ResponsiveContainer width="100%" height="100%">
+                <ResponsiveContainer width="100%" height={320}>
                   <LineChart
                     data={calcOutput.chartData}
                     margin={{ top: 15, right: 25, left: 10, bottom: 25 }}
@@ -11179,8 +11179,8 @@ function DynamicJmfMixSection({
         {/* Tab 1: Gambar 11.19 */}
         {jmfChartTab === 'gambar1119' && (
           <div>
-            <div style={{ width: '100%', height: 380 }}>
-              <ResponsiveContainer width="100%" height="100%">
+            <div style={{ width: '100%', minHeight: 380 }}>
+              <ResponsiveContainer width="100%" height={380}>
                 <LineChart data={gradasiChartData} margin={{ top: 25, right: 35, left: 15, bottom: 25 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
                   <XAxis dataKey="sieve" tick={{ fontSize: 11, fill: '#475569' }}>
@@ -11276,8 +11276,8 @@ function DynamicJmfMixSection({
         {/* Tab 2: Amplop Spesifikasi AC-WC */}
         {jmfChartTab === 'amplop' && (
           <div>
-            <div style={{ width: '100%', height: 380 }}>
-              <ResponsiveContainer width="100%" height="100%">
+            <div style={{ width: '100%', minHeight: 380 }}>
+              <ResponsiveContainer width="100%" height={380}>
                 <LineChart data={gradasiChartData} margin={{ top: 25, right: 35, left: 15, bottom: 25 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
                   <XAxis dataKey="sieve" tick={{ fontSize: 11, fill: '#475569' }}>
@@ -12539,8 +12539,8 @@ function DynamicMarshallSection({
                 Min: 800 kg
               </span>
             </div>
-            <div style={{ width: '100%', height: 260 }}>
-              <ResponsiveContainer width="100%" height="100%">
+            <div style={{ width: '100%', minHeight: 260 }}>
+              <ResponsiveContainer width="100%" height={260}>
                 <LineChart data={chartPoints} margin={{ top: 15, right: 25, left: 10, bottom: 20 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" />
                   <XAxis dataKey="pa" tick={{ fontSize: 10, fill: '#64748B' }}>
@@ -12570,8 +12570,8 @@ function DynamicMarshallSection({
                 Spek: 2.0 - 4.0 mm
               </span>
             </div>
-            <div style={{ width: '100%', height: 260 }}>
-              <ResponsiveContainer width="100%" height="100%">
+            <div style={{ width: '100%', minHeight: 260 }}>
+              <ResponsiveContainer width="100%" height={260}>
                 <LineChart data={chartPoints} margin={{ top: 15, right: 25, left: 10, bottom: 20 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" />
                   <XAxis dataKey="pa" tick={{ fontSize: 10, fill: '#64748B' }}>
@@ -12602,8 +12602,8 @@ function DynamicMarshallSection({
                 Min: 250 kg/mm
               </span>
             </div>
-            <div style={{ width: '100%', height: 260 }}>
-              <ResponsiveContainer width="100%" height="100%">
+            <div style={{ width: '100%', minHeight: 260 }}>
+              <ResponsiveContainer width="100%" height={260}>
                 <LineChart data={chartPoints} margin={{ top: 15, right: 25, left: 10, bottom: 20 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" />
                   <XAxis dataKey="pa" tick={{ fontSize: 10, fill: '#64748B' }}>
@@ -12633,8 +12633,8 @@ function DynamicMarshallSection({
                 Min: 15.0%
               </span>
             </div>
-            <div style={{ width: '100%', height: 260 }}>
-              <ResponsiveContainer width="100%" height="100%">
+            <div style={{ width: '100%', minHeight: 260 }}>
+              <ResponsiveContainer width="100%" height={260}>
                 <LineChart data={chartPoints} margin={{ top: 15, right: 25, left: 10, bottom: 20 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" />
                   <XAxis dataKey="pa" tick={{ fontSize: 10, fill: '#64748B' }}>
@@ -12664,8 +12664,8 @@ function DynamicMarshallSection({
                 Spek: 3.0% - 5.0%
               </span>
             </div>
-            <div style={{ width: '100%', height: 260 }}>
-              <ResponsiveContainer width="100%" height="100%">
+            <div style={{ width: '100%', minHeight: 260 }}>
+              <ResponsiveContainer width="100%" height={260}>
                 <LineChart data={chartPoints} margin={{ top: 15, right: 25, left: 10, bottom: 20 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" />
                   <XAxis dataKey="pa" tick={{ fontSize: 10, fill: '#64748B' }}>
@@ -12696,8 +12696,8 @@ function DynamicMarshallSection({
                 Min: 65.0%
               </span>
             </div>
-            <div style={{ width: '100%', height: 260 }}>
-              <ResponsiveContainer width="100%" height="100%">
+            <div style={{ width: '100%', minHeight: 260 }}>
+              <ResponsiveContainer width="100%" height={260}>
                 <LineChart data={chartPoints} margin={{ top: 15, right: 25, left: 10, bottom: 20 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" />
                   <XAxis dataKey="pa" tick={{ fontSize: 10, fill: '#64748B' }}>
@@ -12727,8 +12727,8 @@ function DynamicMarshallSection({
                 Nilai Maksimum
               </span>
             </div>
-            <div style={{ width: '100%', height: 260 }}>
-              <ResponsiveContainer width="100%" height="100%">
+            <div style={{ width: '100%', minHeight: 260 }}>
+              <ResponsiveContainer width="100%" height={260}>
                 <LineChart data={chartPoints} margin={{ top: 15, right: 25, left: 10, bottom: 20 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" />
                   <XAxis dataKey="pa" tick={{ fontSize: 10, fill: '#64748B' }}>
@@ -12756,8 +12756,9 @@ function DynamicMarshallSection({
             </div>
 
             {/* Matrix Diagram Pita */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem', fontSize: '0.75rem' }}>
-              {/* Header Kolom Kadar Aspal */}
+            <div style={{ width: '100%', overflowX: 'auto', WebkitOverflowScrolling: 'touch', paddingBottom: '4px' }}>
+              <div style={{ minWidth: '420px', display: 'flex', flexDirection: 'column', gap: '0.45rem', fontSize: '0.75rem' }}>
+                {/* Header Kolom Kadar Aspal */}
               <div style={{ display: 'grid', gridTemplateColumns: '130px 1fr 1fr 1fr', gap: '0.5rem', fontWeight: 'bold', color: '#334155', textAlign: 'center', paddingBottom: '4px', borderBottom: '1px solid #BAE6FD' }}>
                 <span style={{ textAlign: 'left' }}>Parameter Marshall</span>
                 <span>Pa = 5.0%</span>
@@ -12813,9 +12814,10 @@ function DynamicMarshallSection({
                 <div style={{ background: '#DEF7EC', color: '#03543F', padding: '4px', borderRadius: '4px', fontWeight: 600 }}>✓ 66.20%</div>
               </div>
 
-              {/* Daerah Irisan Rekomendasi KAO */}
-              <div style={{ marginTop: '0.5rem', padding: '0.6rem 0.75rem', background: '#0284C7', color: '#FFFFFF', borderRadius: '6px', textAlign: 'center', fontWeight: 'bold', fontSize: '0.85rem' }}>
-                ★ KADAR ASPAL OPTIMUM (KAO) TERPILIH = 6.5% ★
+                {/* Daerah Irisan Rekomendasi KAO */}
+                <div style={{ marginTop: '0.5rem', padding: '0.6rem 0.75rem', background: '#0284C7', color: '#FFFFFF', borderRadius: '6px', textAlign: 'center', fontWeight: 'bold', fontSize: '0.85rem' }}>
+                  ★ KADAR ASPAL OPTIMUM (KAO) TERPILIH = 6.5% ★
+                </div>
               </div>
             </div>
           </div>

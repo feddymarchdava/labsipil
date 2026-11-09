@@ -2936,12 +2936,12 @@ export default function App() {
               </div>
 
               {/* Gambar Screenshot Dashboard Statis */}
-              <div className="w-full overflow-hidden bg-slate-50 flex items-center justify-center">
+              <div className="mockup-image-wrapper">
                 <img 
                   src="/dashboard-preview.png" 
                   alt="Preview Dasbor Aplikasi LabSipil" 
-                  className="w-full h-auto object-cover rounded-b-xl"
-                  loading="lazy"
+                  className="mockup-preview-img"
+                  loading="eager"
                 />
               </div>
             </div>
