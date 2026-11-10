@@ -10,9 +10,7 @@ import {
   Info,
   Check,
   TrendingUp,
-  FileSpreadsheet,
 } from 'lucide-react'
-import ExcelExportModal from './components/ExcelExportModal'
 import { calculatorRegistry as defaultRegistry } from './testCalculatorsData'
 import {
   ResponsiveContainer,
@@ -54,6 +52,58 @@ import {
   DEFAULT_MT23_SAMPLES,
   DEFAULT_MT24_SAMPLES,
 } from './testCalculatorsData'
+
+/**
+ * Menghitung nilai rata-rata dinamis (average) untuk setiap baris parameter tabel rekapitulasi.
+ * Mengekstrak nilai numerik dari seluruh sampel aktif (Benda Uji I, II, III, dst.),
+ * menghitung (sum / count), dan memformat presisi sesuai format awal atau prefix khusus (misal "K-").
+ */
+export function calculateRowAverage(row) {
+  if (Array.isArray(row.values) && row.values.length > 0) {
+    const validNums = row.values
+      .map((val) => {
+        if (typeof val === 'number') return val
+        if (typeof val === 'string') {
+          let cleaned = val.replace(/,/g, '.')
+          if (/^k-\s*\d+/i.test(val.trim())) {
+            cleaned = val.replace(/^k-/i, '').trim()
+            const parsed = parseFloat(cleaned.replace(/[^0-9.]/g, ''))
+            return isNaN(parsed) ? null : parsed
+          }
+          const parsed = parseFloat(cleaned.replace(/[^0-9.-]/g, ''))
+          return isNaN(parsed) ? null : parsed
+        }
+        return null
+      })
+      .filter((n) => n !== null && !isNaN(n))
+
+    if (validNums.length > 0) {
+      const sum = validNums.reduce((acc, curr) => acc + curr, 0)
+      const avg = sum / validNums.length
+
+      const firstStr = String(row.values[0] || '')
+      const avgStr = row.average !== undefined && row.average !== null ? String(row.average) : ''
+
+      if (/^k-\s*\d+/i.test(firstStr)) {
+        return `K-${Math.round(avg)}`
+      }
+
+      let precision = 2
+      if (avgStr.includes('.')) {
+        precision = avgStr.split('.')[1].replace(/[^0-9]/g, '').length
+      } else if (firstStr.includes('.')) {
+        precision = firstStr.split('.')[1].replace(/[^0-9]/g, '').length
+      } else if (validNums.every((n) => Number.isInteger(n))) {
+        precision = 0
+      }
+
+      const hasPct = firstStr.includes('%') || avgStr.includes('%')
+      return avg.toFixed(precision) + (hasPct ? '%' : '')
+    }
+  }
+
+  return row.average !== undefined && row.average !== null && row.average !== '' ? row.average : '-'
+}
 
 // Komponen Tombol Bantu Geser Tabel Kiri-Kanan (Horizontal Scroll Nav)
 export function TableNavScrollButtons() {
@@ -106,7 +156,6 @@ export default function TestCalculatorPanel({
   const [lastSavedId, setLastSavedId] = useState(null)
   const [sieveAlert, setSieveAlert] = useState(null)
   const [activeStepTab, setActiveStepTab] = useState(0)
-  const [isExportModalOpen, setIsExportModalOpen] = useState(false)
 
   // Fitur Interaktif Table Horizontal Scroll: Mouse Wheel & Middle-Click Drag
   useEffect(() => {
@@ -659,16 +708,16 @@ export default function TestCalculatorPanel({
     return rawSoilSievesList
   }, [rawSoilSievesList])
 
-  const handleSoilSieveChange = (index, key, val) => {
+  const handleSoilSieveChange = (identifier, key, val) => {
     const updated = currentSoilSieves.map((s, idx) => {
-      if (idx === index) {
+      if (s.id === identifier || idx === identifier) {
         return { ...s, [key]: val }
       }
       return s
     })
     handleInputChange('soilSieves', updated)
     // Jika user mengedit massa tertahan pada baris Pan, sinkronkan ke panWeight
-    const target = updated[index]
+    const target = updated.find((s, idx) => s.id === identifier || idx === identifier)
     if (target && (target.isPan || Number(target.diameter) <= 0 || /pan/i.test(target.sieveNo)) && key === 'retainedWeight') {
       handleInputChange('panWeight', val)
     }
@@ -691,9 +740,9 @@ export default function TestCalculatorPanel({
     handleInputChange('soilSieves', updated)
   }
 
-  const handleRemoveSoilSieve = (index) => {
+  const handleRemoveSoilSieve = (identifier) => {
     if (currentSoilSieves.length <= 1) return
-    const updated = currentSoilSieves.filter((_, idx) => idx !== index)
+    const updated = currentSoilSieves.filter((s, idx) => s.id !== identifier && idx !== identifier)
     handleInputChange('soilSieves', updated)
   }
 
@@ -1680,6 +1729,7 @@ export default function TestCalculatorPanel({
 
     const newRecord = {
       testId: testConfig.id,
+      moduleId: testConfig.id,
       codePrefix: testConfig.code ? testConfig.code.split('-')[0] : 'UJ',
       baseCode: testConfig.code,
       name: testConfig.name,
@@ -1689,8 +1739,21 @@ export default function TestCalculatorPanel({
       summary: calcOutput.summaryString,
       status: calcOutput.status,
       time: timeString,
-      inputs: { ...inputs },
-      notes: `${calcOutput.conclusion} | ${calcOutput.formulaSteps.join(' | ')}`,
+      inputs: JSON.parse(JSON.stringify(inputs)),
+      calcOutput: JSON.parse(JSON.stringify(calcOutput)),
+      samples: calcOutput.samples || inputs.samples || null,
+      average: calcOutput.average ?? calcOutput.avgResult ?? null,
+      conclusion: calcOutput.conclusion || '',
+      testConfig: {
+        id: testConfig.id,
+        code: testConfig.code,
+        name: testConfig.name,
+        standard: testConfig.standard,
+        category: testConfig.category,
+        lab: testConfig.lab,
+        subTitle: testConfig.subTitle || '',
+      },
+      notes: `${calcOutput.conclusion || ''} | ${(calcOutput.formulaSteps || []).join(' | ')}`,
     }
 
     const savedResult = onSaveToDashboard(newRecord)
@@ -1760,17 +1823,6 @@ export default function TestCalculatorPanel({
                 <polyline points="12 19 5 12 12 5" />
               </svg>
               <span>Kembali ke Dashboard Utama</span>
-            </button>
-
-            {/* Tombol Export ke Excel Modular di Top Header */}
-            <button
-              type="button"
-              className="btn-export-excel-action"
-              onClick={() => setIsExportModalOpen(true)}
-              title="Export blangko pengujian laboratorium ke format Microsoft Excel (.xlsx)"
-            >
-              <FileSpreadsheet size={15} style={{ color: '#059669', flexShrink: 0 }} />
-              <span>Export ke Excel</span>
             </button>
           </div>
           {calcOutput?.status && (
@@ -2528,7 +2580,6 @@ export default function TestCalculatorPanel({
                     <span style={{ fontSize: '0.75rem', background: '#EFF6FF', color: '#1D4ED8', padding: '2px 8px', borderRadius: '12px', fontWeight: 600 }}>
                       Format Standar Laprak
                     </span>
-                    <TableNavScrollButtons />
                   </div>
                 </div>
                 <div className="table-scroll-wrapper">
@@ -2537,11 +2588,12 @@ export default function TestCalculatorPanel({
                       <tr style={{ background: '#F8FAFC' }}>
                         {calcOutput.recapTable.headers.map((h, hIdx) => {
                           const isLast = hIdx === calcOutput.recapTable.headers.length - 1
+                          const isSatuan = /satuan/i.test(h)
                           return (
                             <th 
                               key={hIdx} 
                               style={{ 
-                                textAlign: hIdx === 0 || hIdx === 1 ? 'left' : 'right',
+                                textAlign: hIdx === 0 || hIdx === 1 ? 'left' : (isSatuan ? 'center' : 'right'),
                                 padding: '8px 10px',
                                 borderBottom: '2px solid #CBD5E1',
                                 background: isLast ? '#EFF6FF' : undefined,
@@ -2557,24 +2609,33 @@ export default function TestCalculatorPanel({
                       </tr>
                     </thead>
                     <tbody>
-                      {calcOutput.recapTable.rows.map((row, rIdx) => (
-                        <tr key={rIdx} style={{ background: row.highlight ? '#F0FDF4' : rIdx % 2 === 0 ? '#FFFFFF' : '#F8FAFC' }}>
-                          <td style={{ padding: '8px 10px', fontWeight: row.highlight ? 600 : 500, color: row.highlight ? '#15803D' : '#334155' }}>
-                            {row.label}
-                          </td>
-                          <td style={{ padding: '8px 10px', color: '#64748B', fontFamily: 'monospace', fontSize: '0.8rem' }}>
-                            {row.equation}
-                          </td>
-                          {row.values.map((v, vIdx) => (
-                            <td key={vIdx} style={{ padding: '8px 10px', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
-                              {v}
+                      {calcOutput.recapTable.rows.map((row, rIdx) => {
+                        const hasSatuanHeader = calcOutput.recapTable.headers.some((h) => /satuan/i.test(h))
+                        const dynamicAvg = calculateRowAverage(row)
+                        return (
+                          <tr key={rIdx} style={{ background: row.highlight ? '#F0FDF4' : rIdx % 2 === 0 ? '#FFFFFF' : '#F8FAFC' }}>
+                            <td style={{ padding: '8px 10px', fontWeight: row.highlight ? 600 : 500, color: row.highlight ? '#15803D' : '#334155' }}>
+                              {row.label}
                             </td>
-                          ))}
-                          <td style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 700, background: row.highlight ? '#DCFCE7' : '#EFF6FF', color: row.highlight ? '#166534' : '#1D4ED8', fontVariantNumeric: 'tabular-nums' }}>
-                            {row.average}
-                          </td>
-                        </tr>
-                      ))}
+                            <td style={{ padding: '8px 10px', color: '#64748B', fontFamily: 'monospace', fontSize: '0.8rem' }}>
+                              {row.equation}
+                            </td>
+                            {hasSatuanHeader && (
+                              <td style={{ padding: '8px 10px', textAlign: 'center', color: '#64748B', fontSize: '0.8rem', fontStyle: 'italic' }}>
+                                {row.unit || '-'}
+                              </td>
+                            )}
+                            {row.values.map((v, vIdx) => (
+                              <td key={vIdx} style={{ padding: '8px 10px', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+                                {v}
+                              </td>
+                            ))}
+                            <td style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 700, background: row.highlight ? '#DCFCE7' : '#EFF6FF', color: row.highlight ? '#166534' : '#1D4ED8', fontVariantNumeric: 'tabular-nums' }}>
+                              {dynamicAvg}
+                            </td>
+                          </tr>
+                        )
+                      })}
                     </tbody>
                   </table>
                   </div>
@@ -2669,7 +2730,7 @@ export default function TestCalculatorPanel({
                 className="btn-open-table-direct"
                 onClick={onBackToDashboard}
               >
-                Ke Dashboard Utama
+                ← Ke Dashboard Utama
               </button>
             </div>
           </div>
@@ -2701,28 +2762,6 @@ export default function TestCalculatorPanel({
         </div>
       </div>
       )}
-
-      {/* Tombol Floating CTA: Export ke Excel pada Halaman Kalkulator */}
-      <button
-        type="button"
-        className="btn-floating-export fixed bottom-8 right-8 z-50 bg-emerald-600 hover:bg-emerald-700 text-white rounded-full shadow-lg"
-        onClick={() => setIsExportModalOpen(true)}
-        title="Export blangko pengujian ke file Microsoft Excel (.xlsx)"
-      >
-        <FileSpreadsheet size={19} className="btn-floating-export-icon" />
-        <span>Export ke Excel</span>
-      </button>
-
-      {/* Modal Export Excel Modular */}
-      <ExcelExportModal
-        isOpen={isExportModalOpen}
-        onClose={() => setIsExportModalOpen(false)}
-        currentTestConfig={testConfig}
-        currentInputs={inputs}
-        currentCalcOutput={calcOutput}
-        calculatorRegistry={calculatorRegistry}
-        allModuleInputs={allModuleInputs}
-      />
     </div>
   )
 }
@@ -5399,8 +5438,9 @@ function DynamicSoilSieveSection({
           </div>
         </div>
 
-        <div className="calc-header-actions">
+        <div className="calc-header-actions calc-top-action-bar">
           <button
+            type="button"
             onClick={onResetSieves}
             className="btn-action-outline"
             title="Kembalikan ke data contoh standar laboratorium (8 Ayakan)"
@@ -5409,15 +5449,16 @@ function DynamicSoilSieveSection({
             <span>Reset Contoh</span>
           </button>
           <button
+            type="button"
             onClick={onClearSieves}
-            className="btn-action-outline"
-            style={{ color: '#DC2626', borderColor: '#FECACA' }}
+            className="btn-action-outline btn-action-danger"
             title="Kosongkan seluruh nilai massa tertahan untuk input baru"
           >
             <Trash2 size={15} />
             <span>Kosongkan Input</span>
           </button>
           <button
+            type="button"
             onClick={onSave}
             disabled={isFormDisabled}
             className={`btn-action-primary ${savedNotification ? 'btn-saved' : ''}`}
@@ -5535,28 +5576,37 @@ function DynamicSoilSieveSection({
 
             <div className="soil-sieve-table-container">
               <div className="table-scroll-wrapper">
-              <table className="soil-sieve-table">
+              <table className="soil-sieve-table" style={{ minWidth: '680px', width: '100%' }}>
                 <thead>
                   <tr>
-                    <th style={{ width: '22%' }}>No. Ayakan</th>
-                    <th style={{ width: '18%' }}>Diameter (mm)</th>
-                    <th style={{ width: '18%' }}>Berat (g)</th>
-                    <th style={{ width: '14%' }}>% Tertahan</th>
-                    <th style={{ width: '14%' }}>% Kumulatif</th>
-                    <th style={{ width: '14%' }}>% Lolos</th>
-                    <th style={{ width: '38px', textAlign: 'center' }}>Aksi</th>
+                    <th style={{ width: '20%', minWidth: '120px' }}>No. Saringan</th>
+                    <th style={{ width: '17%', minWidth: '110px' }}>Diameter Lubang (mm)</th>
+                    <th style={{ width: '18%', minWidth: '125px' }}>Berat Tertahan (gram)</th>
+                    <th style={{ width: '14%', minWidth: '95px' }}>% Tertahan</th>
+                    <th style={{ width: '14%', minWidth: '95px' }}>% Kumulatif</th>
+                    <th style={{ width: '14%', minWidth: '95px' }}>% Lolos</th>
+                    <th style={{ width: '45px', minWidth: '45px', textAlign: 'center' }}>Aksi</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {(calcOutput?.calculatedSieves || currentSoilSieves).map((s, idx) => {
+                  {currentSoilSieves.map((s, idx) => {
                     const isPanRow = s.isPan || Number(s.diameter) <= 0 || /pan/i.test(s.sieveNo)
+                    // Cari data hasil kalkulasi untuk baris ini
+                    let calc = null
+                    if (isPanRow) {
+                      calc = calcOutput?.calculatedPan
+                    } else if (calcOutput?.calculatedSieves) {
+                      calc = calcOutput.calculatedSieves.find((c) => c.id === s.id) ||
+                             calcOutput.calculatedSieves.find((c) => Math.abs(Number(c.diameter) - Number(s.diameter)) < 0.0001)
+                    }
+
                     return (
                       <tr key={s.id || idx} className={isPanRow ? 'row-pan' : ''}>
                         <td>
                           <input
                             type="text"
-                            value={s.sieveNo}
-                            onChange={(e) => onSieveChange(idx, 'sieveNo', e.target.value)}
+                            value={s.sieveNo !== undefined ? s.sieveNo : ''}
+                            onChange={(e) => onSieveChange(s.id ?? idx, 'sieveNo', e.target.value)}
                             className="soil-sieve-cell-text"
                             placeholder="Misal: No. 4"
                           />
@@ -5567,10 +5617,10 @@ function DynamicSoilSieveSection({
                             step="0.001"
                             min="0"
                             value={s.diameter !== undefined ? s.diameter : ''}
-                            onChange={(e) => onSieveChange(idx, 'diameter', e.target.value)}
+                            onChange={(e) => onSieveChange(s.id ?? idx, 'diameter', e.target.value)}
                             disabled={isPanRow}
                             className="soil-sieve-cell-input"
-                            placeholder={isPanRow ? '-' : '0.00'}
+                            placeholder={isPanRow ? '-' : '0.000'}
                           />
                         </td>
                         <td>
@@ -5579,24 +5629,24 @@ function DynamicSoilSieveSection({
                             step="0.1"
                             min="0"
                             value={s.retainedWeight !== undefined ? s.retainedWeight : ''}
-                            onChange={(e) => onSieveChange(idx, 'retainedWeight', e.target.value)}
+                            onChange={(e) => onSieveChange(s.id ?? idx, 'retainedWeight', e.target.value)}
                             className="soil-sieve-cell-input"
                             placeholder="0.0"
                           />
                         </td>
                         <td style={{ fontWeight: 600, color: '#475569' }}>
-                          {s.retainedPct !== undefined ? `${s.retainedPct.toFixed(2)}%` : '-'}
+                          {calc?.retainedPct !== undefined ? `${calc.retainedPct.toFixed(2)}%` : '-'}
                         </td>
                         <td style={{ fontWeight: 600, color: '#334155' }}>
-                          {s.cumRetainedPct !== undefined ? `${s.cumRetainedPct.toFixed(2)}%` : '-'}
+                          {calc?.cumRetainedPct !== undefined ? `${calc.cumRetainedPct.toFixed(2)}%` : '-'}
                         </td>
                         <td style={{ fontWeight: 800, color: '#1D4ED8' }}>
-                          {s.cumPassingPct !== undefined ? `${s.cumPassingPct.toFixed(2)}%` : '-'}
+                          {isPanRow ? '0.00%' : (calc?.cumPassingPct !== undefined ? `${calc.cumPassingPct.toFixed(2)}%` : '-')}
                         </td>
                         <td style={{ textAlign: 'center' }}>
                           <button
                             type="button"
-                            onClick={() => onRemoveSieve(idx)}
+                            onClick={() => onRemoveSieve(s.id ?? idx)}
                             disabled={currentSoilSieves.length <= 1}
                             className="btn-soil-sieve-del"
                             title="Hapus baris saringan ini"
@@ -5607,8 +5657,8 @@ function DynamicSoilSieveSection({
                       </tr>
                     )
                   })}
-                  {/* Tampilkan Pan jika belum ada di tabel saringan */}
-                  {calcOutput?.calculatedPan && !currentSoilSieves.some(s => s.isPan || /pan/i.test(s.sieveNo)) && (
+                  {/* Tampilkan Pan jika belum ada di currentSoilSieves */}
+                  {calcOutput?.calculatedPan && !currentSoilSieves.some((s) => s.isPan || Number(s.diameter) <= 0 || /pan/i.test(s.sieveNo)) && (
                     <tr className="row-pan">
                       <td style={{ fontWeight: 700 }}>Pan Penampung</td>
                       <td>-</td>
@@ -5990,25 +6040,27 @@ function DynamicOedometerSection({
           </div>
         </div>
 
-        <div className="calc-header-actions">
+        <div className="calc-header-actions calc-top-action-bar">
           <button
+            type="button"
             onClick={onResetReadings}
             className="btn-action-outline"
             title="Kembalikan ke data contoh standar laboratorium (14 Pembacaan Waktu)"
           >
             <RotateCcw size={15} />
-            <span>Reset</span>
+            <span>Reset Contoh</span>
           </button>
           <button
+            type="button"
             onClick={onClearReadings}
-            className="btn-action-outline"
-            style={{ color: '#DC2626', borderColor: '#FECACA' }}
+            className="btn-action-outline btn-action-danger"
             title="Kosongkan seluruh nilai penurunan untuk input baru"
           >
             <Trash2 size={15} />
             <span>Kosongkan Input</span>
           </button>
           <button
+            type="button"
             onClick={onSave}
             disabled={isFormDisabled}
             className={`btn-action-primary ${savedNotification ? 'btn-saved' : ''}`}
@@ -9750,10 +9802,10 @@ function DynamicMultiSampleSection({
                   onClick={onResetSamples}
                   className="btn-reset-inputs"
                   style={{ display: 'flex', alignItems: 'center', gap: '4px', background: '#F1F5F9', color: '#475569', border: '1px solid #CBD5E1', padding: '0.45rem 0.75rem', borderRadius: '6px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 500 }}
-                  title="Kembalikan data sampel ke default laporan praktikum"
+                  title="Kembalikan data sampel ke default awal"
                 >
                   <RotateCcw size={14} />
-                  <span>Reset Laprak</span>
+                  <span>Reset Data</span>
                 </button>
                 <button
                   type="button"
@@ -9984,7 +10036,6 @@ function DynamicMultiSampleSection({
                   <span style={{ fontSize: '0.75rem', background: '#EFF6FF', color: '#1D4ED8', padding: '2px 8px', borderRadius: '12px', fontWeight: 600 }}>
                     Format Laprak Resmi
                   </span>
-                  <TableNavScrollButtons />
                 </div>
               </div>
 
@@ -9994,11 +10045,12 @@ function DynamicMultiSampleSection({
                     <tr style={{ background: '#F8FAFC' }}>
                       {recapTable.headers.map((h, hIdx) => {
                         const isLast = hIdx === recapTable.headers.length - 1
+                        const isSatuan = /satuan/i.test(h)
                         return (
                           <th
                             key={hIdx}
                             style={{
-                              textAlign: hIdx === 0 || hIdx === 1 ? 'left' : 'right',
+                              textAlign: hIdx === 0 || hIdx === 1 ? 'left' : (isSatuan ? 'center' : 'right'),
                               padding: '8px 10px',
                               borderBottom: '2px solid #CBD5E1',
                               background: isLast ? '#EFF6FF' : undefined,
@@ -10014,24 +10066,33 @@ function DynamicMultiSampleSection({
                     </tr>
                   </thead>
                   <tbody>
-                    {recapTable.rows.map((row, rIdx) => (
-                      <tr key={rIdx} style={{ background: row.highlight ? '#F0FDF4' : rIdx % 2 === 0 ? '#FFFFFF' : '#F8FAFC' }}>
-                        <td style={{ padding: '8px 10px', fontWeight: row.highlight ? 600 : 500, color: row.highlight ? '#15803D' : '#334155' }}>
-                          {row.label}
-                        </td>
-                        <td style={{ padding: '8px 10px', color: '#64748B', fontFamily: 'monospace', fontSize: '0.8rem' }}>
-                          {row.equation}
-                        </td>
-                        {row.values.map((v, vIdx) => (
-                          <td key={vIdx} style={{ padding: '8px 10px', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
-                            {v}
+                    {recapTable.rows.map((row, rIdx) => {
+                      const hasSatuanHeader = recapTable.headers.some((h) => /satuan/i.test(h))
+                      const dynamicAvg = calculateRowAverage(row)
+                      return (
+                        <tr key={rIdx} style={{ background: row.highlight ? '#F0FDF4' : rIdx % 2 === 0 ? '#FFFFFF' : '#F8FAFC' }}>
+                          <td style={{ padding: '8px 10px', fontWeight: row.highlight ? 600 : 500, color: row.highlight ? '#15803D' : '#334155' }}>
+                            {row.label}
                           </td>
-                        ))}
-                        <td style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 700, background: row.highlight ? '#DCFCE7' : '#EFF6FF', color: row.highlight ? '#166534' : '#1D4ED8', fontVariantNumeric: 'tabular-nums' }}>
-                          {row.average}
-                        </td>
-                      </tr>
-                    ))}
+                          <td style={{ padding: '8px 10px', color: '#64748B', fontFamily: 'monospace', fontSize: '0.8rem' }}>
+                            {row.equation}
+                          </td>
+                          {hasSatuanHeader && (
+                            <td style={{ padding: '8px 10px', textAlign: 'center', color: '#64748B', fontSize: '0.8rem', fontStyle: 'italic' }}>
+                              {row.unit || '-'}
+                            </td>
+                          )}
+                          {row.values.map((v, vIdx) => (
+                            <td key={vIdx} style={{ padding: '8px 10px', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+                              {v}
+                            </td>
+                          ))}
+                          <td style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 700, background: row.highlight ? '#DCFCE7' : '#EFF6FF', color: row.highlight ? '#166534' : '#1D4ED8', fontVariantNumeric: 'tabular-nums' }}>
+                            {dynamicAvg}
+                          </td>
+                        </tr>
+                      )
+                    })}
                   </tbody>
                 </table>
               </div>

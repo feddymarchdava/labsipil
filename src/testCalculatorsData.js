@@ -434,6 +434,54 @@ export const DEFAULT_BB26_SAMPLES = [
   { id: 3, name: 'Benda Uji III', a: 2000.0, b: 812.5 },
 ]
 
+export const DEFAULT_BB31_SAMPLES = [
+  { id: 1, name: 'Benda Uji I', tinggiA: 30.0, tinggiB: 18.0 },
+  { id: 2, name: 'Benda Uji II', tinggiA: 30.0, tinggiB: 17.5 },
+  { id: 3, name: 'Benda Uji III', tinggiA: 30.0, tinggiB: 18.5 },
+]
+
+export const DEFAULT_BB32_SAMPLES = [
+  { id: 1, name: 'Benda Uji I', bebanHancur: 495.0 },
+  { id: 2, name: 'Benda Uji II', bebanHancur: 512.0 },
+  { id: 3, name: 'Benda Uji III', bebanHancur: 502.0 },
+]
+
+export const DEFAULT_BB33_SAMPLES = [
+  { id: 1, name: 'Benda Uji I', bebanP: 28.0 },
+  { id: 2, name: 'Benda Uji II', bebanP: 29.5 },
+  { id: 3, name: 'Benda Uji III', bebanP: 28.5 },
+]
+
+export const DEFAULT_BB41_SAMPLES = [
+  { id: 1, name: 'Benda Uji I', mBasah: 128.4, mKering: 112.6 },
+  { id: 2, name: 'Benda Uji II', mBasah: 130.2, mKering: 114.0 },
+  { id: 3, name: 'Benda Uji III', mBasah: 126.8, mKering: 111.5 },
+]
+
+export const DEFAULT_BB42_SAMPLES = [
+  { id: 1, name: 'Benda Uji I', massa: 185.0, panjang: 10.0, lebar: 5.0, tebal: 5.0 },
+  { id: 2, name: 'Benda Uji II', massa: 188.5, panjang: 10.0, lebar: 5.0, tebal: 5.0 },
+  { id: 3, name: 'Benda Uji III', massa: 182.0, panjang: 10.0, lebar: 5.0, tebal: 5.0 },
+]
+
+export const DEFAULT_BB43_SAMPLES = [
+  { id: 1, name: 'Benda Uji I', vm: 115200.0, v0: 110661.1, mm: 74.8, m0: 64.9 },
+  { id: 2, name: 'Benda Uji II', vm: 115000.0, v0: 110500.0, mm: 75.2, m0: 65.2 },
+  { id: 3, name: 'Benda Uji III', vm: 115400.0, v0: 110800.0, mm: 74.2, m0: 64.5 },
+]
+
+export const DEFAULT_BB44_SAMPLES = [
+  { id: 1, name: 'Benda Uji I', bebanP: 8200.0, lendutan: 6.2 },
+  { id: 2, name: 'Benda Uji II', bebanP: 8450.0, lendutan: 6.5 },
+  { id: 3, name: 'Benda Uji III', bebanP: 8100.0, lendutan: 6.1 },
+]
+
+export const DEFAULT_BB51_SAMPLES = [
+  { id: 1, name: 'Benda Uji I', diameter: 16.0, pjgAwal: 80.0, pjgPutus: 94.0, bebanLeleh: 88.0, bebanPutus: 118.0 },
+  { id: 2, name: 'Benda Uji II', diameter: 16.0, pjgAwal: 80.0, pjgPutus: 94.5, bebanLeleh: 89.5, bebanPutus: 120.0 },
+  { id: 3, name: 'Benda Uji III', diameter: 16.0, pjgAwal: 80.0, pjgPutus: 93.8, bebanLeleh: 87.5, bebanPutus: 117.5 },
+]
+
 export const DEFAULT_MT21_SAMPLES = [
   { id: 1, name: 'Cawan C-1', w1: 15.4, w2: 68.2, w3: 57.6 },
   { id: 2, name: 'Cawan C-2', w1: 16.1, w2: 70.5, w3: 59.4 },
@@ -2923,165 +2971,184 @@ export const calculatorRegistry = {
     lab: 'Bahan Bangunan',
     category: 'Bahan Bangunan • Bab 3: Beton',
     standard: 'SNI 1972:2008 / ASTM C143',
-    desc: 'Mengukur konsistensi workability dan kelecakan adukan beton segar menggunakan cetakan kerucut Abrams.',
+    desc: 'Mengukur konsistensi workability dan kelecakan adukan beton segar menggunakan cetakan kerucut Abrams multi-sampel dinamis.',
+    hasMultiSample: true,
+    sampleFields: [
+      { key: 'tinggiA', label: 'Tinggi Alat (A)', unit: 'cm', desc: 'Tinggi kerucut slump baku (30 cm)', min: 1, step: 0.1 },
+      { key: 'tinggiB', label: 'Tinggi Beton (B)', unit: 'cm', desc: 'Tinggi beton segar setelah penurunan', min: 0, step: 0.1 },
+    ],
     initialInputs: {
-      tinggiA: 30.0,
-      tinggiB: 17.0,
-      slumpUnit: 'cm',
+      samples: JSON.parse(JSON.stringify(DEFAULT_BB31_SAMPLES)),
     },
     fields: [
-      { 
-        key: 'tinggiA', 
-        label: 'Tinggi Alat Slump (A)', 
-        unitKey: 'slumpUnit',
-        unitOptions: [
-          { label: 'cm', value: 'cm' },
-          { label: 'mm', value: 'mm' },
-        ],
-        min: 1,
-        desc: 'Tinggi kerucut cetakan slump Abrams baku (standar: 30 cm / 300 mm)' 
-      },
-      { 
-        key: 'tinggiB', 
-        label: 'Tinggi Beton Setelah Mengalami Penurunan (B)', 
-        unitKey: 'slumpUnit',
-        unitOptions: [
-          { label: 'cm', value: 'cm' },
-          { label: 'mm', value: 'mm' },
-        ],
-        min: 0,
-        step: 0.1,
-        desc: 'Tinggi spesimen beton segar setelah cetakan diangkat perlahan (default: 17 cm / 170 mm)' 
-      },
+      { key: 'tinggiA', label: 'Tinggi Alat Slump (A)', unit: 'cm', min: 1, step: 0.1, desc: 'Tinggi cetakan kerucut Abrams baku (30 cm)' },
+      { key: 'tinggiB', label: 'Tinggi Beton Setelah Mengalami Penurunan (B)', unit: 'cm', min: 0, step: 0.1, desc: 'Tinggi spesimen setelah penurunan' },
     ],
     calculate: (inputs) => {
-      const unit = inputs.slumpUnit || inputs.tinggiAUnit || inputs.hAlatUnit || 'cm'
-      const isMm = unit === 'mm'
+      const rawSamples = Array.isArray(inputs.samples) && inputs.samples.length > 0
+        ? inputs.samples
+        : [{
+            id: 1,
+            name: 'Benda Uji I',
+            tinggiA: inputs.tinggiA !== undefined ? inputs.tinggiA : 30.0,
+            tinggiB: inputs.tinggiB !== undefined ? inputs.tinggiB : 17.0,
+          }]
 
-      const rawA = inputs.tinggiA !== undefined ? inputs.tinggiA : inputs.hCetakan
-      const rawB = inputs.tinggiB !== undefined ? inputs.tinggiB : inputs.hBeton
+      const validSamples = []
+      const errors = []
 
-      const a = Number(rawA !== undefined && rawA !== null && rawA !== '' ? rawA : (isMm ? 300 : 30.0))
-      const b = Number(rawB !== undefined && rawB !== null && rawB !== '' ? rawB : (isMm ? 170 : 17.0))
+      rawSamples.forEach((s, idx) => {
+        const idLabel = s.name || `Benda Uji ${idx + 1}`
+        const a = Number(s.tinggiA ?? 30.0)
+        const b = Number(s.tinggiB ?? 0.0)
 
-      // Validasi: Jika input kosong atau bukan angka
-      if (isNaN(a) || isNaN(b)) {
-        return {
-          results: [
-            { label: isMm ? 'Nilai Slump (mm)' : 'Nilai Slump (cm)', value: '-', unit: unit, highlight: true },
-            { label: isMm ? 'Nilai Slump (cm)' : 'Nilai Slump (mm)', value: '-', unit: isMm ? 'cm' : 'mm' },
-            { label: 'Bentuk Runtuhan Slump', value: 'Menunggu Input', unit: '' },
-          ],
-          formulaSteps: ['Masukkan nilai Tinggi Alat Slump (A) dan Tinggi Beton Setelah Penurunan (B).'],
-          isError: true,
-          status: 'Perlu Evaluasi',
-          conclusion: 'Masukkan nilai parameter tinggi alat slump (A) dan tinggi beton setelah penurunan (B).',
-          summaryString: 'Menunggu Input Parameter',
+        if (isNaN(a) || isNaN(b)) {
+          errors.push(`${idLabel}: Nilai tinggi harus berupa angka.`)
+          return
         }
-      }
-
-      // Validasi: Jika ada input minus
-      if (a < 0 || b < 0) {
-        return {
-          results: [
-            { label: isMm ? 'Nilai Slump (mm)' : 'Nilai Slump (cm)', value: '-', unit: unit, highlight: true },
-            { label: isMm ? 'Nilai Slump (cm)' : 'Nilai Slump (mm)', value: '-', unit: isMm ? 'cm' : 'mm' },
-            { label: 'Bentuk Runtuhan Slump', value: 'Input Minus', unit: '' },
-          ],
-          formulaSteps: ['Nilai tidak boleh negatif. Tinggi alat (A) dan tinggi beton (B) tidak boleh bernilai minus.'],
-          isError: true,
-          status: 'Input Tidak Wajar / Cek Kembali Data',
-          conclusion: 'Nilai tidak boleh negatif. Harap periksa kembali input parameter pengujian.',
-          summaryString: 'Nilai Tidak Boleh Negatif',
+        if (a <= 0) {
+          errors.push(`${idLabel}: Tinggi alat slump (A) harus lebih besar dari 0 cm.`)
+          return
         }
-      }
-
-      if (a <= 0) {
-        return {
-          results: [
-            { label: isMm ? 'Nilai Slump (mm)' : 'Nilai Slump (cm)', value: '-', unit: unit, highlight: true },
-            { label: isMm ? 'Nilai Slump (cm)' : 'Nilai Slump (mm)', value: '-', unit: isMm ? 'cm' : 'mm' },
-            { label: 'Bentuk Runtuhan Slump', value: 'Tinggi Alat = 0', unit: '' },
-          ],
-          formulaSteps: ['Tinggi alat slump (A) harus bernilai lebih besar dari 0.'],
-          isError: true,
-          status: 'Input Tidak Wajar / Cek Kembali Data',
-          conclusion: 'Tinggi alat slump (A) harus lebih besar dari 0.',
-          summaryString: 'Tinggi Alat Tidak Valid',
+        if (b < 0) {
+          errors.push(`${idLabel}: Tinggi beton setelah penurunan (B) tidak boleh negatif.`)
+          return
         }
-      }
+        if (b > a) {
+          errors.push(`${idLabel}: Tinggi beton setelah penurunan (${b} cm) tidak boleh melebihi tinggi alat (${a} cm).`)
+          return
+        }
 
-      // Jika B > A (Nilai Slump A - B bernilai negatif)
-      if (b > a) {
+        const slumpCm = a - b
+        const slumpMm = slumpCm * 10
+
+        let tipeRuntuhan
+        if (slumpCm > 24) {
+          tipeRuntuhan = 'Collapse (Runtuh)'
+        } else if (slumpCm < 2) {
+          tipeRuntuhan = 'Zero Slump (Kaku)'
+        } else {
+          tipeRuntuhan = 'True Slump (Normal)'
+        }
+
+        validSamples.push({
+          id: s.id || idx + 1,
+          name: idLabel,
+          tinggiA: a,
+          tinggiB: b,
+          slumpCm,
+          slumpMm,
+          tipeRuntuhan,
+        })
+      })
+
+      if (validSamples.length === 0) {
         return {
           results: [
-            { label: isMm ? 'Nilai Slump (mm)' : 'Nilai Slump (cm)', value: '-', unit: unit, highlight: true },
-            { label: isMm ? 'Nilai Slump (cm)' : 'Nilai Slump (mm)', value: '-', unit: isMm ? 'cm' : 'mm' },
-            { label: 'Bentuk Runtuhan Slump', value: 'Perhitungan Batal', unit: '' },
+            { label: 'Nilai Slump Rata-rata', value: '-', unit: 'cm', highlight: true },
+            { label: 'Nilai Slump (mm)', value: '-', unit: 'mm' },
+            { label: 'Bentuk Runtuhan', value: 'Data Tidak Valid', unit: '' },
           ],
-          formulaSteps: [
-            `Perhitungan dibatalkan: Nilai Slump = A - B = ${a} - ${b} = ${(a - b).toFixed(1)} ${unit} bernilai negatif.`,
-            `Tinggi beton setelah mengalami penurunan (B = ${b} ${unit}) tidak boleh melebihi tinggi alat slump (A = ${a} ${unit}).`,
-          ],
+          formulaSteps: errors.length > 0 ? errors : ['Masukkan data sampel slump yang valid.'],
           isError: true,
           status: 'Input Tidak Wajar / Cek Kembali Data',
-          conclusion: `Hasil perhitungan slump bernilai negatif. Perhitungan dibatalkan karena tinggi beton setelah penurunan (B = ${b} ${unit}) melebihi tinggi alat slump (A = ${a} ${unit}).`,
-          summaryString: 'Nilai Slump Negatif (Batal)',
+          verdictClass: 'error',
+          conclusion: errors.join(' ') || 'Tinggi alat dan tinggi beton harus bernilai valid.',
+          summaryString: 'Input Belum Valid',
         }
       }
 
-      const slumpDiff = a - b
-      const slumpCm = isMm ? slumpDiff / 10 : slumpDiff
-      const slumpMm = isMm ? slumpDiff : slumpDiff * 10
+      const n = validSamples.length
+      const avgA = validSamples.reduce((sum, r) => sum + r.tinggiA, 0) / n
+      const avgB = validSamples.reduce((sum, r) => sum + r.tinggiB, 0) / n
+      const avgSlumpCm = validSamples.reduce((sum, r) => sum + r.slumpCm, 0) / n
+      const avgSlumpMm = avgSlumpCm * 10
 
-      const aDisplay = isMm ? `${a.toFixed(0)} mm` : `${a.toFixed(1)} cm`
-      const bDisplay = isMm ? `${b.toFixed(0)} mm` : `${b.toFixed(1)} cm`
-      const slumpPrimary = isMm ? `${slumpMm.toFixed(0)} mm` : `${slumpCm.toFixed(1)} cm`
-      const slumpSecondary = isMm ? `${slumpCm.toFixed(1)} cm` : `${slumpMm.toFixed(0)} mm`
-
-      let tipeRuntuhan
-      if (slumpCm > 24) {
-        tipeRuntuhan = 'Collapse (Runtuh Total)'
-      } else if (slumpCm < 2) {
-        tipeRuntuhan = 'Zero Slump (Sangat Kaku)'
+      let avgShape
+      if (avgSlumpCm > 24) {
+        avgShape = 'Collapse (Runtuh Total)'
+      } else if (avgSlumpCm < 2) {
+        avgShape = 'Zero Slump (Sangat Kaku)'
       } else {
-        tipeRuntuhan = 'True Slump (Normal)'
+        avgShape = 'True Slump (Normal)'
       }
 
-      // Standar SNI 1972:2008 / SNI 03-2834-2000 untuk beton normal struktural: rentang target 8 - 15 cm (80 - 150 mm)
-      const isNormal = slumpCm >= 8.0 && slumpCm <= 15.0
+      // Standar SNI 1972:2008 untuk beton normal struktural: rentang target 8 - 15 cm
+      const isNormal = avgSlumpCm >= 8.0 && avgSlumpCm <= 15.0
+
+      const formulaSteps = [
+        `Jumlah Benda Uji Aktif = ${n} Sampel`,
+        ...validSamples.map(r =>
+          `${r.name}: Slump = A - B = ${r.tinggiA.toFixed(1)} cm - ${r.tinggiB.toFixed(1)} cm = ${r.slumpCm.toFixed(1)} cm (${r.slumpMm.toFixed(0)} mm) [${r.tipeRuntuhan}]`
+        ),
+        `Rata-rata Tinggi Alat (A) = (${validSamples.map(r => r.tinggiA.toFixed(1)).join(' + ')}) / ${n} = ${avgA.toFixed(1)} cm`,
+        `Rata-rata Tinggi Beton (B) = (${validSamples.map(r => r.tinggiB.toFixed(1)).join(' + ')}) / ${n} = ${avgB.toFixed(1)} cm`,
+        `Rata-rata Nilai Slump = (${validSamples.map(r => r.slumpCm.toFixed(1)).join(' + ')}) / ${n} = ${avgSlumpCm.toFixed(1)} cm (${avgSlumpMm.toFixed(0)} mm)`,
+        `Bentuk Runtuhan Konsensus = ${avgShape}`,
+        `Rentang Standar Beton Normal Struktural SNI 1972:2008 = 8.0 - 15.0 cm (80 - 150 mm)`,
+      ]
+
+      const recapTable = {
+        title: 'Tabel Rekapitulasi Pengujian Slump Adukan Beton Segar (SNI 1972:2008)',
+        headers: ['Parameter Pengujian', 'Rumus Acuan', 'Satuan', ...validSamples.map(s => s.name), 'Rata-rata'],
+        rows: [
+          {
+            label: 'Tinggi Cetakan Slump (A)',
+            equation: 'A',
+            unit: 'cm',
+            values: validSamples.map(s => s.tinggiA.toFixed(1)),
+            average: avgA.toFixed(1),
+          },
+          {
+            label: 'Tinggi Beton Setelah Penurunan (B)',
+            equation: 'B',
+            unit: 'cm',
+            values: validSamples.map(s => s.tinggiB.toFixed(1)),
+            average: avgB.toFixed(1),
+          },
+          {
+            label: 'Nilai Penurunan Slump',
+            equation: 'A - B',
+            unit: 'cm',
+            values: validSamples.map(s => s.slumpCm.toFixed(1)),
+            average: avgSlumpCm.toFixed(1),
+            highlight: true,
+          },
+          {
+            label: 'Nilai Slump Terkonversi',
+            equation: 'Slump × 10',
+            unit: 'mm',
+            values: validSamples.map(s => s.slumpMm.toFixed(0)),
+            average: avgSlumpMm.toFixed(0),
+          },
+          {
+            label: 'Bentuk Runtuhan Slump',
+            equation: 'Visual',
+            unit: '-',
+            values: validSamples.map(s => s.tipeRuntuhan),
+            average: avgShape,
+          },
+        ],
+      }
+
+      const conclusion = isNormal
+        ? `Rata-rata Nilai Slump = ${avgSlumpCm.toFixed(1)} cm (${avgSlumpMm.toFixed(0)} mm) memenuhi rentang rencana beton normal struktural SNI 1972:2008 (8 - 15 cm / 80 - 150 mm). Adukan memiliki kelecakan (workability) yang baik untuk pengecoran tanpa risiko segregasi.`
+        : `Rata-rata Nilai Slump = ${avgSlumpCm.toFixed(1)} cm berada di luar rentang standar beton normal (8 - 15 cm). ${avgSlumpCm < 8.0 ? 'Adukan terlalu kaku/kering, kelecakan rendah sehingga sulit dipadatkan.' : 'Adukan terlalu encer, risiko bleeding & segregasi tinggi.'} Evaluasi perbandingan faktor air-semen (fas).`
 
       return {
         results: [
-          { 
-            label: isMm ? 'Nilai Slump (mm)' : 'Nilai Slump (cm)', 
-            value: isMm ? slumpMm.toFixed(0) : slumpCm.toFixed(1), 
-            unit: isMm ? 'mm' : 'cm', 
-            highlight: true 
-          },
-          { 
-            label: isMm ? 'Nilai Slump (cm)' : 'Nilai Slump (mm)', 
-            value: isMm ? slumpCm.toFixed(1) : slumpMm.toFixed(0), 
-            unit: isMm ? 'cm' : 'mm' 
-          },
-          { 
-            label: 'Bentuk Runtuhan Slump', 
-            value: tipeRuntuhan, 
-            unit: '' 
-          },
+          { label: 'Nilai Slump Rata-rata (cm)', value: avgSlumpCm.toFixed(1), unit: 'cm', highlight: true, sub: 'Standar SNI: 8.0 - 15.0 cm' },
+          { label: 'Nilai Slump Rata-rata (mm)', value: avgSlumpMm.toFixed(0), unit: 'mm', sub: 'Standar: 80 - 150 mm' },
+          { label: 'Bentuk Runtuhan Slump', value: avgShape, unit: '', sub: 'Evaluasi konsistensi adukan' },
+          { label: 'Standar Normal Struktural', value: '8 - 15', unit: 'cm', sub: 'SNI 1972:2008 / ASTM C143' },
         ],
-        formulaSteps: [
-          `Tinggi Alat Slump (A) = ${aDisplay}`,
-          `Tinggi Beton Setelah Mengalami Penurunan (B) = ${bDisplay}`,
-          `Nilai Slump = A - B = ${aDisplay} - ${bDisplay} = ${slumpPrimary} (${slumpSecondary})`,
-          `Bentuk Runtuhan = ${tipeRuntuhan}`,
-          `Rentang Standar Beton Normal = 8.0 - 15.0 cm (80 - 150 mm) sesuai SNI 1972:2008`,
-        ],
+        formulaSteps,
+        recapTable,
+        isError: false,
         status: isNormal ? 'Valid' : 'Perlu Evaluasi',
-        conclusion: isNormal
-          ? `Nilai Slump = ${slumpPrimary} (${slumpSecondary}) memenuhi rentang rencana beton normal struktural SNI 1972:2008 (8 - 15 cm / 80 - 150 mm). Adukan memiliki kelecakan (workability) yang baik untuk pemadatan tanpa risiko segregasi.`
-          : `Nilai Slump = ${slumpPrimary} berada di luar rentang standar beton normal (8 - 15 cm). ${slumpCm < 8.0 ? 'Adukan terlalu kaku/kering, kelecakan rendah sehingga sulit dipadatkan.' : 'Adukan terlalu encer, risiko bleeding & segregasi tinggi.'} Evaluasi rasio faktor air-semen (fas).`,
-        summaryString: `Slump = ${slumpPrimary} (${isNormal ? 'Memenuhi Standar' : 'Perlu Evaluasi'})`,
+        verdictClass: isNormal ? 'valid' : 'warning',
+        conclusion,
+        summaryString: `Slump = ${avgSlumpCm.toFixed(1)} cm (${isNormal ? 'Memenuhi Standar' : 'Perlu Evaluasi'})`,
       }
     },
   },
@@ -3093,27 +3160,16 @@ export const calculatorRegistry = {
     lab: 'Bahan Bangunan',
     category: 'Bahan Bangunan • Bab 3: Beton',
     standard: 'SNI 1974:2011 / ASTM C39',
-    desc: 'Menghitung kuat tekan beton karakteristik f\'c pada umur 3, 7, 14, 21, atau 28 hari berdasarkan beban aksial hancur mesin kompresi.',
-    initialInputs: {
-      tipeSample: 'silinder', // 'silinder' (D15x30)
-      umurHari: 28,
-      bebanHancur: 502.0,
-      targetFc: 25.0,
-    },
-    fields: [
-      { 
-        key: 'bebanHancur', 
-        label: 'Beban Hancur Maksimum (P)', 
-        unit: 'kN', 
-        min: 0.01, 
-        step: 0.1,
-        desc: 'Beban terbaca pada dial/indikator mesin uji tekan kompresi beton' 
-      },
+    desc: 'Menghitung kuat tekan beton karakteristik f\'c pada umur 3, 7, 14, 21, atau 28 hari berdasarkan beban aksial hancur multi-sampel dinamis.',
+    hasMultiSample: true,
+    commonFieldsTitle: 'Parameter Mutu & Umur Perawatan Beton',
+    commonFieldsSubtitle: 'Target kuat tekan rencana dan umur pengujian spesimen silinder:',
+    commonFields: [
       { 
         key: 'targetFc', 
         label: 'Target Kuat Tekan Rencana (f\'c)', 
         unit: 'MPa', 
-        min: 0.01, 
+        min: 1, 
         step: 0.5,
         desc: 'Mutu kuat tekan rencana umur 28 hari (misal f\'c 25 MPa atau K-300)' 
       },
@@ -3132,28 +3188,23 @@ export const calculatorRegistry = {
         desc: 'Pilihan standar perawatan SNI: 3, 7, 14, 21, atau 28 hari' 
       },
     ],
+    sampleFields: [
+      { key: 'bebanHancur', label: 'Beban Hancur Maksimum (P)', unit: 'kN', min: 0.1, step: 0.1, desc: 'Beban dial mesin kompresi' },
+    ],
+    initialInputs: {
+      targetFc: 25.0,
+      umurHari: 28,
+      tipeSample: 'silinder',
+      samples: JSON.parse(JSON.stringify(DEFAULT_BB32_SAMPLES)),
+    },
+    fields: [
+      { key: 'targetFc', label: 'Target Kuat Tekan Rencana (f\'c)', unit: 'MPa', min: 1, step: 0.5, desc: 'Target kuat tekan umur 28 hari' },
+      { key: 'umurHari', label: 'Umur Benda Uji', unit: 'Hari', min: 3, max: 28, desc: 'Pilihan umur SNI: 3, 7, 14, 21, 28 hari' },
+      { key: 'bebanHancur', label: 'Beban Hancur Maksimum (P)', unit: 'kN', min: 0.01, step: 0.1, desc: 'Beban terbaca pada dial indikator mesin uji tekan' },
+    ],
     calculate: (inputs) => {
-      const p = Number(inputs.bebanHancur)
-      const target = Number(inputs.targetFc)
-      const umur = Number(inputs.umurHari)
-
-      // Validasi jika user memasukkan angka minus atau <= 0
-      if (p <= 0 || target <= 0 || isNaN(p) || isNaN(target)) {
-        return {
-          results: [
-            { label: 'Kuat Tekan Aktual', value: '-', unit: 'MPa', highlight: true },
-            { label: 'Proyeksi f\'c (28 Hari)', value: '-', unit: 'MPa', highlight: true },
-            { label: 'Ekuivalen Mutu Karakteristik', value: '-', unit: 'kg/cm²' },
-          ],
-          formulaSteps: [
-            'Nilai beban hancur (P) dan target f\'c harus bernilai positif (> 0).',
-          ],
-          isError: true,
-          status: 'Input Tidak Wajar / Cek Kembali Data',
-          conclusion: 'Nilai beban hancur P dan target kuat tekan rencana f\'c harus lebih besar dari 0. Periksa kembali input data Anda.',
-          summaryString: 'Input Beban/Target f\'c Tidak Valid',
-        }
-      }
+      const target = Number(inputs.targetFc ?? 25.0)
+      const umur = Number(inputs.umurHari ?? 28)
 
       // Standar faktor konversi umur PBI 1971 / SNI: 3=0.40, 7=0.65, 14=0.88, 21=0.95, 28=1.00
       const FAKTOR_UMUR = {
@@ -3164,7 +3215,22 @@ export const calculatorRegistry = {
         28: 1.00,
       }
 
-      // Jangan proses kalkulasi jika umur tidak ada di daftar dropdown
+      if (target <= 0 || isNaN(target)) {
+        return {
+          results: [
+            { label: 'Kuat Tekan Aktual', value: '-', unit: 'MPa', highlight: true },
+            { label: 'Proyeksi f\'c (28 Hari)', value: '-', unit: 'MPa', highlight: true },
+            { label: 'Ekuivalen Mutu Karakteristik', value: '-', unit: 'kg/cm²' },
+          ],
+          formulaSteps: ['Target f\'c harus bernilai positif (> 0).'],
+          isError: true,
+          status: 'Input Tidak Wajar / Cek Kembali Data',
+          verdictClass: 'error',
+          conclusion: 'Nilai target kuat tekan rencana f\'c harus lebih besar dari 0.',
+          summaryString: 'Target f\'c Tidak Valid',
+        }
+      }
+
       if (FAKTOR_UMUR[umur] === undefined) {
         return {
           results: [
@@ -3172,43 +3238,144 @@ export const calculatorRegistry = {
             { label: 'Proyeksi f\'c (28 Hari)', value: '-', unit: 'MPa', highlight: true },
             { label: 'Ekuivalen Mutu Karakteristik', value: '-', unit: 'kg/cm²' },
           ],
-          formulaSteps: [
-            `Umur ${umur} hari tidak ada di daftar standar. Pilihan yang diizinkan hanya 3, 7, 14, 21, dan 28 Hari.`,
-          ],
+          formulaSteps: [`Umur ${umur} hari tidak ada di daftar standar (3, 7, 14, 21, 28 Hari).`],
           isError: true,
           status: 'Input Tidak Wajar / Cek Kembali Data',
-          conclusion: 'Umur benda uji tidak dikenali. Pilih salah satu umur standar dari daftar dropdown (3, 7, 14, 21, atau 28 hari).',
+          verdictClass: 'error',
+          conclusion: 'Umur benda uji harus berupa salah satu dari 3, 7, 14, 21, atau 28 hari.',
           summaryString: 'Umur Benda Uji Tidak Valid',
         }
       }
 
       const konversi = FAKTOR_UMUR[umur]
+      const luasMm2 = 17671.46 // Silinder D15 cm -> (π/4) * 150²
 
-      // Silinder D15 cm -> Luas = (π/4) * 150² = 17671.46 mm²
-      const luasMm2 = 17671.46
-      const fcAktual = (p * 1000) / luasMm2
-      const fcPrediksi28 = konversi > 0 ? fcAktual / konversi : fcAktual
+      const rawSamples = Array.isArray(inputs.samples) && inputs.samples.length > 0
+        ? inputs.samples
+        : [{
+            id: 1,
+            name: 'Benda Uji I',
+            bebanHancur: inputs.bebanHancur !== undefined ? inputs.bebanHancur : 502.0,
+          }]
+
+      const validSamples = []
+      const errors = []
+
+      rawSamples.forEach((s, idx) => {
+        const idLabel = s.name || `Benda Uji ${idx + 1}`
+        const p = Number(s.bebanHancur ?? 0)
+
+        if (isNaN(p) || p <= 0) {
+          errors.push(`${idLabel}: Beban hancur (P) harus berupa angka lebih besar dari 0 kN.`)
+          return
+        }
+
+        const fcAktual = (p * 1000) / luasMm2
+        const fcPrediksi28 = konversi > 0 ? fcAktual / konversi : fcAktual
+        const ekuivalenK = fcPrediksi28 / 0.083
+
+        validSamples.push({
+          id: s.id || idx + 1,
+          name: idLabel,
+          bebanHancur: p,
+          fcAktual,
+          fcPrediksi28,
+          ekuivalenK,
+        })
+      })
+
+      if (validSamples.length === 0) {
+        return {
+          results: [
+            { label: 'Kuat Tekan Rata-rata', value: '-', unit: 'MPa', highlight: true },
+            { label: 'Proyeksi f\'c (28 Hari)', value: '-', unit: 'MPa', highlight: true },
+            { label: 'Ekuivalen Mutu Karakteristik', value: '-', unit: 'kg/cm²' },
+          ],
+          formulaSteps: errors.length > 0 ? errors : ['Masukkan beban hancur sampel yang valid.'],
+          isError: true,
+          status: 'Input Tidak Wajar / Cek Kembali Data',
+          verdictClass: 'error',
+          conclusion: errors.join(' ') || 'Nilai beban hancur P harus lebih besar dari 0 kN.',
+          summaryString: 'Beban Hancur Tidak Valid',
+        }
+      }
+
+      const n = validSamples.length
+      const avgP = validSamples.reduce((sum, r) => sum + r.bebanHancur, 0) / n
+      const avgFcAktual = validSamples.reduce((sum, r) => sum + r.fcAktual, 0) / n
+      const avgFcPrediksi28 = validSamples.reduce((sum, r) => sum + r.fcPrediksi28, 0) / n
+      const avgK = avgFcPrediksi28 / 0.083
       const targetUmur = target * konversi
-      const isValid = fcAktual >= targetUmur
+      const isValid = avgFcAktual >= targetUmur
+
+      const formulaSteps = [
+        `Target Mutu Rencana = f'c ${target} MPa (Umur 28 Hari)`,
+        `Faktor Konversi Umur (${umur} Hari) = ${konversi.toFixed(2)} | Target Umur ${umur} Hari = ${target} × ${konversi.toFixed(2)} = ${targetUmur.toFixed(2)} MPa`,
+        `Luas Penampang Silinder D15 cm = (π/4) × 150² = 17.671,46 mm²`,
+        `Jumlah Benda Uji Aktif = ${n} Sampel`,
+        ...validSamples.map(r =>
+          `${r.name}: P = ${r.bebanHancur.toFixed(1)} kN → f'c (${umur}d) = (${r.bebanHancur.toFixed(1)} × 1000) / 17.671,46 = ${r.fcAktual.toFixed(2)} MPa (Proyeksi 28d = ${r.fcPrediksi28.toFixed(2)} MPa ~ K-${Math.round(r.ekuivalenK)})`
+        ),
+        `Rata-rata Beban Hancur (P) = (${validSamples.map(r => r.bebanHancur.toFixed(1)).join(' + ')}) / ${n} = ${avgP.toFixed(1)} kN`,
+        `Rata-rata Kuat Tekan Aktual (${umur} Hari) = (${validSamples.map(r => r.fcAktual.toFixed(2)).join(' + ')}) / ${n} = ${avgFcAktual.toFixed(2)} MPa`,
+        `Rata-rata Proyeksi f'c 28 Hari = ${avgFcAktual.toFixed(2)} / ${konversi.toFixed(2)} = ${avgFcPrediksi28.toFixed(2)} MPa (Ekuivalen K-${Math.round(avgK)})`,
+      ]
+
+      const recapTable = {
+        title: `Tabel Rekapitulasi Pengujian Kuat Tekan Beton Silinder (Umur ${umur} Hari, SNI 1974:2011)`,
+        headers: ['Parameter Pengujian', 'Rumus Acuan', 'Satuan', ...validSamples.map(s => s.name), 'Rata-rata'],
+        rows: [
+          {
+            label: 'Beban Hancur Maksimum (P)',
+            equation: 'P',
+            unit: 'kN',
+            values: validSamples.map(s => s.bebanHancur.toFixed(1)),
+            average: avgP.toFixed(1),
+          },
+          {
+            label: `Kuat Tekan Aktual (${umur} Hari)`,
+            equation: 'P / A',
+            unit: 'MPa',
+            values: validSamples.map(s => s.fcAktual.toFixed(2)),
+            average: avgFcAktual.toFixed(2),
+            highlight: true,
+          },
+          {
+            label: 'Proyeksi Kuat Tekan 28 Hari',
+            equation: 'f\'c / Faktor Umur',
+            unit: 'MPa',
+            values: validSamples.map(s => s.fcPrediksi28.toFixed(2)),
+            average: avgFcPrediksi28.toFixed(2),
+            highlight: true,
+          },
+          {
+            label: 'Ekuivalen Karakteristik Kubus',
+            equation: 'f\'c / 0.083',
+            unit: 'kg/cm²',
+            values: validSamples.map(s => `K-${Math.round(s.ekuivalenK)}`),
+            average: `K-${Math.round(avgK)}`,
+          },
+        ],
+      }
+
+      const conclusion = isValid
+        ? `Rata-rata kuat tekan aktual tercapai f'c = ${avgFcAktual.toFixed(2)} MPa pada umur ${umur} hari, melampaui target minimum umur ${umur} hari (${targetUmur.toFixed(2)} MPa) untuk mutu rencana f'c ${target} MPa (Proyeksi 28 hari = ${avgFcPrediksi28.toFixed(2)} MPa / K-${Math.round(avgK)}). Mutu beton memenuhi spesifikasi SNI 1974:2011.`
+        : `Rata-rata kuat tekan aktual f'c = ${avgFcAktual.toFixed(2)} MPa pada umur ${umur} hari masih di bawah target minimum (${targetUmur.toFixed(2)} MPa) untuk rencana f'c ${target} MPa. Perlu evaluasi faktor air-semen atau perpanjangan masa curing.`
 
       return {
         results: [
-          { label: `Kuat Tekan Aktual (${umur} Hari)`, value: fcAktual.toFixed(2), unit: 'MPa', highlight: true },
-          { label: 'Proyeksi f\'c (28 Hari)', value: fcPrediksi28.toFixed(2), unit: 'MPa', highlight: true },
-          { label: 'Ekuivalen Mutu Karakteristik', value: `K-${(fcPrediksi28 / 0.083).toFixed(0)}`, unit: 'kg/cm²' },
+          { label: `Kuat Tekan Rata-rata (${umur} Hari)`, value: avgFcAktual.toFixed(2), unit: 'MPa', highlight: true, sub: `Target umur: ≥ ${targetUmur.toFixed(2)} MPa` },
+          { label: 'Proyeksi f\'c (28 Hari)', value: avgFcPrediksi28.toFixed(2), unit: 'MPa', highlight: true, sub: `Target rencana: ${target.toFixed(1)} MPa` },
+          { label: 'Ekuivalen Karakteristik', value: `K-${Math.round(avgK)}`, unit: 'kg/cm²', sub: 'Konversi kubus 15x15 cm' },
+          { label: 'Target Mutu Rencana', value: target.toFixed(1), unit: 'MPa', sub: `f'c 28 hari (SNI 1974:2011)` },
         ],
-        formulaSteps: [
-          `Luas Penampang Silinder (D15 cm) = (π/4) × 150² = 17.671,46 mm²`,
-          `f'c Aktual = P / A = (${p.toLocaleString('id-ID')} × 1000) / 17.671,46 = ${fcAktual.toFixed(2)} MPa`,
-          `Faktor Konversi Umur (${umur} Hari) = ${konversi.toFixed(2)}`,
-          `Target Kuat Tekan Minimum Umur ${umur} Hari = ${target} × ${konversi.toFixed(2)} = ${targetUmur.toFixed(2)} MPa`,
-          `Proyeksi f'c 28 Hari = ${fcAktual.toFixed(2)} / ${konversi.toFixed(2)} = ${fcPrediksi28.toFixed(2)} MPa`,
-        ],
+        formulaSteps,
+        recapTable,
+        isError: false,
         status: isValid ? 'Valid' : 'Perlu Evaluasi',
-        conclusion: isValid 
-          ? `Kuat tekan aktual tercapai f'c = ${fcAktual.toFixed(2)} MPa pada umur ${umur} hari, melampaui target minimum umur ${umur} hari (${targetUmur.toFixed(2)} MPa) untuk mutu rencana f'c ${target} MPa.`
-          : `Kuat tekan aktual f'c = ${fcAktual.toFixed(2)} MPa pada umur ${umur} hari masih di bawah target minimum (${targetUmur.toFixed(2)} MPa) untuk mutu rencana f'c ${target} MPa. Perlu evaluasi rancangan campuran (mix design).`,
-        summaryString: `f'c (${umur}d) = ${fcAktual.toFixed(2)} MPa (${isValid ? 'Memenuhi Target' : 'Perlu Evaluasi'})`,
+        verdictClass: isValid ? 'valid' : 'warning',
+        conclusion,
+        summaryString: `f'c (${umur}d) = ${avgFcAktual.toFixed(2)} MPa (${isValid ? 'Memenuhi Target' : 'Perlu Evaluasi'})`,
       }
     },
   },
@@ -3220,12 +3387,23 @@ export const calculatorRegistry = {
     lab: 'Bahan Bangunan',
     category: 'Bahan Bangunan • Bab 3: Beton',
     standard: 'SNI 4431:2011 / ASTM C78',
-    desc: 'Menghitung modulus runtuh lentur balok beton polos dengan dua titik pembebanan sepertiga bentang.',
+    desc: 'Menghitung modulus runtuh lentur balok beton polos dengan dua titik pembebanan sepertiga bentang multi-sampel dinamis.',
+    hasMultiSample: true,
+    commonFieldsTitle: 'Dimensi Penampang & Bentang Balok Beton',
+    commonFieldsSubtitle: 'Dimensi penampang dan bentang tumpuan balok (SNI 4431:2011):',
+    commonFields: [
+      { key: 'lebarB', label: 'Lebar Penampang Balok (b)', unit: 'mm', min: 1, step: 1, desc: 'Standar balok uji lentur = 150 mm' },
+      { key: 'tinggiH', label: 'Tinggi Penampang Balok (h)', unit: 'mm', min: 1, step: 1, desc: 'Standar tinggi balok uji lentur = 150 mm' },
+      { key: 'bentangL', label: 'Jarak Antar Tumpuan Bebas (L)', unit: 'mm', min: 1, step: 1, desc: 'Standar bentang tumpuan = 450 mm (3h)' },
+    ],
+    sampleFields: [
+      { key: 'bebanP', label: 'Beban Lentur Runtuh (P)', unit: 'kN', min: 0.1, step: 0.1, desc: 'Beban hancur pada mesin uji lentur balok' },
+    ],
     initialInputs: {
       lebarB: 150.0,
       tinggiH: 150.0,
       bentangL: 450.0,
-      bebanP: 28.5,
+      samples: JSON.parse(JSON.stringify(DEFAULT_BB33_SAMPLES)),
     },
     fields: [
       { key: 'bebanP', label: 'Beban Lentur Runtuh Maksimum (P)', unit: 'kN', min: 0.01, step: 0.1, desc: 'Beban hancur pada mesin uji lentur balok' },
@@ -3234,71 +3412,155 @@ export const calculatorRegistry = {
       { key: 'bentangL', label: 'Jarak Antar Tumpuan Bebas (L)', unit: 'mm', min: 0.01, step: 1, desc: 'Standar bentang tumpuan balok = 450 mm (3h)' },
     ],
     calculate: (inputs) => {
-      const pKn = Number(inputs.bebanP)
-      const b = Number(inputs.lebarB)
-      const h = Number(inputs.tinggiH)
-      const l = Number(inputs.bentangL)
+      const b = Number(inputs.lebarB ?? 150.0)
+      const h = Number(inputs.tinggiH ?? 150.0)
+      const l = Number(inputs.bentangL ?? 450.0)
 
-      // Validasi: jika nilai 0, negatif, atau NaN
-      if (pKn <= 0 || b <= 0 || h <= 0 || l <= 0 || isNaN(pKn) || isNaN(b) || isNaN(h) || isNaN(l)) {
+      if (b <= 0 || h <= 0 || l <= 0 || isNaN(b) || isNaN(h) || isNaN(l)) {
         return {
           results: [
             { label: 'Modulus of Rupture (fr)', value: '-', unit: 'MPa', highlight: true },
             { label: 'Beban Maksimum (P)', value: '-', unit: 'kN' },
             { label: 'Standar Rigid Pavement', value: '≥ 3.50', unit: 'MPa' },
           ],
-          formulaSteps: [
-            'Semua parameter beban (P), lebar (b), tinggi (h), dan bentang (L) harus bernilai positif (> 0).',
-          ],
+          formulaSteps: ['Dimensi lebar (b), tinggi (h), dan bentang (L) harus bernilai positif (> 0).'],
           isError: true,
           status: 'Input Tidak Wajar / Cek Kembali Data',
-          conclusion: 'Nilai dimensi balok dan beban lentur harus lebih besar dari 0. Periksa kembali input data Anda.',
-          summaryString: 'Dimensi/Beban Lentur Tidak Valid',
+          verdictClass: 'error',
+          conclusion: 'Nilai dimensi penampang balok beton dan bentang tumpuan harus lebih besar dari 0.',
+          summaryString: 'Dimensi Balok Tidak Valid',
         }
       }
 
-      const p = pKn * 1000 // konversi kN ke N
+      const rawSamples = Array.isArray(inputs.samples) && inputs.samples.length > 0
+        ? inputs.samples
+        : [{
+            id: 1,
+            name: 'Benda Uji I',
+            bebanP: inputs.bebanP !== undefined ? inputs.bebanP : 28.5,
+          }]
+
+      const validSamples = []
+      const errors = []
       const denom = b * h * h
-      const fr = denom > 0 ? (p * l) / denom : 0
-      const isFrValid = fr >= 3.5
 
-      // Validasi peringatan jika lebar (b) dan tinggi (h) tidak sama dengan 150 mm
+      rawSamples.forEach((s, idx) => {
+        const idLabel = s.name || `Benda Uji ${idx + 1}`
+        const pKn = Number(s.bebanP ?? 0)
+
+        if (isNaN(pKn) || pKn <= 0) {
+          errors.push(`${idLabel}: Beban lentur (P) harus berupa angka lebih besar dari 0 kN.`)
+          return
+        }
+
+        const pN = pKn * 1000
+        const fr = (pN * l) / denom
+
+        validSamples.push({
+          id: s.id || idx + 1,
+          name: idLabel,
+          bebanP: pKn,
+          bebanPN: pN,
+          fr,
+        })
+      })
+
+      if (validSamples.length === 0) {
+        return {
+          results: [
+            { label: 'Modulus of Rupture (fr)', value: '-', unit: 'MPa', highlight: true },
+            { label: 'Beban Rata-rata (P)', value: '-', unit: 'kN' },
+            { label: 'Standar Rigid Pavement', value: '≥ 3.50', unit: 'MPa' },
+          ],
+          formulaSteps: errors.length > 0 ? errors : ['Masukkan beban lentur sampel yang valid.'],
+          isError: true,
+          status: 'Input Tidak Wajar / Cek Kembali Data',
+          verdictClass: 'error',
+          conclusion: errors.join(' ') || 'Nilai beban lentur hancur P harus lebih besar dari 0 kN.',
+          summaryString: 'Beban Lentur Tidak Valid',
+        }
+      }
+
+      const n = validSamples.length
+      const avgP = validSamples.reduce((sum, r) => sum + r.bebanP, 0) / n
+      const avgPN = avgP * 1000
+      const avgFr = validSamples.reduce((sum, r) => sum + r.fr, 0) / n
+
+      const isFrValid = avgFr >= 3.50
       const hasDimWarning = (b !== 150 || h !== 150)
-      const dimWarningText = 'Standar SNI 4154:2014 menyarankan dimensi penampang balok 150x150 mm. Pastikan dimensi sesuai.'
+      const dimWarningText = 'Standar SNI 4431:2011 menyarankan dimensi penampang balok 150x150 mm.'
 
-      // Jika ada warning dimensi, status menjadi 'Perlu Evaluasi' (warna kuning)
-      const finalStatus = hasDimWarning ? 'Perlu Evaluasi' : (isFrValid ? 'Valid' : 'Perlu Evaluasi')
-
-      const steps = [
-        `Beban Lentur P = ${pKn} kN = ${p.toLocaleString('id-ID')} N`,
+      const formulaSteps = [
         `Dimensi Balok: b = ${b} mm, h = ${h} mm, bentang tumpuan L = ${l} mm`,
-        `fr = (P × L) / (b × h²) = (${p.toLocaleString('id-ID')} × ${l}) / (${b} × ${h}²) = ${fr.toFixed(2)} MPa`,
+        `Jumlah Benda Uji Aktif = ${n} Sampel`,
+        ...validSamples.map(r =>
+          `${r.name}: P = ${r.bebanP.toFixed(1)} kN (${r.bebanPN.toLocaleString('id-ID')} N) → fr = (${r.bebanPN.toLocaleString('id-ID')} × ${l}) / (${b} × ${h}²) = ${r.fr.toFixed(2)} MPa`
+        ),
+        `Rata-rata Beban Lentur (P) = (${validSamples.map(r => r.bebanP.toFixed(1)).join(' + ')}) / ${n} = ${avgP.toFixed(1)} kN`,
+        `Rata-rata Modulus of Rupture (fr) = (${validSamples.map(r => r.fr.toFixed(2)).join(' + ')}) / ${n} = ${avgFr.toFixed(2)} MPa`,
+        `Syarat Perkerasan Kaku (Rigid Pavement) SNI 4431 / Bina Marga = fr ≥ 3.50 MPa`,
       ]
 
       if (hasDimWarning) {
-        steps.push(`Peringatan SNI: Penampang ${b}×${h} mm (${dimWarningText})`)
+        formulaSteps.push(`Peringatan Dimensi: Penampang ${b}×${h} mm (${dimWarningText})`)
       }
 
-      let conclusionText
+      const recapTable = {
+        title: 'Tabel Rekapitulasi Pengujian Kuat Lentur Balok Beton (SNI 4431:2011)',
+        headers: ['Parameter Pengujian', 'Rumus Acuan', 'Satuan', ...validSamples.map(s => s.name), 'Rata-rata'],
+        rows: [
+          {
+            label: 'Beban Lentur Runtuh (P)',
+            equation: 'P',
+            unit: 'kN',
+            values: validSamples.map(s => s.bebanP.toFixed(1)),
+            average: avgP.toFixed(1),
+          },
+          {
+            label: 'Beban Lentur Terkonversi',
+            equation: 'P × 1000',
+            unit: 'N',
+            values: validSamples.map(s => s.bebanPN.toFixed(0)),
+            average: avgPN.toFixed(0),
+          },
+          {
+            label: 'Modulus of Rupture (fr)',
+            equation: '(P × L) / (b × h²)',
+            unit: 'MPa',
+            values: validSamples.map(s => s.fr.toFixed(2)),
+            average: avgFr.toFixed(2),
+            highlight: true,
+          },
+        ],
+      }
+
+      const status = hasDimWarning ? 'Perlu Evaluasi' : (isFrValid ? 'Valid' : 'Perlu Evaluasi')
+      const verdictClass = hasDimWarning ? 'warning' : (isFrValid ? 'valid' : 'warning')
+
+      let conclusion
       if (hasDimWarning) {
-        conclusionText = `${dimWarningText} Nilai Modulus Rupture fr = ${fr.toFixed(2)} MPa ${isFrValid ? '(secara numerik memenuhi kriteria lentur ≥ 3.50 MPa)' : '(di bawah kriteria standar perkerasan kaku ≥ 3.50 MPa)'}.`
+        conclusion = `${dimWarningText} Rata-rata Modulus Rupture fr = ${avgFr.toFixed(2)} MPa ${isFrValid ? '(secara numerik memenuhi kriteria lentur ≥ 3.50 MPa)' : '(di bawah kriteria standar perkerasan kaku ≥ 3.50 MPa)'}.`
       } else if (isFrValid) {
-        conclusionText = `Modulus Rupture fr = ${fr.toFixed(2)} MPa memenuhi syarat kekuatan lentur perkerasan kaku (Rigid Pavement SNI 4154:2014 mensyaratkan fr ≥ 3.50 MPa).`
+        conclusion = `Rata-rata Modulus Rupture fr = ${avgFr.toFixed(2)} MPa memenuhi syarat kekuatan lentur perkerasan kaku (Rigid Pavement SNI 4431:2011 mensyaratkan fr ≥ 3.50 MPa). Balok beton memiliki daya tahan lentur prima.`
       } else {
-        conclusionText = `Modulus Rupture fr = ${fr.toFixed(2)} MPa masih di bawah standar perkerasan kaku jalan raya (SNI 4154:2014 mensyaratkan fr ≥ 3.50 MPa).`
+        conclusion = `Rata-rata Modulus Rupture fr = ${avgFr.toFixed(2)} MPa masih di bawah standar perkerasan kaku jalan raya (SNI 4431:2011 mensyaratkan fr ≥ 3.50 MPa). Perlu penyesuaian rancangan campuran beton.`
       }
 
       return {
         results: [
-          { label: 'Modulus of Rupture (fr)', value: fr.toFixed(2), unit: 'MPa', highlight: true },
-          { label: 'Beban Maksimum (P)', value: pKn.toFixed(1), unit: 'kN' },
-          { label: 'Standar Rigid Pavement', value: '≥ 3.50', unit: 'MPa' },
+          { label: 'Modulus of Rupture Rata-rata (fr)', value: avgFr.toFixed(2), unit: 'MPa', highlight: true, sub: 'Standar Rigid Pavement: ≥ 3.50 MPa' },
+          { label: 'Beban Runtuh Rata-rata (P)', value: avgP.toFixed(1), unit: 'kN', sub: `${avgPN.toFixed(0)} N` },
+          { label: 'Standar Lentur Perkerasan', value: '≥ 3.50', unit: 'MPa', sub: 'SNI 4431:2011' },
+          { label: 'Dimensi Penampang', value: `${b} × ${h}`, unit: 'mm', sub: `Bentang L = ${l} mm` },
         ],
-        formulaSteps: steps,
-        status: finalStatus,
+        formulaSteps,
+        recapTable,
+        isError: false,
+        status,
+        verdictClass,
         warningMessage: hasDimWarning ? dimWarningText : null,
-        conclusion: conclusionText,
-        summaryString: `Kuat Lentur fr = ${fr.toFixed(2)} MPa (${finalStatus === 'Valid' ? 'SNI Valid' : 'Perlu Evaluasi'})`,
+        conclusion,
+        summaryString: `Kuat Lentur fr = ${avgFr.toFixed(2)} MPa (${status === 'Valid' ? 'SNI Valid' : 'Perlu Evaluasi'})`,
       }
     },
   },
@@ -3313,114 +3575,166 @@ export const calculatorRegistry = {
     lab: 'Bahan Bangunan',
     category: 'Bahan Bangunan • Bab 4: Kayu',
     standard: 'SNI 03-6847/6848-2002',
-    desc: 'Menghitung persentase kandungan air terhadap berat kering mutlak pada kayu konstruksi.',
+    desc: 'Menghitung persentase kandungan air terhadap berat kering mutlak pada kayu konstruksi multi-sampel dinamis.',
+    hasMultiSample: true,
+    sampleFields: [
+      { key: 'mBasah', label: 'Massa Basah (m_b)', unit: 'gram', min: 0.01, step: 0.1, desc: 'Massa kayu sebelum dioven (harus > m_k)' },
+      { key: 'mKering', label: 'Massa Kering Oven (m_k)', unit: 'gram', min: 0.01, step: 0.1, desc: 'Massa konstan setelah dioven 103°C' },
+    ],
     initialInputs: {
-      mBasah: 128.4,
-      mKering: 112.6,
+      samples: JSON.parse(JSON.stringify(DEFAULT_BB41_SAMPLES)),
     },
     fields: [
-      { 
-        key: 'mBasah', 
-        label: 'Massa Kayu Kondisi Basah / Lapangan (m_b)', 
-        unit: 'gram', 
-        min: 0.01, 
-        step: 0.1, 
-        desc: 'Massa spesimen sebelum dioven (harus lebih besar dari m_k)' 
-      },
-      { 
-        key: 'mKering', 
-        label: 'Massa Kayu Kering Oven Mutlak (m_k)', 
-        unit: 'gram', 
-        min: 0.01, 
-        step: 0.1, 
-        desc: 'Massa konstan setelah dioven 103°C ± 2°C' 
-      },
+      { key: 'mBasah', label: 'Massa Kayu Kondisi Basah / Lapangan (m_b)', unit: 'gram', min: 0.01, step: 0.1, desc: 'Massa spesimen sebelum dioven' },
+      { key: 'mKering', label: 'Massa Kayu Kering Oven Mutlak (m_k)', unit: 'gram', min: 0.01, step: 0.1, desc: 'Massa konstan setelah dioven 103°C' },
     ],
     calculate: (inputs) => {
-      const mb = Number(inputs.mBasah)
-      const mk = Number(inputs.mKering)
+      const rawSamples = Array.isArray(inputs.samples) && inputs.samples.length > 0
+        ? inputs.samples
+        : [{
+            id: 1,
+            name: 'Benda Uji I',
+            mBasah: inputs.mBasah !== undefined ? inputs.mBasah : 128.4,
+            mKering: inputs.mKering !== undefined ? inputs.mKering : 112.6,
+          }]
 
-      // Validasi jika input kosong, nol, atau bukan angka
-      if (mb <= 0 || mk <= 0 || isNaN(mb) || isNaN(mk)) {
+      const validSamples = []
+      const errors = []
+
+      rawSamples.forEach((s, idx) => {
+        const idLabel = s.name || `Benda Uji ${idx + 1}`
+        const mb = Number(s.mBasah ?? 0)
+        const mk = Number(s.mKering ?? 0)
+
+        if (isNaN(mb) || isNaN(mk) || mb <= 0 || mk <= 0) {
+          errors.push(`${idLabel}: Massa basah dan massa kering harus bernilai positif (> 0 gram).`)
+          return
+        }
+        if (mb <= mk) {
+          errors.push(`${idLabel}: Massa basah (${mb} g) harus lebih besar dari massa kering (${mk} g).`)
+          return
+        }
+
+        const mWater = mb - mk
+        const w = (mWater / mk) * 100
+
+        validSamples.push({
+          id: s.id || idx + 1,
+          name: idLabel,
+          mBasah: mb,
+          mKering: mk,
+          mWater,
+          w,
+        })
+      })
+
+      if (validSamples.length === 0) {
         return {
           results: [
             { label: 'Kadar Air Kayu (w)', value: '-', unit: '%', highlight: true },
             { label: 'Batas Kering Udara SNI', value: '≤ 15 - 20', unit: '%' },
+            { label: 'Status Kondisi', value: 'Data Tidak Valid', unit: '' },
           ],
-          formulaSteps: [
-            'Massa basah (m_b) dan massa kering (m_k) harus bernilai lebih besar dari 0.',
-          ],
+          formulaSteps: errors.length > 0 ? errors : ['Masukkan massa basah dan massa kering yang valid.'],
           isError: true,
           status: 'Input Tidak Wajar / Cek Kembali Data',
-          conclusion: 'Nilai massa kayu basah dan kering harus bernilai positif (> 0). Masukkan data yang valid.',
+          verdictClass: 'error',
+          conclusion: errors.join(' ') || 'Massa basah harus lebih besar dari massa kering oven.',
           summaryString: 'Input Massa Tidak Valid',
         }
       }
 
-      // Validasi relasional: Massa Basah (m_b) HARUS lebih besar dari Massa Kering (m_k)
-      if (mb <= mk) {
-        return {
-          results: [
-            { label: 'Kadar Air Kayu (w)', value: '-', unit: '%', highlight: true },
-            { label: 'Batas Kering Udara SNI', value: '≤ 15 - 20', unit: '%' },
-          ],
-          formulaSteps: [
-            `Input tidak valid: Massa basah (${mb} g) tidak boleh lebih kecil atau sama dengan massa kering (${mk} g).`,
-          ],
-          isError: true,
-          status: 'Input Tidak Wajar / Cek Kembali Data',
-          conclusion: 'Input tidak valid: Massa basah tidak boleh lebih kecil dari massa kering.',
-          summaryString: 'Input tidak valid (m_b ≤ m_k)',
-        }
-      }
-
-      const moisture = ((mb - mk) / mk) * 100
-
-      // Jika hasil kadar air < 0% (tidak mungkin jika mb > mk, tetapi diproteksi ketat)
-      if (moisture < 0) {
-        return {
-          results: [
-            { label: 'Kadar Air Kayu (w)', value: moisture.toFixed(2), unit: '%', highlight: true },
-            { label: 'Batas Kering Udara SNI', value: '≤ 15 - 20', unit: '%' },
-          ],
-          formulaSteps: [
-            `w = ((m_b - m_k) / m_k) × 100% = ${moisture.toFixed(2)}% (Hasil bernilai negatif)`,
-          ],
-          isError: true,
-          status: 'Input Tidak Wajar / Cek Kembali Data',
-          conclusion: 'Kadar air kayu tidak boleh bernilai negatif. Periksa kembali pembacaan timbangan massa.',
-          summaryString: `Kadar Air = ${moisture.toFixed(2)}% (Negatif / Tidak Valid)`,
-        }
-      }
+      const n = validSamples.length
+      const avgMb = validSamples.reduce((sum, r) => sum + r.mBasah, 0) / n
+      const avgMk = validSamples.reduce((sum, r) => sum + r.mKering, 0) / n
+      const avgMwater = validSamples.reduce((sum, r) => sum + r.mWater, 0) / n
+      const avgW = validSamples.reduce((sum, r) => sum + r.w, 0) / n
 
       let status
+      let verdictClass
       let conclusion
       let summaryStr
+      let kondisiKayu
 
-      // Jika hasil kadar air > 30% atau di luar rentang kering udara, status HARUS 'Perlu Evaluasi'
-      if (moisture > 30.0) {
+      if (avgW > 30.0) {
         status = 'Perlu Evaluasi'
-        conclusion = `Kadar air kayu ${moisture.toFixed(2)}% sangat tinggi (> 30%, di atas titik jenuh serat). Kayu basah segar rentan terhadap serangan jamur, rayap, dan susut deformasi ekstrem.`
-        summaryStr = `Kadar Air = ${moisture.toFixed(2)}% (Perlu Evaluasi / Terlalu Basah)`
-      } else if (moisture > 20.0) {
+        verdictClass = 'warning'
+        kondisiKayu = 'Kayu Basah Segar (> 30%)'
+        conclusion = `Rata-rata kadar air kayu ${avgW.toFixed(2)}% sangat tinggi (> 30%, di atas titik jenuh serat). Kayu basah segar rentan serangan jamur, rayap, serta perubahan dimensi penyusutan tinggi.`
+        summaryStr = `Kadar Air = ${avgW.toFixed(2)}% (Perlu Evaluasi / Basah)`
+      } else if (avgW > 20.0) {
         status = 'Perlu Evaluasi'
-        conclusion = `Kadar air kayu ${moisture.toFixed(2)}% agak basah (melebihi batas kering udara 20%). Disarankan dilakukan penjemuran/pengeringan tambahan sebelum dipakai pada struktur permanen.`
-        summaryStr = `Kadar Air = ${moisture.toFixed(2)}% (Perlu Pengeringan)`
+        verdictClass = 'warning'
+        kondisiKayu = 'Agak Basah (20% - 30%)'
+        conclusion = `Rata-rata kadar air kayu ${avgW.toFixed(2)}% agak basah (melebihi batas kering udara 20%). Diperlukan proses penjemuran/pengeringan tambahan sebelum digunakan untuk struktur bangunan.`
+        summaryStr = `Kadar Air = ${avgW.toFixed(2)}% (Perlu Pengeringan)`
       } else {
         status = 'Valid'
-        conclusion = `Kadar air kayu ${moisture.toFixed(2)}% memenuhi syarat kayu kering udara konstruksi (SNI mensyaratkan ≤ 15 - 20%). Kayu stabil terhadap susut dan aman dari risiko pembusukan.`
-        summaryStr = `Kadar Air = ${moisture.toFixed(2)}% (Kering Udara SNI)`
+        verdictClass = 'valid'
+        kondisiKayu = 'Kering Udara SNI (≤ 20%)'
+        conclusion = `Rata-rata kadar air kayu ${avgW.toFixed(2)}% memenuhi syarat kayu kering udara konstruksi (SNI mensyaratkan ≤ 15 - 20%). Kayu stabil terhadap susut dan aman dari risiko pembusukan struktural.`
+        summaryStr = `Kadar Air = ${avgW.toFixed(2)}% (Kering Udara SNI)`
+      }
+
+      const formulaSteps = [
+        `Jumlah Benda Uji Aktif = ${n} Sampel`,
+        ...validSamples.map(r =>
+          `${r.name}: w = ((${r.mBasah.toFixed(1)} - ${r.mKering.toFixed(1)}) / ${r.mKering.toFixed(1)}) × 100% = (${r.mWater.toFixed(1)} / ${r.mKering.toFixed(1)}) × 100% = ${r.w.toFixed(2)}%`
+        ),
+        `Rata-rata Massa Basah (m_b) = (${validSamples.map(r => r.mBasah.toFixed(1)).join(' + ')}) / ${n} = ${avgMb.toFixed(1)} g`,
+        `Rata-rata Massa Kering (m_k) = (${validSamples.map(r => r.mKering.toFixed(1)).join(' + ')}) / ${n} = ${avgMk.toFixed(1)} g`,
+        `Rata-rata Kadar Air (w) = (${validSamples.map(r => r.w.toFixed(2) + '%').join(' + ')}) / ${n} = ${avgW.toFixed(2)}%`,
+        `Batas Acuan Kering Udara SNI 03-6847 = Maksimum 15.0% - 20.0%`,
+      ]
+
+      const recapTable = {
+        title: 'Tabel Rekapitulasi Pengujian Kadar Air Kayu (SNI 03-6847/6848-2002)',
+        headers: ['Parameter Pengujian', 'Rumus Acuan', 'Satuan', ...validSamples.map(s => s.name), 'Rata-rata'],
+        rows: [
+          {
+            label: 'Massa Kayu Basah (m_b)',
+            equation: 'm_b',
+            unit: 'gram',
+            values: validSamples.map(s => s.mBasah.toFixed(1)),
+            average: avgMb.toFixed(1),
+          },
+          {
+            label: 'Massa Kayu Kering Oven (m_k)',
+            equation: 'm_k',
+            unit: 'gram',
+            values: validSamples.map(s => s.mKering.toFixed(1)),
+            average: avgMk.toFixed(1),
+          },
+          {
+            label: 'Massa Air Yang Menguap (m_w)',
+            equation: 'm_b - m_k',
+            unit: 'gram',
+            values: validSamples.map(s => s.mWater.toFixed(1)),
+            average: avgMwater.toFixed(1),
+          },
+          {
+            label: 'Kadar Air Kayu (w)',
+            equation: '((m_b - m_k) / m_k) × 100%',
+            unit: '%',
+            values: validSamples.map(s => s.w.toFixed(2) + '%'),
+            average: avgW.toFixed(2) + '%',
+            highlight: true,
+          },
+        ],
       }
 
       return {
         results: [
-          { label: 'Kadar Air Kayu (w)', value: moisture.toFixed(2), unit: '%', highlight: true },
-          { label: 'Batas Kering Udara SNI', value: '≤ 15 - 20', unit: '%' },
+          { label: 'Kadar Air Kayu Rata-rata (w)', value: avgW.toFixed(2), unit: '%', highlight: true, sub: 'Batas SNI: ≤ 15 - 20%' },
+          { label: 'Batas Kering Udara SNI', value: '≤ 15 - 20', unit: '%', sub: 'SNI 03-6847-2002' },
+          { label: 'Massa Air Rata-rata', value: avgMwater.toFixed(1), unit: 'gram', sub: 'Air yang hilang saat dioven' },
+          { label: 'Kondisi Fisik Kayu', value: kondisiKayu, unit: '', sub: 'Klasifikasi kelembapan' },
         ],
-        formulaSteps: [
-          `w = ((m_b - m_k) / m_k) × 100% = ((${mb} - ${mk}) / ${mk}) × 100% = ${moisture.toFixed(2)}%`,
-        ],
+        formulaSteps,
+        recapTable,
+        isError: false,
         status,
+        verdictClass,
         conclusion,
         summaryString: summaryStr,
       }
@@ -3434,151 +3748,192 @@ export const calculatorRegistry = {
     lab: 'Bahan Bangunan',
     category: 'Bahan Bangunan • Bab 4: Kayu',
     standard: 'SNI 03-6847/6848-2002',
-    desc: 'Menghitung massa per satuan volume benda uji balok kayu pada kadar air terukur.',
+    desc: 'Menghitung massa per satuan volume benda uji balok kayu multi-sampel dinamis.',
+    hasMultiSample: true,
+    sampleFields: [
+      { key: 'massa', label: 'Massa (m)', unit: 'gram', min: 0.01, step: 0.1, desc: 'Massa benda uji kayu' },
+      { key: 'panjang', label: 'Panjang (p)', unit: 'cm', min: 0.01, step: 0.01, desc: 'Panjang balok kayu' },
+      { key: 'lebar', label: 'Lebar (l)', unit: 'cm', min: 0.01, step: 0.01, desc: 'Lebar balok kayu' },
+      { key: 'tebal', label: 'Tebal (t)', unit: 'cm', min: 0.01, step: 0.01, desc: 'Tebal balok kayu' },
+    ],
     initialInputs: {
-      massa: 185.0,
-      panjang: 10.0,
-      lebar: 5.0,
-      tebal: 5.0,
-      dimUnit: 'cm',
+      samples: JSON.parse(JSON.stringify(DEFAULT_BB42_SAMPLES)),
     },
     fields: [
-      { 
-        key: 'massa', 
-        label: 'Massa Benda Uji Kayu (m)', 
-        unit: 'gram', 
-        min: 0.01, 
-        step: 0.1, 
-        desc: 'Berat penimbangan massa balok kayu' 
-      },
-      { 
-        key: 'panjang', 
-        label: 'Panjang Benda Uji (p)', 
-        unitKey: 'dimUnit',
-        unitOptions: [
-          { label: 'cm', value: 'cm' },
-          { label: 'mm', value: 'mm' },
-        ],
-        min: 0.01, 
-        step: 0.01, 
-        desc: 'Dimensi panjang balok kayu (akurasi jangka sorong)' 
-      },
-      { 
-        key: 'lebar', 
-        label: 'Lebar Benda Uji (l)', 
-        unitKey: 'dimUnit',
-        unitOptions: [
-          { label: 'cm', value: 'cm' },
-          { label: 'mm', value: 'mm' },
-        ],
-        min: 0.01, 
-        step: 0.01, 
-        desc: 'Dimensi lebar balok kayu (akurasi jangka sorong)' 
-      },
-      { 
-        key: 'tebal', 
-        label: 'Tebal Benda Uji (t)', 
-        unitKey: 'dimUnit',
-        unitOptions: [
-          { label: 'cm', value: 'cm' },
-          { label: 'mm', value: 'mm' },
-        ],
-        min: 0.01, 
-        step: 0.01, 
-        desc: 'Dimensi tebal balok kayu (akurasi jangka sorong)' 
-      },
+      { key: 'massa', label: 'Massa Benda Uji Kayu (m)', unit: 'gram', min: 0.01, step: 0.1, desc: 'Berat penimbangan massa balok kayu' },
+      { key: 'panjang', label: 'Panjang Benda Uji (p)', unit: 'cm', min: 0.01, step: 0.01, desc: 'Dimensi panjang balok kayu' },
+      { key: 'lebar', label: 'Lebar Benda Uji (l)', unit: 'cm', min: 0.01, step: 0.01, desc: 'Dimensi lebar balok kayu' },
+      { key: 'tebal', label: 'Tebal Benda Uji (t)', unit: 'cm', min: 0.01, step: 0.01, desc: 'Dimensi tebal balok kayu' },
     ],
     calculate: (inputs) => {
-      const dimUnit = inputs.dimUnit || 'cm'
-      const isMm = dimUnit === 'mm'
+      const rawSamples = Array.isArray(inputs.samples) && inputs.samples.length > 0
+        ? inputs.samples
+        : [{
+            id: 1,
+            name: 'Benda Uji I',
+            massa: inputs.massa !== undefined ? inputs.massa : 185.0,
+            panjang: inputs.panjang !== undefined ? inputs.panjang : 10.0,
+            lebar: inputs.lebar !== undefined ? inputs.lebar : 5.0,
+            tebal: inputs.tebal !== undefined ? inputs.tebal : 5.0,
+          }]
 
-      const m = Number(inputs.massa)
-      const p = Number(inputs.panjang)
-      const l = Number(inputs.lebar)
-      const t = Number(inputs.tebal)
+      const validSamples = []
+      const errors = []
 
-      // Validasi jika nilai 0 atau negatif atau NaN: cegah kalkulasi dan tampilkan error
-      if (m <= 0 || p <= 0 || l <= 0 || t <= 0 || isNaN(m) || isNaN(p) || isNaN(l) || isNaN(t)) {
+      rawSamples.forEach((s, idx) => {
+        const idLabel = s.name || `Benda Uji ${idx + 1}`
+        const m = Number(s.massa ?? 0)
+        const p = Number(s.panjang ?? 0)
+        const l = Number(s.lebar ?? 0)
+        const t = Number(s.tebal ?? 0)
+
+        if (isNaN(m) || isNaN(p) || isNaN(l) || isNaN(t) || m <= 0 || p <= 0 || l <= 0 || t <= 0) {
+          errors.push(`${idLabel}: Massa (m), panjang (p), lebar (l), dan tebal (t) harus bernilai lebih besar dari 0.`)
+          return
+        }
+
+        const volCm3 = p * l * t
+        const kerapatanGcm3 = m / volCm3
+        const kerapatanKgm3 = kerapatanGcm3 * 1000
+
+        validSamples.push({
+          id: s.id || idx + 1,
+          name: idLabel,
+          massa: m,
+          panjang: p,
+          lebar: l,
+          tebal: t,
+          volCm3,
+          kerapatanGcm3,
+          kerapatanKgm3,
+        })
+      })
+
+      if (validSamples.length === 0) {
         return {
           results: [
             { label: 'Kerapatan Kayu (g/cm³)', value: '-', unit: 'g/cm³', highlight: true },
-            { label: 'Kerapatan Kayu (g/mm³)', value: '-', unit: 'g/mm³' },
             { label: 'Kerapatan Kayu (kg/m³)', value: '-', unit: 'kg/m³' },
-            { label: 'Volume Benda Uji', value: '-', unit: isMm ? 'mm³' : 'cm³' },
+            { label: 'Volume Rata-rata', value: '-', unit: 'cm³' },
           ],
-          formulaSteps: [
-            'Massa (m), panjang (p), lebar (l), dan tebal (t) harus bernilai lebih besar dari 0. Pembagian dengan nol atau angka negatif tidak diperkenankan.',
-          ],
+          formulaSteps: errors.length > 0 ? errors : ['Masukkan massa dan dimensi sampel kayu yang valid.'],
           isError: true,
           status: 'Input Tidak Wajar / Cek Kembali Data',
-          conclusion: 'Nilai massa dan seluruh dimensi balok kayu (panjang, lebar, tebal) harus bernilai positif lebih besar dari 0. Periksa kembali input data Anda.',
-          summaryString: 'Input Parameter Tidak Valid (<= 0)',
+          verdictClass: 'error',
+          conclusion: errors.join(' ') || 'Nilai massa dan dimensi balok kayu harus lebih besar dari 0.',
+          summaryString: 'Input Parameter Tidak Valid',
         }
       }
 
-      // Hitung volume dan kerapatan sesuai satuan yang dipilih
-      let kerapatanGcm3
-      let kerapatanGmm3
-      let kerapatanKgm3
-      let formulaStepLines
+      const n = validSamples.length
+      const avgM = validSamples.reduce((sum, r) => sum + r.massa, 0) / n
+      const avgP = validSamples.reduce((sum, r) => sum + r.panjang, 0) / n
+      const avgL = validSamples.reduce((sum, r) => sum + r.lebar, 0) / n
+      const avgT = validSamples.reduce((sum, r) => sum + r.tebal, 0) / n
+      const avgVol = validSamples.reduce((sum, r) => sum + r.volCm3, 0) / n
+      const avgKerapatanGcm3 = validSamples.reduce((sum, r) => sum + r.kerapatanGcm3, 0) / n
+      const avgKerapatanKgm3 = avgKerapatanGcm3 * 1000
 
-      if (isMm) {
-        // Satuan input adalah mm
-        const volMm3 = p * l * t
-        kerapatanGmm3 = m / volMm3
-        kerapatanGcm3 = kerapatanGmm3 * 1000
-        kerapatanKgm3 = kerapatanGcm3 * 1000
-        const volCm3 = volMm3 / 1000
-
-        formulaStepLines = [
-          `Satuan Dimensi Terpilih: mm`,
-          `Volume (mm³) = p × l × t = ${p} × ${l} × ${t} = ${volMm3.toFixed(1)} mm³ (${volCm3.toFixed(2)} cm³)`,
-          `Kerapatan (g/mm³) = Massa / Volume = ${m} g / ${volMm3.toFixed(1)} mm³ = ${kerapatanGmm3.toFixed(6)} g/mm³`,
-          `Kerapatan (g/cm³) = Kerapatan (g/mm³) × 1000 = ${kerapatanGmm3.toFixed(6)} × 1000 = ${kerapatanGcm3.toFixed(3)} g/cm³`,
-          `Kerapatan (kg/m³) = Kerapatan (g/cm³) × 1000 = ${kerapatanGcm3.toFixed(3)} × 1000 = ${kerapatanKgm3.toFixed(0)} kg/m³`,
-        ]
-      } else {
-        // Satuan input adalah cm
-        const volCm3 = p * l * t
-        kerapatanGcm3 = m / volCm3
-        kerapatanGmm3 = kerapatanGcm3 / 1000
-        kerapatanKgm3 = kerapatanGcm3 * 1000
-        const volMm3 = volCm3 * 1000
-
-        formulaStepLines = [
-          `Satuan Dimensi Terpilih: cm`,
-          `Volume (cm³) = p × l × t = ${p} × ${l} × ${t} = ${volCm3.toFixed(2)} cm³ (${volMm3.toFixed(0)} mm³)`,
-          `Kerapatan (g/cm³) = Massa / Volume = ${m} g / ${volCm3.toFixed(2)} cm³ = ${kerapatanGcm3.toFixed(3)} g/cm³`,
-          `Kerapatan (g/mm³) = Kerapatan (g/cm³) / 1000 = ${kerapatanGcm3.toFixed(3)} / 1000 = ${kerapatanGmm3.toFixed(6)} g/mm³`,
-          `Kerapatan (kg/m³) = Kerapatan (g/cm³) × 1000 = ${kerapatanGcm3.toFixed(3)} × 1000 = ${kerapatanKgm3.toFixed(0)} kg/m³`,
-        ]
-      }
-
-      // Kerapatan normal kayu alami adalah 0.20 - 1.28 g/cm³ (200 - 1280 kg/m³)
-      const isNormal = kerapatanGcm3 >= 0.20 && kerapatanGcm3 <= 1.28
+      // Kerapatan normal kayu alami ASTM D2395-17: 0.20 - 1.28 g/cm³ (200 - 1280 kg/m³)
+      const isNormal = avgKerapatanGcm3 >= 0.20 && avgKerapatanGcm3 <= 1.28
       const status = isNormal ? 'Valid' : 'Perlu Evaluasi'
+      const verdictClass = isNormal ? 'valid' : 'warning'
 
       let conclusion
+      let bobotKayu
       if (isNormal) {
-        conclusion = `Kerapatan kayu sebesar ${kerapatanGcm3.toFixed(3)} g/cm³ (${kerapatanKgm3.toFixed(0)} kg/m³ atau ${kerapatanGmm3.toFixed(6)} g/mm³) berada dalam rentang normal kayu alami ASTM D2395-17 (0.20 - 1.28 g/cm³). Masuk kategori kayu berbobot ${kerapatanGcm3 >= 0.60 ? 'sedang hingga berat' : 'ringan'}.`
-      } else if (kerapatanGcm3 < 0.20) {
-        conclusion = `Kerapatan kayu ${kerapatanGcm3.toFixed(3)} g/cm³ di bawah batas normal kayu alami (< 0.20 g/cm³). Kayu terlalu rapuh/keropos atau periksa kesalahan pengukuran dimensi.`
+        bobotKayu = avgKerapatanGcm3 >= 0.60 ? 'Sedang hingga Berat' : 'Ringan'
+        conclusion = `Rata-rata kerapatan kayu sebesar ${avgKerapatanGcm3.toFixed(3)} g/cm³ (${avgKerapatanKgm3.toFixed(0)} kg/m³) berada dalam rentang normal kayu alami ASTM D2395-17 (0.20 - 1.28 g/cm³). Masuk kategori kayu berbobot ${bobotKayu}.`
+      } else if (avgKerapatanGcm3 < 0.20) {
+        bobotKayu = 'Terlalu Ringan/Keropos'
+        conclusion = `Rata-rata kerapatan kayu ${avgKerapatanGcm3.toFixed(3)} g/cm³ di bawah batas normal kayu alami (< 0.20 g/cm³). Kayu terlalu rapuh atau periksa ketelitian pengukuran dimensi.`
       } else {
-        conclusion = `Kerapatan kayu ${kerapatanGcm3.toFixed(3)} g/cm³ melebihi batas wajar kayu alami (> 1.28 g/cm³). Periksa kembali keakuratan timbangan atau volume spesimen.`
+        bobotKayu = 'Melebihi Batas Alami'
+        conclusion = `Rata-rata kerapatan kayu ${avgKerapatanGcm3.toFixed(3)} g/cm³ melebihi batas wajar kayu alami (> 1.28 g/cm³). Periksa kembali timbangan massa atau pengukuran volume spesimen.`
       }
 
-      const currentVol = p * l * t
+      const formulaSteps = [
+        `Jumlah Benda Uji Aktif = ${n} Sampel`,
+        ...validSamples.map(r =>
+          `${r.name}: V = ${r.panjang.toFixed(2)} × ${r.lebar.toFixed(2)} × ${r.tebal.toFixed(2)} = ${r.volCm3.toFixed(2)} cm³ → ρ = ${r.massa.toFixed(1)} g / ${r.volCm3.toFixed(2)} cm³ = ${r.kerapatanGcm3.toFixed(3)} g/cm³ (${r.kerapatanKgm3.toFixed(0)} kg/m³)`
+        ),
+        `Rata-rata Massa (m) = (${validSamples.map(r => r.massa.toFixed(1)).join(' + ')}) / ${n} = ${avgM.toFixed(1)} g`,
+        `Rata-rata Volume (V) = (${validSamples.map(r => r.volCm3.toFixed(2)).join(' + ')}) / ${n} = ${avgVol.toFixed(2)} cm³`,
+        `Rata-rata Kerapatan (ρ) = (${validSamples.map(r => r.kerapatanGcm3.toFixed(3)).join(' + ')}) / ${n} = ${avgKerapatanGcm3.toFixed(3)} g/cm³ (${avgKerapatanKgm3.toFixed(0)} kg/m³)`,
+        `Rentang Normal Kayu Alami (ASTM D2395-17) = 0.20 - 1.28 g/cm³ (200 - 1.280 kg/m³)`,
+      ]
+
+      const recapTable = {
+        title: 'Tabel Rekapitulasi Pengujian Kerapatan Massa Kayu (SNI 03-6847/6848-2002)',
+        headers: ['Parameter Pengujian', 'Rumus Acuan', 'Satuan', ...validSamples.map(s => s.name), 'Rata-rata'],
+        rows: [
+          {
+            label: 'Massa Benda Uji (m)',
+            equation: 'm',
+            unit: 'gram',
+            values: validSamples.map(s => s.massa.toFixed(1)),
+            average: avgM.toFixed(1),
+          },
+          {
+            label: 'Panjang Benda Uji (p)',
+            equation: 'p',
+            unit: 'cm',
+            values: validSamples.map(s => s.panjang.toFixed(2)),
+            average: avgP.toFixed(2),
+          },
+          {
+            label: 'Lebar Benda Uji (l)',
+            equation: 'l',
+            unit: 'cm',
+            values: validSamples.map(s => s.lebar.toFixed(2)),
+            average: avgL.toFixed(2),
+          },
+          {
+            label: 'Tebal Benda Uji (t)',
+            equation: 't',
+            unit: 'cm',
+            values: validSamples.map(s => s.tebal.toFixed(2)),
+            average: avgT.toFixed(2),
+          },
+          {
+            label: 'Volume Benda Uji (V)',
+            equation: 'p × l × t',
+            unit: 'cm³',
+            values: validSamples.map(s => s.volCm3.toFixed(2)),
+            average: avgVol.toFixed(2),
+          },
+          {
+            label: 'Kerapatan Massa (ρ)',
+            equation: 'm / V',
+            unit: 'g/cm³',
+            values: validSamples.map(s => s.kerapatanGcm3.toFixed(3)),
+            average: avgKerapatanGcm3.toFixed(3),
+            highlight: true,
+          },
+          {
+            label: 'Kerapatan Terkonversi (ρ)',
+            equation: 'ρ × 1000',
+            unit: 'kg/m³',
+            values: validSamples.map(s => s.kerapatanKgm3.toFixed(0)),
+            average: avgKerapatanKgm3.toFixed(0),
+          },
+        ],
+      }
+
       return {
         results: [
-          { label: 'Kerapatan Kayu (g/cm³)', value: kerapatanGcm3.toFixed(3), unit: 'g/cm³', highlight: !isMm },
-          { label: 'Kerapatan Kayu (g/mm³)', value: kerapatanGmm3.toFixed(6), unit: 'g/mm³', highlight: isMm },
-          { label: 'Kerapatan Kayu (kg/m³)', value: kerapatanKgm3.toFixed(0), unit: 'kg/m³' },
-          { label: 'Volume Benda Uji', value: isMm ? currentVol.toFixed(1) : currentVol.toFixed(2), unit: `${dimUnit}³` },
+          { label: 'Kerapatan Kayu Rata-rata (g/cm³)', value: avgKerapatanGcm3.toFixed(3), unit: 'g/cm³', highlight: true, sub: 'Rentang SNI: 0.20 - 1.28' },
+          { label: 'Kerapatan Kayu (kg/m³)', value: avgKerapatanKgm3.toFixed(0), unit: 'kg/m³', sub: 'Standar internasional' },
+          { label: 'Volume Rata-rata Benda Uji', value: avgVol.toFixed(2), unit: 'cm³', sub: 'Volume balok kayu' },
+          { label: 'Kategori Bobot Kayu', value: bobotKayu, unit: '', sub: 'ASTM D2395-17' },
         ],
-        formulaSteps: formulaStepLines,
+        formulaSteps,
+        recapTable,
+        isError: false,
         status,
+        verdictClass,
         conclusion,
-        summaryString: `Kerapatan = ${kerapatanGcm3.toFixed(3)} g/cm³ (${status === 'Valid' ? `${kerapatanKgm3.toFixed(0)} kg/m³` : 'Perlu Evaluasi'})`,
+        summaryString: `Kerapatan = ${avgKerapatanGcm3.toFixed(3)} g/cm³ (${status === 'Valid' ? `${avgKerapatanKgm3.toFixed(0)} kg/m³` : 'Perlu Evaluasi'})`,
       }
     },
   },
@@ -3590,93 +3945,191 @@ export const calculatorRegistry = {
     lab: 'Bahan Bangunan',
     category: 'Bahan Bangunan • Bab 4: Kayu',
     standard: 'SNI 03-6847/6848-2002',
-    desc: 'Menghitung Berat Jenis sesuai kadar air dan Berat Jenis kering oven untuk penentuan Kelas Kuat Kayu (Sudarminto, 1983).',
+    desc: 'Menghitung Berat Jenis sesuai kadar air dan Berat Jenis kering oven untuk penentuan Kelas Kuat Kayu (Sudarminto, 1983) multi-sampel dinamis.',
+    hasMultiSample: true,
+    sampleFields: [
+      { key: 'vm', label: 'Volume Asli (V_m)', unit: 'mm³', min: 0.1, step: 0.1, desc: 'Volume kayu kondisi kadar air asli' },
+      { key: 'v0', label: 'Volume Kering (V_0)', unit: 'mm³', min: 0.1, step: 0.1, desc: 'Volume kayu setelah pengeringan oven' },
+      { key: 'mm', label: 'Massa Asli (M_m)', unit: 'gram', min: 0.01, step: 0.01, desc: 'Massa kayu sebelum dioven' },
+      { key: 'm0', label: 'Massa Kering (M_0)', unit: 'gram', min: 0.01, step: 0.01, desc: 'Massa kayu setelah dioven' },
+    ],
     initialInputs: {
-      vm: 115200.0,
-      v0: 110661.129,
-      mm: 74.8,
-      m0: 64.9,
+      samples: JSON.parse(JSON.stringify(DEFAULT_BB43_SAMPLES)),
     },
     fields: [
-      { key: 'vm', label: 'Volume Asli (V_m)', unit: 'mm³', min: 0.01, step: 0.001, desc: 'Volume benda uji kayu pada kondisi kadar air asli / terukur' },
+      { key: 'vm', label: 'Volume Asli (V_m)', unit: 'mm³', min: 0.01, step: 0.001, desc: 'Volume benda uji kayu pada kondisi kadar air asli' },
       { key: 'v0', label: 'Volume Kering Oven (V_0)', unit: 'mm³', min: 0.01, step: 0.001, desc: 'Volume benda uji kayu setelah pengeringan oven' },
-      { key: 'mm', label: 'Berat Asli (M_m)', unit: 'gram', min: 0.01, step: 0.01, desc: 'Massa/berat benda uji kayu pada kondisi kadar air asli sebelum oven' },
-      { key: 'm0', label: 'Berat Kering Oven (M_0)', unit: 'gram', min: 0.01, step: 0.01, desc: 'Massa/berat benda uji kayu setelah pengeringan oven' },
+      { key: 'mm', label: 'Berat Asli (M_m)', unit: 'gram', min: 0.01, step: 0.01, desc: 'Massa benda uji sebelum dioven' },
+      { key: 'm0', label: 'Berat Kering Oven (M_0)', unit: 'gram', min: 0.01, step: 0.01, desc: 'Massa benda uji setelah pengeringan oven' },
     ],
     calculate: (inputs) => {
-      const vm = Number(inputs.vm)
-      const v0 = Number(inputs.v0)
-      const mm = Number(inputs.mm)
-      const m0 = Number(inputs.m0)
+      const rawSamples = Array.isArray(inputs.samples) && inputs.samples.length > 0
+        ? inputs.samples
+        : [{
+            id: 1,
+            name: 'Benda Uji I',
+            vm: inputs.vm !== undefined ? inputs.vm : 115200.0,
+            v0: inputs.v0 !== undefined ? inputs.v0 : 110661.1,
+            mm: inputs.mm !== undefined ? inputs.mm : 74.8,
+            m0: inputs.m0 !== undefined ? inputs.m0 : 64.9,
+          }]
 
-      // 1. Validasi: Jika salah satu input bernilai 0, minus, atau tidak valid
-      if (vm <= 0 || v0 <= 0 || mm <= 0 || m0 <= 0 || isNaN(vm) || isNaN(v0) || isNaN(mm) || isNaN(m0)) {
+      const validSamples = []
+      const errors = []
+
+      const getKelas = (bj) => {
+        if (bj > 0.90) return { kelas: 'Kelas Kuat I', desc: 'Sangat Keras / Sangat Kuat' }
+        if (bj >= 0.60) return { kelas: 'Kelas Kuat II', desc: 'Kuat / Keras' }
+        if (bj >= 0.40) return { kelas: 'Kelas Kuat III', desc: 'Sedang' }
+        if (bj >= 0.30) return { kelas: 'Kelas Kuat IV', desc: 'Ringan' }
+        return { kelas: 'Kelas Kuat V', desc: 'Sangat Ringan' }
+      }
+
+      rawSamples.forEach((s, idx) => {
+        const idLabel = s.name || `Benda Uji ${idx + 1}`
+        const vm = Number(s.vm ?? 0)
+        const v0 = Number(s.v0 ?? 0)
+        const mm = Number(s.mm ?? 0)
+        const m0 = Number(s.m0 ?? 0)
+
+        if (isNaN(vm) || isNaN(v0) || isNaN(mm) || isNaN(m0) || vm <= 0 || v0 <= 0 || mm <= 0 || m0 <= 0) {
+          errors.push(`${idLabel}: Volume dan massa harus bernilai lebih besar dari 0.`)
+          return
+        }
+
+        const bjAsli = (1000 * mm) / vm
+        const bjKering = (1000 * m0) / v0
+        const kInfo = getKelas(bjKering)
+
+        validSamples.push({
+          id: s.id || idx + 1,
+          name: idLabel,
+          vm,
+          v0,
+          mm,
+          m0,
+          bjAsli,
+          bjKering,
+          kelas: kInfo.kelas,
+        })
+      })
+
+      if (validSamples.length === 0) {
         return {
           results: [
+            { label: 'BJ Kering Oven Rata-rata', value: '-', unit: '', highlight: true },
             { label: 'BJ Sesuai Kadar Air', value: '-', unit: '', highlight: true },
-            { label: 'BJ Kering Oven', value: '-', unit: '', highlight: true },
-            { label: 'Klasifikasi Kelas Kuat Kayu', value: 'Input tidak valid', unit: '', highlight: true },
+            { label: 'Kelas Kuat Kayu', value: 'Data Tidak Valid', unit: '' },
           ],
-          formulaSteps: [
-            'Input tidak valid: Parameter Volume Asli (V_m), Volume Kering (V_0), Berat Asli (M_m), dan Berat Kering (M_0) harus bernilai lebih besar dari 0.',
-          ],
+          formulaSteps: errors.length > 0 ? errors : ['Masukkan volume dan massa sampel kayu yang valid.'],
           isError: true,
-          status: 'Input tidak valid',
-          conclusion: 'Input tidak valid. Nilai volume asli (V_m), volume kering (V_0), berat asli (M_m), dan berat kering (M_0) harus lebih besar dari 0.',
-          summaryString: 'Input tidak valid',
+          status: 'Input Tidak Wajar / Cek Kembali Data',
+          verdictClass: 'error',
+          conclusion: errors.join(' ') || 'Nilai volume dan massa kayu harus bernilai positif > 0.',
+          summaryString: 'Input Parameter Tidak Valid',
         }
       }
 
-      // 2. Rumus Sesuai Panduan Praktikum (Konstanta 1000 untuk konversi mm³ ke cm³)
-      const bjAsli = (1000 * mm) / vm
-      const bjKering = (1000 * m0) / v0
+      const n = validSamples.length
+      const avgVm = validSamples.reduce((sum, r) => sum + r.vm, 0) / n
+      const avgV0 = validSamples.reduce((sum, r) => sum + r.v0, 0) / n
+      const avgMm = validSamples.reduce((sum, r) => sum + r.mm, 0) / n
+      const avgM0 = validSamples.reduce((sum, r) => sum + r.m0, 0) / n
+      const avgBjAsli = validSamples.reduce((sum, r) => sum + r.bjAsli, 0) / n
+      const avgBjKering = validSamples.reduce((sum, r) => sum + r.bjKering, 0) / n
 
-      // 3. Penentuan Kelas Kuat Kayu Berdasarkan BJ Kering Oven (Tabel 4.5 Sudarminto, 1983)
-      let kelas
-      let kelasDesc
-      if (bjKering > 0.90) {
-        kelas = 'Kelas Kuat I'
-        kelasDesc = 'Kayu Sangat Keras / Sangat Kuat (Ulin, Jati, Bangkirai)'
-      } else if (bjKering >= 0.60) {
-        kelas = 'Kelas Kuat II'
-        kelasDesc = 'Kayu Kuat / Keras (Kamper, Merbau)'
-      } else if (bjKering >= 0.40) {
-        kelas = 'Kelas Kuat III'
-        kelasDesc = 'Kayu Sedang (Meranti Merah, Mahoni)'
-      } else if (bjKering >= 0.30) {
-        kelas = 'Kelas Kuat IV'
-        kelasDesc = 'Kayu Ringan (Sengon, Pinus)'
-      } else {
-        kelas = 'Kelas Kuat V'
-        kelasDesc = 'Kayu Sangat Ringan (Non-Struktural)'
-      }
-
-      // Rentang standar fisik kayu alami ASTM D2395-17: 0.20 s/d 1.28
-      const isAstmOk = bjKering >= 0.20 && bjKering <= 1.28
-      const status = isAstmOk ? 'Memenuhi Standar (ASTM D2395-17)' : 'Perlu Evaluasi'
+      const finalKelas = getKelas(avgBjKering)
+      const isAstmOk = avgBjKering >= 0.20 && avgBjKering <= 1.28
+      const status = isAstmOk ? 'Valid' : 'Perlu Evaluasi'
+      const verdictClass = isAstmOk ? 'valid' : 'warning'
 
       const conclusion = isAstmOk
-        ? `Berat Jenis Kering Oven sebesar ${bjKering.toFixed(4)} menempatkan kayu pada ${kelas} (${kelasDesc}) berdasarkan Tabel 4.5 Sudarminto (1983). Memenuhi rentang standar fisik kayu alami ASTM D2395-17 (0.20 - 1.28).`
-        : `Berat Jenis Kering Oven sebesar ${bjKering.toFixed(4)} berada di luar rentang normal kayu alami ASTM D2395-17 (0.20 - 1.28). ${bjKering < 0.20 ? 'Kayu terlalu ringan/keropos atau periksa pengukuran volume.' : 'Nilai terlalu tinggi melebihi densitas kayu alami, periksa penimbangan massa.'}`
+        ? `Rata-rata Berat Jenis Kering Oven sebesar ${avgBjKering.toFixed(4)} menempatkan kayu pada ${finalKelas.kelas} (${finalKelas.desc}) berdasarkan Tabel 4.5 Sudarminto (1983). Memenuhi rentang standar fisik kayu alami ASTM D2395-17 (0.20 - 1.28).`
+        : `Rata-rata Berat Jenis Kering Oven sebesar ${avgBjKering.toFixed(4)} berada di luar rentang normal kayu alami ASTM D2395-17 (0.20 - 1.28). Periksa keakuratan pengukuran volume atau penimbangan massa.`
+
+      const formulaSteps = [
+        `Jumlah Benda Uji Aktif = ${n} Sampel`,
+        ...validSamples.map(r =>
+          `${r.name}: BJ Asli = (1000 × ${r.mm.toFixed(1)}) / ${r.vm.toFixed(0)} = ${r.bjAsli.toFixed(4)} | BJ Kering = (1000 × ${r.m0.toFixed(1)}) / ${r.v0.toFixed(0)} = ${r.bjKering.toFixed(4)} [${r.kelas}]`
+        ),
+        `Rata-rata BJ Asli = (${validSamples.map(r => r.bjAsli.toFixed(4)).join(' + ')}) / ${n} = ${avgBjAsli.toFixed(4)}`,
+        `Rata-rata BJ Kering Oven = (${validSamples.map(r => r.bjKering.toFixed(4)).join(' + ')}) / ${n} = ${avgBjKering.toFixed(4)}`,
+        `Klasifikasi Konsensus (Tabel 4.5 Sudarminto 1983) = ${finalKelas.kelas} (${finalKelas.desc})`,
+        `Evaluasi Rentang Alami ASTM D2395-17 (0.20 - 1.28) = ${isAstmOk ? 'Memenuhi Standar' : 'Di Luar Rentang Standar'}`,
+      ]
+
+      const recapTable = {
+        title: 'Tabel Rekapitulasi Pengujian Berat Jenis Kayu (SNI 03-6847/6848-2002)',
+        headers: ['Parameter Pengujian', 'Rumus Acuan', 'Satuan', ...validSamples.map(s => s.name), 'Rata-rata'],
+        rows: [
+          {
+            label: 'Volume Asli (V_m)',
+            equation: 'V_m',
+            unit: 'mm³',
+            values: validSamples.map(s => s.vm.toFixed(0)),
+            average: avgVm.toFixed(0),
+          },
+          {
+            label: 'Volume Kering Oven (V_0)',
+            equation: 'V_0',
+            unit: 'mm³',
+            values: validSamples.map(s => s.v0.toFixed(0)),
+            average: avgV0.toFixed(0),
+          },
+          {
+            label: 'Massa Asli (M_m)',
+            equation: 'M_m',
+            unit: 'gram',
+            values: validSamples.map(s => s.mm.toFixed(1)),
+            average: avgMm.toFixed(1),
+          },
+          {
+            label: 'Massa Kering Oven (M_0)',
+            equation: 'M_0',
+            unit: 'gram',
+            values: validSamples.map(s => s.m0.toFixed(1)),
+            average: avgM0.toFixed(1),
+          },
+          {
+            label: 'BJ Sesuai Kadar Air',
+            equation: '(1000 × M_m) / V_m',
+            unit: '-',
+            values: validSamples.map(s => s.bjAsli.toFixed(4)),
+            average: avgBjAsli.toFixed(4),
+            highlight: true,
+          },
+          {
+            label: 'BJ Kering Oven Mutlak',
+            equation: '(1000 × M_0) / V_0',
+            unit: '-',
+            values: validSamples.map(s => s.bjKering.toFixed(4)),
+            average: avgBjKering.toFixed(4),
+            highlight: true,
+          },
+          {
+            label: 'Kelas Kuat Kayu',
+            equation: 'Tabel Sudarminto',
+            unit: '-',
+            values: validSamples.map(s => s.kelas),
+            average: finalKelas.kelas,
+          },
+        ],
+      }
 
       return {
         results: [
-          { label: 'BJ Sesuai Kadar Air', value: bjAsli.toFixed(4), unit: '', highlight: true },
-          { label: 'BJ Kering Oven', value: bjKering.toFixed(4), unit: '', highlight: true },
-          { label: 'Klasifikasi Kelas Kuat Kayu', value: kelas, unit: '', highlight: true },
+          { label: 'BJ Kering Oven Rata-rata', value: avgBjKering.toFixed(4), unit: '', highlight: true, sub: 'Kondisi kering oven 103°C' },
+          { label: 'BJ Kadar Air Asli Rata-rata', value: avgBjAsli.toFixed(4), unit: '', highlight: true, sub: 'Kondisi kelembapan asli' },
+          { label: 'Klasifikasi Kelas Kuat', value: finalKelas.kelas, unit: '', sub: finalKelas.desc },
+          { label: 'Standar Kayu Alami', value: '0.20 - 1.28', unit: '', sub: 'ASTM D2395-17' },
         ],
-        formulaSteps: [
-          `Volume Asli (V_m) = ${vm} mm³ | Volume Kering Oven (V_0) = ${v0} mm³`,
-          `Berat Asli (M_m) = ${mm} gram | Berat Kering Oven (M_0) = ${m0} gram`,
-          `BJ Sesuai Kadar Air = (1000 * M_m) / V_m = (1000 * ${mm}) / ${vm} = ${bjAsli.toFixed(4)}`,
-          `BJ Kering = (1000 * M_0) / V_0 = (1000 * ${m0}) / ${v0} = ${bjKering.toFixed(4)}`,
-          `Penentuan Kelas Kuat (Tabel 4.5 Sudarminto, 1983): ${kelas} (${kelasDesc})`,
-          `Evaluasi Rentang Alami ASTM D2395-17 (0.20 - 1.28): ${isAstmOk ? 'Memenuhi Standar' : 'Di Luar Rentang Standar'}`,
-        ],
+        formulaSteps,
+        recapTable,
         isError: false,
         status,
+        verdictClass,
         conclusion,
-        summaryString: `BJ Kering = ${bjKering.toFixed(4)} (${kelas}, ${status})`,
+        summaryString: `BJ Kering = ${avgBjKering.toFixed(4)} (${finalKelas.kelas}, ${status})`,
       }
     },
   },
@@ -3688,82 +4141,189 @@ export const calculatorRegistry = {
     lab: 'Bahan Bangunan',
     category: 'Bahan Bangunan • Bab 4: Kayu',
     standard: 'SNI 03-6847/6848-2002',
-    desc: 'Menghitung Modulus of Elasticity (MOE) dan Modulus of Rupture (MOR) balok kayu konstruksi.',
+    desc: 'Menghitung Modulus of Elasticity (MOE) dan Modulus of Rupture (MOR) balok kayu konstruksi multi-sampel dinamis.',
+    hasMultiSample: true,
+    commonFieldsTitle: 'Dimensi Penampang & Bentang Balok Kayu',
+    commonFieldsSubtitle: 'Dimensi penampang dan bentang tumpuan (SNI 03-6847/6848-2002):',
+    commonFields: [
+      { key: 'lebarB', label: 'Lebar Penampang Balok (b)', unit: 'mm', min: 1, step: 1, desc: 'Dimensi lebar balok kayu (standar 50 mm)' },
+      { key: 'tinggiH', label: 'Tinggi Penampang Balok (h)', unit: 'mm', min: 1, step: 1, desc: 'Dimensi tinggi balok kayu (standar 50 mm)' },
+      { key: 'bentangL', label: 'Panjang Bentang Tumpuan (L)', unit: 'mm', min: 1, step: 10, desc: 'Jarak sendi ke rol tumpuan balok (standar 1000 mm)' },
+    ],
+    sampleFields: [
+      { key: 'bebanP', label: 'Beban Maksimum (P)', unit: 'N', min: 1, step: 10, desc: 'Beban terpusat tengah bentang saat batas lentur' },
+      { key: 'lendutan', label: 'Lendutan Pusat (Δ)', unit: 'mm', min: 0.01, step: 0.1, desc: 'Defleksi vertikal jarum dial gauge' },
+    ],
     initialInputs: {
       lebarB: 50.0,
       tinggiH: 50.0,
       bentangL: 1000.0,
-      bebanP: 8200.0,
-      lendutan: 6.2,
+      samples: JSON.parse(JSON.stringify(DEFAULT_BB44_SAMPLES)),
     },
     fields: [
-      { key: 'bebanP', label: 'Beban Maksimum Balok (P)', unit: 'N', min: 0.01, step: 10, desc: 'Beban terpusat tengah bentang saat batas lentur' },
+      { key: 'bebanP', label: 'Beban Maksimum Balok (P)', unit: 'N', min: 0.01, step: 10, desc: 'Beban terpusat tengah bentang' },
       { key: 'lendutan', label: 'Lendutan Pusat Balok (Δ)', unit: 'mm', min: 0.01, step: 0.1, desc: 'Defleksi vertikal jarum dial gauge' },
       { key: 'lebarB', label: 'Lebar Penampang Balok (b)', unit: 'mm', min: 0.01, step: 1, desc: 'Dimensi lebar balok kayu' },
       { key: 'tinggiH', label: 'Tinggi Penampang Balok (h)', unit: 'mm', min: 0.01, step: 1, desc: 'Dimensi tinggi balok kayu' },
       { key: 'bentangL', label: 'Panjang Bentang Tumpuan (L)', unit: 'mm', min: 0.01, step: 10, desc: 'Jarak sendi ke rol tumpuan balok' },
     ],
     calculate: (inputs) => {
-      const p = Number(inputs.bebanP)
-      const delta = Number(inputs.lendutan)
-      const b = Number(inputs.lebarB)
-      const h = Number(inputs.tinggiH)
-      const l = Number(inputs.bentangL)
+      const b = Number(inputs.lebarB ?? 50.0)
+      const h = Number(inputs.tinggiH ?? 50.0)
+      const l = Number(inputs.bentangL ?? 1000.0)
 
-      // Validasi parameter: semua harus bernilai positif > 0
-      if (p <= 0 || delta <= 0 || b <= 0 || h <= 0 || l <= 0 || isNaN(p) || isNaN(delta) || isNaN(b) || isNaN(h) || isNaN(l)) {
+      if (b <= 0 || h <= 0 || l <= 0 || isNaN(b) || isNaN(h) || isNaN(l)) {
         return {
           results: [
             { label: 'Modulus of Rupture (MOR)', value: '-', unit: 'MPa', highlight: true },
             { label: 'Modulus of Elasticity (MOE)', value: '-', unit: 'MPa', highlight: true },
           ],
-          formulaSteps: [
-            'Semua parameter beban (P), lendutan (Δ), lebar (b), tinggi (h), dan bentang (L) harus bernilai positif (> 0).',
-          ],
+          formulaSteps: ['Dimensi lebar (b), tinggi (h), dan bentang (L) harus bernilai positif (> 0).'],
           isError: true,
           status: 'Input Tidak Wajar / Cek Kembali Data',
-          conclusion: 'Nilai dimensi balok, beban, dan lendutan harus lebih besar dari 0. Periksa kembali input data Anda.',
-          summaryString: 'Dimensi/Beban Lentur Tidak Valid',
+          verdictClass: 'error',
+          conclusion: 'Nilai dimensi balok kayu dan bentang tumpuan harus lebih besar dari 0.',
+          summaryString: 'Dimensi Balok Tidak Valid',
         }
       }
 
-      // MOR = (3 * P * L) / (2 * b * h^2)
-      const mor = (3 * p * l) / (2 * b * h * h)
-      // MOE = (P * L^3) / (4 * b * h^3 * delta)
-      const moe = (p * Math.pow(l, 3)) / (4 * b * Math.pow(h, 3) * delta)
+      const rawSamples = Array.isArray(inputs.samples) && inputs.samples.length > 0
+        ? inputs.samples
+        : [{
+            id: 1,
+            name: 'Benda Uji I',
+            bebanP: inputs.bebanP !== undefined ? inputs.bebanP : 8200.0,
+            lendutan: inputs.lendutan !== undefined ? inputs.lendutan : 6.2,
+          }]
 
-      // Validasi dimensi standar: penampang 50x50 mm atau 50x100 mm (atau 100x50 mm)
+      const validSamples = []
+      const errors = []
+
+      rawSamples.forEach((s, idx) => {
+        const idLabel = s.name || `Benda Uji ${idx + 1}`
+        const p = Number(s.bebanP ?? 0)
+        const delta = Number(s.lendutan ?? 0)
+
+        if (isNaN(p) || isNaN(delta) || p <= 0 || delta <= 0) {
+          errors.push(`${idLabel}: Beban (P) dan lendutan (Δ) harus berupa angka lebih besar dari 0.`)
+          return
+        }
+
+        const mor = (3 * p * l) / (2 * b * h * h)
+        const moe = (p * Math.pow(l, 3)) / (4 * b * Math.pow(h, 3) * delta)
+
+        validSamples.push({
+          id: s.id || idx + 1,
+          name: idLabel,
+          bebanP: p,
+          lendutan: delta,
+          mor,
+          moe,
+        })
+      })
+
+      if (validSamples.length === 0) {
+        return {
+          results: [
+            { label: 'Modulus of Rupture (MOR)', value: '-', unit: 'MPa', highlight: true },
+            { label: 'Modulus of Elasticity (MOE)', value: '-', unit: 'MPa', highlight: true },
+          ],
+          formulaSteps: errors.length > 0 ? errors : ['Masukkan data beban dan lendutan sampel balok yang valid.'],
+          isError: true,
+          status: 'Input Tidak Wajar / Cek Kembali Data',
+          verdictClass: 'error',
+          conclusion: errors.join(' ') || 'Nilai beban dan lendutan balok kayu harus lebih besar dari 0.',
+          summaryString: 'Parameter Uji Lentur Tidak Valid',
+        }
+      }
+
+      const n = validSamples.length
+      const avgP = validSamples.reduce((sum, r) => sum + r.bebanP, 0) / n
+      const avgDelta = validSamples.reduce((sum, r) => sum + r.lendutan, 0) / n
+      const avgMor = validSamples.reduce((sum, r) => sum + r.mor, 0) / n
+      const avgMoe = validSamples.reduce((sum, r) => sum + r.moe, 0) / n
+
       const isStandardDim = (b === 50 && h === 50) || (b === 50 && h === 100) || (b === 100 && h === 50)
-      const dimWarningText = 'Dimensi tidak standar. SNI 7973:2013 umumnya menggunakan penampang 50x50 mm atau 50x100 mm untuk pengujian lentur.'
+      const dimWarningText = 'Dimensi tidak standar. SNI 7973:2013 umumnya menggunakan penampang 50x50 mm atau 50x100 mm untuk uji lentur.'
 
       const status = isStandardDim ? 'Valid' : 'Perlu Evaluasi'
+      const verdictClass = isStandardDim ? 'valid' : 'warning'
 
-      const steps = [
-        `MOR = (3 × P × L) / (2 × b × h²) = (3 × ${p} × ${l}) / (2 × ${b} × ${h}²) = ${mor.toFixed(2)} MPa`,
-        `MOE = (P × L³) / (4 × b × h³ × Δ) = (${p} × ${l}³) / (4 × ${b} × ${h}³ × ${delta}) = ${moe.toFixed(0)} MPa`,
+      const formulaSteps = [
+        `Dimensi Balok: b = ${b} mm, h = ${h} mm, bentang tumpuan L = ${l} mm`,
+        `Jumlah Benda Uji Aktif = ${n} Sampel`,
+        ...validSamples.map(r =>
+          `${r.name}: MOR = (3 × ${r.bebanP.toFixed(0)} × ${l}) / (2 × ${b} × ${h}²) = ${r.mor.toFixed(2)} MPa | MOE = (${r.bebanP.toFixed(0)} × ${l}³) / (4 × ${b} × ${h}³ × ${r.lendutan.toFixed(1)}) = ${r.moe.toFixed(0)} MPa`
+        ),
+        `Rata-rata Beban Maksimum (P) = (${validSamples.map(r => r.bebanP.toFixed(0)).join(' + ')}) / ${n} = ${avgP.toFixed(0)} N`,
+        `Rata-rata Lendutan Pusat (Δ) = (${validSamples.map(r => r.lendutan.toFixed(1)).join(' + ')}) / ${n} = ${avgDelta.toFixed(2)} mm`,
+        `Rata-rata MOR = (${validSamples.map(r => r.mor.toFixed(2)).join(' + ')}) / ${n} = ${avgMor.toFixed(2)} MPa`,
+        `Rata-rata MOE = (${validSamples.map(r => r.moe.toFixed(0)).join(' + ')}) / ${n} = ${avgMoe.toFixed(0)} MPa`,
       ]
 
       if (!isStandardDim) {
-        steps.push(`Peringatan SNI: Penampang ${b}×${h} mm (${dimWarningText})`)
+        formulaSteps.push(`Peringatan SNI: Penampang ${b}×${h} mm (${dimWarningText})`)
+      }
+
+      const recapTable = {
+        title: 'Tabel Rekapitulasi Pengujian Kuat Lentur Balok Kayu (SNI 03-6847/6848-2002)',
+        headers: ['Parameter Pengujian', 'Rumus Acuan', 'Satuan', ...validSamples.map(s => s.name), 'Rata-rata'],
+        rows: [
+          {
+            label: 'Beban Maksimum Balok (P)',
+            equation: 'P',
+            unit: 'N',
+            values: validSamples.map(s => s.bebanP.toFixed(0)),
+            average: avgP.toFixed(0),
+          },
+          {
+            label: 'Lendutan Pusat Balok (Δ)',
+            equation: 'Δ',
+            unit: 'mm',
+            values: validSamples.map(s => s.lendutan.toFixed(1)),
+            average: avgDelta.toFixed(2),
+          },
+          {
+            label: 'Modulus of Rupture (MOR)',
+            equation: '(3 × P × L) / (2 × b × h²)',
+            unit: 'MPa',
+            values: validSamples.map(s => s.mor.toFixed(2)),
+            average: avgMor.toFixed(2),
+            highlight: true,
+          },
+          {
+            label: 'Modulus of Elasticity (MOE)',
+            equation: '(P × L³) / (4 × b × h³ × Δ)',
+            unit: 'MPa',
+            values: validSamples.map(s => s.moe.toFixed(0)),
+            average: avgMoe.toFixed(0),
+            highlight: true,
+          },
+        ],
       }
 
       let conclusion
       if (!isStandardDim) {
-        conclusion = `${dimWarningText} Nilai ketahanan lentur patah MOR = ${mor.toFixed(2)} MPa dan kekakuan lentur MOE = ${moe.toFixed(0)} MPa.`
+        conclusion = `${dimWarningText} Nilai rata-rata ketahanan lentur patah MOR = ${avgMor.toFixed(2)} MPa dan kekakuan lentur MOE = ${avgMoe.toFixed(0)} MPa.`
       } else {
-        conclusion = `Balok kayu penampang standar ${b}×${h} mm memiliki ketahanan lentur patah MOR = ${mor.toFixed(2)} MPa dan kekakuan lentur MOE = ${moe.toFixed(0)} MPa (SNI 7973:2013).`
+        conclusion = `Balok kayu penampang standar ${b}×${h} mm memiliki rata-rata ketahanan lentur patah MOR = ${avgMor.toFixed(2)} MPa dan kekakuan lentur MOE = ${avgMoe.toFixed(0)} MPa (SNI 7973:2013). Kayu memiliki daktilitas dan kapasitas lentur yang baik.`
       }
 
       return {
         results: [
-          { label: 'Modulus of Rupture (MOR)', value: mor.toFixed(2), unit: 'MPa', highlight: true },
-          { label: 'Modulus of Elasticity (MOE)', value: moe.toFixed(0), unit: 'MPa', highlight: true },
+          { label: 'Modulus of Rupture Rata-rata (MOR)', value: avgMor.toFixed(2), unit: 'MPa', highlight: true, sub: 'Kekuatan lentur patah kayu' },
+          { label: 'Modulus of Elasticity Rata-rata (MOE)', value: avgMoe.toFixed(0), unit: 'MPa', highlight: true, sub: 'Kekakuan lentur elastis' },
+          { label: 'Lendutan Pusat Rata-rata', value: avgDelta.toFixed(2), unit: 'mm', sub: 'Defleksi vertikal jarum dial' },
+          { label: 'Dimensi Penampang Balok', value: `${b} × ${h}`, unit: 'mm', sub: `Bentang L = ${l} mm` },
         ],
-        formulaSteps: steps,
+        formulaSteps,
+        recapTable,
+        isError: false,
         status,
+        verdictClass,
         warningMessage: !isStandardDim ? dimWarningText : null,
         conclusion,
-        summaryString: `MOR = ${mor.toFixed(1)} MPa, MOE = ${moe.toFixed(0)} MPa (${status === 'Valid' ? 'SNI Valid' : 'Perlu Evaluasi'})`,
+        summaryString: `MOR = ${avgMor.toFixed(1)} MPa, MOE = ${avgMoe.toFixed(0)} MPa (${status === 'Valid' ? 'SNI Valid' : 'Perlu Evaluasi'})`,
       }
     },
   },
@@ -3778,19 +4338,34 @@ export const calculatorRegistry = {
     lab: 'Bahan Bangunan',
     category: 'Bahan Bangunan • Bab 5: Baja',
     standard: 'SNI 2052:2017',
-    desc: 'Menghitung Tegangan Leleh (fy), Tegangan Tarik Maksimum (fu), Regangan/Elongasi (ε), serta Modulus Elastisitas (E) baja.',
+    desc: 'Menghitung Tegangan Leleh (fy), Tegangan Tarik Maksimum (fu), Regangan/Elongasi (ε), serta Modulus Elastisitas (E) baja tulangan multi-sampel dinamis.',
+    hasMultiSample: true,
+    commonFieldsTitle: 'Target Mutu Baja Tulangan',
+    commonFieldsSubtitle: 'Pilihan standar mutu sirip/deform (SNI 2052:2017):',
+    commonFields: [
+      { 
+        key: 'mutuBaja', 
+        label: 'Target Mutu Baja (SNI 2052:2017)', 
+        unit: '', 
+        type: 'select',
+        options: [
+          { value: 'BjTS 420', label: 'BjTS 420 (f_y ≥ 420 MPa, f_u ≥ 550 MPa)' },
+          { value: 'BjTS 280', label: 'BjTS 280 (f_y ≥ 280 MPa, f_u ≥ 350 MPa)' },
+          { value: 'BjTS 520', label: 'BjTS 520 (f_y ≥ 520 MPa, f_u ≥ 650 MPa)' },
+        ],
+        desc: 'Target mutu baja tulangan sirip/deform sesuai SNI 2052:2017' 
+      },
+    ],
+    sampleFields: [
+      { key: 'diameter', label: 'Diameter (d)', unit: 'mm', min: 0.1, step: 0.1, desc: 'Diameter penampang baja' },
+      { key: 'pjgAwal', label: 'Panjang Awal (L0)', unit: 'mm', min: 1, step: 0.1, desc: 'Panjang gage length awal' },
+      { key: 'pjgPutus', label: 'Panjang Putus (Lu)', unit: 'mm', min: 1, step: 0.1, desc: 'Panjang gage length setelah putus' },
+      { key: 'bebanLeleh', label: 'Beban Leleh (Py)', unit: 'kN', min: 0.1, step: 0.1, desc: 'Beban titik leleh' },
+      { key: 'bebanPutus', label: 'Beban Putus (Pu)', unit: 'kN', min: 0.1, step: 0.1, desc: 'Beban tarik maksimum' },
+    ],
     initialInputs: {
       mutuBaja: 'BjTS 420',
-      diameter: 16.0,
-      diameterUnit: 'mm',
-      pjgAwal: 80.0,
-      pjgAwalUnit: 'mm',
-      pjgPutus: 94.0,
-      pjgPutusUnit: 'mm',
-      bebanLeleh: 88.0,
-      bebanLelehUnit: 'kN',
-      bebanPutus: 118.0,
-      bebanPutusUnit: 'kN',
+      samples: JSON.parse(JSON.stringify(DEFAULT_BB51_SAMPLES)),
     },
     fields: [
       { 
@@ -3805,179 +4380,15 @@ export const calculatorRegistry = {
         ],
         desc: 'Target mutu baja tulangan sirip/deform sesuai SNI 2052:2017' 
       },
-      { 
-        key: 'diameter', 
-        label: 'Diameter (d)', 
-        unitKey: 'diameterUnit',
-        unitOptions: [
-          { label: 'mm', value: 'mm' },
-          { label: 'cm', value: 'cm' },
-          { label: 'm', value: 'm' },
-        ],
-        min: 0.0001,
-        step: 0.01,
-        desc: 'Diameter penampang spesimen baja (default: mm)' 
-      },
-      { 
-        key: 'pjgAwal', 
-        label: 'Panjang Ukur Awal (L0)', 
-        unitKey: 'pjgAwalUnit',
-        unitOptions: [
-          { label: 'mm', value: 'mm' },
-          { label: 'cm', value: 'cm' },
-          { label: 'm', value: 'm' },
-        ],
-        min: 0.0001,
-        step: 0.01,
-        desc: 'Panjang gage length sebelum ditarik (default: mm)' 
-      },
-      { 
-        key: 'pjgPutus', 
-        label: 'Panjang Ukur Setelah Putus (Lu)', 
-        unitKey: 'pjgPutusUnit',
-        unitOptions: [
-          { label: 'mm', value: 'mm' },
-          { label: 'cm', value: 'cm' },
-          { label: 'm', value: 'm' },
-        ],
-        min: 0.0001,
-        step: 0.01,
-        desc: 'Panjang gage length setelah batang baja putus (harus > L0)' 
-      },
-      { 
-        key: 'bebanLeleh', 
-        label: 'Beban Titik Leleh (Py)', 
-        unitKey: 'bebanLelehUnit',
-        unitOptions: [
-          { label: 'kN', value: 'kN' },
-          { label: 'N', value: 'N' },
-        ],
-        min: 0.0001,
-        step: 0.1,
-        desc: 'Beban saat baja mulai mengalami leleh plastis (default: kN)' 
-      },
-      { 
-        key: 'bebanPutus', 
-        label: 'Beban Tarik Maksimum / Putus (Pu)', 
-        unitKey: 'bebanPutusUnit',
-        unitOptions: [
-          { label: 'kN', value: 'kN' },
-          { label: 'N', value: 'N' },
-        ],
-        min: 0.0001,
-        step: 0.1,
-        desc: 'Beban tertinggi sebelum batang baja putus (harus ≥ Py)' 
-      },
+      { key: 'diameter', label: 'Diameter (d)', unit: 'mm', min: 0.1, step: 0.1, desc: 'Diameter nominal benda uji baja' },
+      { key: 'pjgAwal', label: 'Panjang Ukur Awal (L0)', unit: 'mm', min: 1, step: 0.1, desc: 'Panjang gage length awal' },
+      { key: 'pjgPutus', label: 'Panjang Setelah Putus (Lu)', unit: 'mm', min: 1, step: 0.1, desc: 'Panjang gage length setelah putus' },
+      { key: 'bebanLeleh', label: 'Beban Titik Leleh (Py)', unit: 'kN', min: 0.1, step: 0.1, desc: 'Beban titik leleh' },
+      { key: 'bebanPutus', label: 'Beban Tarik Maksimum (Pu)', unit: 'kN', min: 0.1, step: 0.1, desc: 'Beban tarik maksimum' },
     ],
     calculate: (inputs) => {
       const mutu = inputs.mutuBaja || 'BjTS 420'
-      const dRaw = Number(inputs.diameter)
-      const dUnit = inputs.diameterUnit || 'mm'
-      const l0Raw = Number(inputs.pjgAwal)
-      const l0Unit = inputs.pjgAwalUnit || 'mm'
-      const luRaw = Number(inputs.pjgPutus)
-      const luUnit = inputs.pjgPutusUnit || 'mm'
-      const pyRaw = Number(inputs.bebanLeleh)
-      const pyUnit = inputs.bebanLelehUnit || 'kN'
-      const puRaw = Number(inputs.bebanPutus)
-      const puUnit = inputs.bebanPutusUnit || 'kN'
 
-      // Validasi input: tidak boleh 0, negatif, atau NaN
-      if (dRaw <= 0 || l0Raw <= 0 || luRaw <= 0 || pyRaw <= 0 || puRaw <= 0 || isNaN(dRaw) || isNaN(l0Raw) || isNaN(luRaw) || isNaN(pyRaw) || isNaN(puRaw)) {
-        return {
-          results: [
-            { label: 'Tegangan Leleh (fy)', value: '-', unit: 'MPa', highlight: true },
-            { label: 'Tegangan Maks (fu)', value: '-', unit: 'MPa', highlight: true },
-            { label: 'Regangan (ε)', value: '-', unit: '' },
-            { label: 'Modulus Elastisitas (E)', value: '-', unit: 'MPa', highlight: true },
-          ],
-          formulaSteps: [
-            'Input tidak valid: Parameter diameter (d), panjang ukur (L0, Lu), dan beban (Py, Pu) harus bernilai lebih besar dari 0.',
-          ],
-          isError: true,
-          status: 'Input tidak valid',
-          conclusion: 'Input tidak valid. Nilai diameter, panjang ukur, dan beban penarikan baja harus lebih besar dari 0.',
-          summaryString: 'Input tidak valid (<= 0)',
-        }
-      }
-
-      // Faktor konversi panjang ke mm (Base Unit: mm)
-      const lenFactor = { mm: 1, cm: 10, m: 1000 }
-      const dFactor = lenFactor[dUnit] || 1
-      const l0Factor = lenFactor[l0Unit] || 1
-      const luFactor = lenFactor[luUnit] || 1
-
-      // Faktor konversi gaya ke N (Base Unit: N)
-      const forceFactor = { N: 1, kN: 1000 }
-      const pyFactor = forceFactor[pyUnit] || 1000
-      const puFactor = forceFactor[puUnit] || 1000
-
-      const dMm = dRaw * dFactor
-      const l0Mm = l0Raw * l0Factor
-      const luMm = luRaw * luFactor
-      const pyN = pyRaw * pyFactor
-      const puN = puRaw * puFactor
-
-      // Validasi fisik: Panjang setelah putus (Lu) harus lebih besar dari panjang awal (L0)
-      if (luMm <= l0Mm) {
-        return {
-          results: [
-            { label: 'Tegangan Leleh (fy)', value: '-', unit: 'MPa', highlight: true },
-            { label: 'Tegangan Maks (fu)', value: '-', unit: 'MPa', highlight: true },
-            { label: 'Regangan (ε)', value: '-', unit: '' },
-            { label: 'Modulus Elastisitas (E)', value: '-', unit: 'MPa', highlight: true },
-          ],
-          formulaSteps: [
-            `Validasi Panjang Putus Gagal: Lu (${luRaw} ${luUnit} = ${luMm.toFixed(2)} mm) harus lebih besar dari L0 (${l0Raw} ${l0Unit} = ${l0Mm.toFixed(2)} mm).`,
-          ],
-          isError: true,
-          status: 'Input tidak valid',
-          conclusion: 'Panjang ukur setelah putus (Lu) harus lebih besar dari panjang awal (L0). Batang baja mengalami pertambahan panjang saat ditarik hingga putus.',
-          summaryString: 'Lu <= L0 (Tidak Valid)',
-        }
-      }
-
-      // Validasi fisik: Beban putus Pu harus lebih besar atau sama dengan beban leleh Py
-      if (puN < pyN) {
-        return {
-          results: [
-            { label: 'Tegangan Leleh (fy)', value: '-', unit: 'MPa', highlight: true },
-            { label: 'Tegangan Maks (fu)', value: '-', unit: 'MPa', highlight: true },
-            { label: 'Regangan (ε)', value: '-', unit: '' },
-            { label: 'Modulus Elastisitas (E)', value: '-', unit: 'MPa', highlight: true },
-          ],
-          formulaSteps: [
-            `Validasi Beban Gagal: Beban maksimum Pu (${puRaw} ${puUnit} = ${puN.toFixed(0)} N) tidak boleh lebih kecil dari beban leleh Py (${pyRaw} ${pyUnit} = ${pyN.toFixed(0)} N).`,
-          ],
-          isError: true,
-          status: 'Input tidak valid',
-          conclusion: 'Beban tarik maksimum (Pu) tidak boleh lebih kecil dari beban leleh (Py).',
-          summaryString: 'Pu < Py (Tidak Valid)',
-        }
-      }
-
-      // 1. Luas Penampang A0 dalam mm² menggunakan diameter terkonversi ke mm: A0 = (π/4) * d_mm²
-      const a0Mm2 = (Math.PI / 4) * Math.pow(dMm, 2)
-
-      // 2. Tegangan Leleh (fy): Py_N / A0_mm²
-      const fyMpa = pyN / a0Mm2
-      const fyPa = fyMpa * 1000000
-
-      // 3. Tegangan Maksimum (fu): Pu_N / A0_mm²
-      const fuMpa = puN / a0Mm2
-      const fuPa = fuMpa * 1000000
-
-      // 4. Regangan (ε): (Lu_mm - L0_mm) / L0_mm
-      const strain = (luMm - l0Mm) / l0Mm
-      const strainPct = strain * 100
-
-      // 5. Modulus Elastisitas (E): fu / ε
-      const eMpa = strain > 0 ? fuMpa / strain : 0
-      const ePa = eMpa * 1000000
-
-      const ratio = fyMpa > 0 ? fuMpa / fyMpa : 0
-
-      // Spesifikasi SNI 2052:2017 berdasarkan pilihan mutu baja
       const STANDAR_MUTU = {
         'BjTS 280': { minFy: 280, minFu: 350, minRatio: 1.25, minElongasi: 12.0 },
         'BjTS 420': { minFy: 420, minFu: 550, minRatio: 1.25, minElongasi: 14.0 },
@@ -3986,87 +4397,242 @@ export const calculatorRegistry = {
 
       const spec = STANDAR_MUTU[mutu] || STANDAR_MUTU['BjTS 420']
 
-      const isFyOk = fyMpa >= spec.minFy
-      const isFuOk = fuMpa >= spec.minFu
-      const isRatioOk = ratio >= spec.minRatio
-      const isElongasiOk = strainPct >= spec.minElongasi
+      const rawSamples = Array.isArray(inputs.samples) && inputs.samples.length > 0
+        ? inputs.samples
+        : [{
+            id: 1,
+            name: 'Benda Uji I',
+            diameter: inputs.diameter !== undefined ? inputs.diameter : 16.0,
+            pjgAwal: inputs.pjgAwal !== undefined ? inputs.pjgAwal : 80.0,
+            pjgPutus: inputs.pjgPutus !== undefined ? inputs.pjgPutus : 94.0,
+            bebanLeleh: inputs.bebanLeleh !== undefined ? inputs.bebanLeleh : 88.0,
+            bebanPutus: inputs.bebanPutus !== undefined ? inputs.bebanPutus : 118.0,
+          }]
 
-      let status
-      let conclusion
-      if (!isFyOk || !isFuOk) {
-        status = 'Tidak Memenuhi Standar'
-        const failReasons = []
-        if (!isFyOk) failReasons.push(`fy = ${fyMpa.toFixed(1)} MPa < ${spec.minFy} MPa`)
-        if (!isFuOk) failReasons.push(`fu = ${fuMpa.toFixed(1)} MPa < ${spec.minFu} MPa`)
-        conclusion = `Baja tulangan TIDAK MEMENUHI standar mutu ${mutu} sesuai SNI 2052:2017. Parameter di bawah batas minimum: ${failReasons.join(' dan ')}.`
-      } else if (!isRatioOk || !isElongasiOk) {
-        status = 'Perlu Evaluasi'
-        const evalReasons = []
-        if (!isRatioOk) evalReasons.push(`rasio fu/fy = ${ratio.toFixed(2)} < ${spec.minRatio} (syarat daktilitas gempa)`)
-        if (!isElongasiOk) evalReasons.push(`elongasi = ${strainPct.toFixed(2)}% < ${spec.minElongasi}%`)
-        conclusion = `Kuat leleh dan tarik memenuhi mutu ${mutu}, namun ${evalReasons.join(' dan ')}. Disarankan evaluasi penggunaan khusus penahan gempa (SNI 2052:2017).`
-      } else {
-        status = 'Valid'
-        conclusion = `Baja tulangan MEMENUHI kualifikasi mutu ${mutu} (fy = ${fyMpa.toFixed(1)} MPa ≥ ${spec.minFy} MPa, fu = ${fuMpa.toFixed(1)} MPa ≥ ${spec.minFu} MPa, rasio fu/fy = ${ratio.toFixed(2)} ≥ 1.25, elongasi = ${strainPct.toFixed(2)}% ≥ ${spec.minElongasi}%). Lolos seluruh syarat mekanis & daktilitas gempa SNI 2052:2017.`
+      const validSamples = []
+      const errors = []
+
+      rawSamples.forEach((s, idx) => {
+        const idLabel = s.name || `Benda Uji ${idx + 1}`
+        const d = Number(s.diameter ?? 0)
+        const l0 = Number(s.pjgAwal ?? 0)
+        const lu = Number(s.pjgPutus ?? 0)
+        const py = Number(s.bebanLeleh ?? 0)
+        const pu = Number(s.bebanPutus ?? 0)
+
+        if (isNaN(d) || isNaN(l0) || isNaN(lu) || isNaN(py) || isNaN(pu) || d <= 0 || l0 <= 0 || lu <= 0 || py <= 0 || pu <= 0) {
+          errors.push(`${idLabel}: Semua nilai dimensi dan beban penarikan harus lebih besar dari 0.`)
+          return
+        }
+        if (lu <= l0) {
+          errors.push(`${idLabel}: Panjang setelah putus (Lu = ${lu} mm) harus lebih besar dari panjang awal (L0 = ${l0} mm).`)
+          return
+        }
+        if (pu < py) {
+          errors.push(`${idLabel}: Beban tarik maksimum Pu (${pu} kN) tidak boleh lebih kecil dari beban leleh Py (${py} kN).`)
+          return
+        }
+
+        const a0 = (Math.PI / 4) * d * d
+        const fy = (py * 1000) / a0
+        const fu = (pu * 1000) / a0
+        const strain = (lu - l0) / l0
+        const elongasi = strain * 100
+        const ratio = fy > 0 ? fu / fy : 0
+        const eMpa = strain > 0 ? fu / strain : 0
+
+        validSamples.push({
+          id: s.id || idx + 1,
+          name: idLabel,
+          diameter: d,
+          a0,
+          pjgAwal: l0,
+          pjgPutus: lu,
+          bebanLeleh: py,
+          bebanPutus: pu,
+          fy,
+          fu,
+          strain,
+          elongasi,
+          ratio,
+          eMpa,
+        })
+      })
+
+      if (validSamples.length === 0) {
+        return {
+          results: [
+            { label: 'Tegangan Leleh Rata-rata (fy)', value: '-', unit: 'MPa', highlight: true },
+            { label: 'Tegangan Maks Rata-rata (fu)', value: '-', unit: 'MPa', highlight: true },
+            { label: 'Rasio fu / fy Rata-rata', value: '-', unit: '' },
+            { label: 'Elongasi Rata-rata (ε)', value: '-', unit: '%', highlight: true },
+          ],
+          formulaSteps: errors.length > 0 ? errors : ['Masukkan parameter pengujian tarik baja yang valid.'],
+          isError: true,
+          status: 'Input Tidak Wajar / Cek Kembali Data',
+          verdictClass: 'error',
+          conclusion: errors.join(' ') || 'Nilai diameter, panjang ukur, dan beban penarikan harus lebih besar dari 0.',
+          summaryString: 'Input Parameter Tidak Valid',
+        }
       }
 
-      // Langkah perhitungan dinamis dengan proses konversi satuan yang dipilih
-      const dStep = dUnit !== 'mm'
-        ? `Luas (A0) = π/4 * (${dRaw} ${dUnit} * ${dFactor})² = π/4 * (${dMm.toFixed(2)} mm)² = ${a0Mm2.toFixed(2)} mm²`
-        : `Luas (A0) = π/4 * (${dMm} mm)² = ${a0Mm2.toFixed(2)} mm²`
+      const n = validSamples.length
+      const avgD = validSamples.reduce((sum, r) => sum + r.diameter, 0) / n
+      const avgA0 = validSamples.reduce((sum, r) => sum + r.a0, 0) / n
+      const avgL0 = validSamples.reduce((sum, r) => sum + r.pjgAwal, 0) / n
+      const avgLu = validSamples.reduce((sum, r) => sum + r.pjgPutus, 0) / n
+      const avgPy = validSamples.reduce((sum, r) => sum + r.bebanLeleh, 0) / n
+      const avgPu = validSamples.reduce((sum, r) => sum + r.bebanPutus, 0) / n
+      const avgFy = validSamples.reduce((sum, r) => sum + r.fy, 0) / n
+      const avgFu = validSamples.reduce((sum, r) => sum + r.fu, 0) / n
+      const avgRatio = validSamples.reduce((sum, r) => sum + r.ratio, 0) / n
+      const avgElongasi = validSamples.reduce((sum, r) => sum + r.elongasi, 0) / n
+      const avgE = validSamples.reduce((sum, r) => sum + r.eMpa, 0) / n
 
-      const strainStep = (l0Unit !== 'mm' || luUnit !== 'mm')
-        ? `Regangan (ε) = (Lu_mm - L0_mm) / L0_mm = (${luRaw} ${luUnit} * ${luFactor} - ${l0Raw} ${l0Unit} * ${l0Factor}) / (${l0Raw} ${l0Unit} * ${l0Factor}) = (${luMm.toFixed(2)} mm - ${l0Mm.toFixed(2)} mm) / ${l0Mm.toFixed(2)} mm = ${strain.toFixed(4)} (atau ${strainPct.toFixed(1)}%)`
-        : `Regangan (ε) = (Lu_mm - L0_mm) / L0_mm = (${luMm} mm - ${l0Mm} mm) / ${l0Mm} mm = ${strain.toFixed(4)} (atau ${strainPct.toFixed(1)}%)`
+      const isFyOk = avgFy >= spec.minFy
+      const isFuOk = avgFu >= spec.minFu
+      const isRatioOk = avgRatio >= spec.minRatio
+      const isElongasiOk = avgElongasi >= spec.minElongasi
 
-      const fyStep = pyUnit === 'kN'
-        ? `fy = Py / A0 = (${pyRaw} kN * 1000) / ${a0Mm2.toFixed(2)} mm² = ${pyN.toFixed(0)} N / ${a0Mm2.toFixed(2)} mm² = ${fyMpa.toFixed(1)} MPa (atau ${Math.round(fyPa).toLocaleString('en-US')} N/m²)`
-        : `fy = Py / A0 = ${pyN.toFixed(0)} N / ${a0Mm2.toFixed(2)} mm² = ${fyMpa.toFixed(1)} MPa (atau ${Math.round(fyPa).toLocaleString('en-US')} N/m²)`
+      let status
+      let verdictClass
+      let conclusion
 
-      const fuStep = puUnit === 'kN'
-        ? `fu = Pu / A0 = (${puRaw} kN * 1000) / ${a0Mm2.toFixed(2)} mm² = ${puN.toFixed(0)} N / ${a0Mm2.toFixed(2)} mm² = ${fuMpa.toFixed(1)} MPa (atau ${Math.round(fuPa).toLocaleString('en-US')} N/m²)`
-        : `fu = Pu / A0 = ${puN.toFixed(0)} N / ${a0Mm2.toFixed(2)} mm² = ${fuMpa.toFixed(1)} MPa (atau ${Math.round(fuPa).toLocaleString('en-US')} N/m²)`
+      if (!isFyOk || !isFuOk) {
+        status = 'Tidak Memenuhi Standar'
+        verdictClass = 'error'
+        const failReasons = []
+        if (!isFyOk) failReasons.push(`fy = ${avgFy.toFixed(1)} MPa < ${spec.minFy} MPa`)
+        if (!isFuOk) failReasons.push(`fu = ${avgFu.toFixed(1)} MPa < ${spec.minFu} MPa`)
+        conclusion = `Baja tulangan TIDAK MEMENUHI standar mutu ${mutu} sesuai SNI 2052:2017. Rata-rata di bawah batas minimum: ${failReasons.join(' dan ')}.`
+      } else if (!isRatioOk || !isElongasiOk) {
+        status = 'Perlu Evaluasi'
+        verdictClass = 'warning'
+        const evalReasons = []
+        if (!isRatioOk) evalReasons.push(`rasio fu/fy = ${avgRatio.toFixed(2)} < ${spec.minRatio} (daktilitas gempa)`)
+        if (!isElongasiOk) evalReasons.push(`elongasi = ${avgElongasi.toFixed(2)}% < ${spec.minElongasi}%`)
+        conclusion = `Kuat leleh dan tarik rata-rata memenuhi mutu ${mutu}, namun ${evalReasons.join(' dan ')}. Disarankan evaluasi khusus penggunaan penahan gempa (SNI 2052:2017).`
+      } else {
+        status = 'Valid'
+        verdictClass = 'valid'
+        conclusion = `Baja tulangan MEMENUHI seluruh kualifikasi mutu ${mutu} (Rata-rata fy = ${avgFy.toFixed(1)} MPa ≥ ${spec.minFy} MPa, fu = ${avgFu.toFixed(1)} MPa ≥ ${spec.minFu} MPa, rasio fu/fy = ${avgRatio.toFixed(2)} ≥ 1.25, elongasi = ${avgElongasi.toFixed(2)}% ≥ ${spec.minElongasi}%). Lolos seluruh syarat mekanis & daktilitas gempa SNI 2052:2017.`
+      }
 
-      const eStep = `Modulus Elastisitas (E) = fu / ε = ${fuMpa.toFixed(1)} MPa / ${strain.toFixed(4)} = ${eMpa.toFixed(1)} MPa (atau ${Math.round(ePa).toLocaleString('en-US')} N/m²)`
+      const formulaSteps = [
+        `Target Mutu Acuan: ${mutu} (Syarat SNI 2052: fy ≥ ${spec.minFy} MPa, fu ≥ ${spec.minFu} MPa, fu/fy ≥ ${spec.minRatio}, elongasi ≥ ${spec.minElongasi}%)`,
+        `Jumlah Benda Uji Aktif = ${n} Sampel`,
+        ...validSamples.map(r =>
+          `${r.name}: A0 = π/4 × ${r.diameter.toFixed(1)}² = ${r.a0.toFixed(2)} mm² | fy = (${r.bebanLeleh.toFixed(1)} × 1000) / ${r.a0.toFixed(2)} = ${r.fy.toFixed(1)} MPa | fu = ${r.fu.toFixed(1)} MPa | fu/fy = ${r.ratio.toFixed(2)} | ε = ${r.elongasi.toFixed(2)}% | E = ${r.eMpa.toFixed(0)} MPa`
+        ),
+        `Rata-rata Tegangan Leleh (fy) = (${validSamples.map(r => r.fy.toFixed(1)).join(' + ')}) / ${n} = ${avgFy.toFixed(1)} MPa`,
+        `Rata-rata Tegangan Maksimum (fu) = (${validSamples.map(r => r.fu.toFixed(1)).join(' + ')}) / ${n} = ${avgFu.toFixed(1)} MPa`,
+        `Rata-rata Rasio Kuat Tarik / Leleh (fu/fy) = ${avgRatio.toFixed(2)} (Syarat Daktilitas Gempa: ≥ ${spec.minRatio})`,
+        `Rata-rata Regangan / Elongasi (ε) = ${avgElongasi.toFixed(2)}% (Syarat Minimum: ≥ ${spec.minElongasi}%)`,
+        `Rata-rata Modulus Elastisitas (E) = ${avgE.toFixed(0)} MPa`,
+      ]
+
+      const recapTable = {
+        title: `Tabel Rekapitulasi Pengujian Kuat Tarik Baja Tulangan (Mutu ${mutu}, SNI 2052:2017)`,
+        headers: ['Parameter Pengujian', 'Rumus Acuan', 'Satuan', ...validSamples.map(s => s.name), 'Rata-rata'],
+        rows: [
+          {
+            label: 'Diameter Nominal (d)',
+            equation: 'd',
+            unit: 'mm',
+            values: validSamples.map(s => s.diameter.toFixed(1)),
+            average: avgD.toFixed(1),
+          },
+          {
+            label: 'Luas Penampang Awal (A0)',
+            equation: 'π/4 × d²',
+            unit: 'mm²',
+            values: validSamples.map(s => s.a0.toFixed(2)),
+            average: avgA0.toFixed(2),
+          },
+          {
+            label: 'Panjang Ukur Awal (L0)',
+            equation: 'L0',
+            unit: 'mm',
+            values: validSamples.map(s => s.pjgAwal.toFixed(1)),
+            average: avgL0.toFixed(1),
+          },
+          {
+            label: 'Panjang Setelah Putus (Lu)',
+            equation: 'Lu',
+            unit: 'mm',
+            values: validSamples.map(s => s.pjgPutus.toFixed(1)),
+            average: avgLu.toFixed(1),
+          },
+          {
+            label: 'Beban Titik Leleh (Py)',
+            equation: 'Py',
+            unit: 'kN',
+            values: validSamples.map(s => s.bebanLeleh.toFixed(1)),
+            average: avgPy.toFixed(1),
+          },
+          {
+            label: 'Beban Tarik Maksimum (Pu)',
+            equation: 'Pu',
+            unit: 'kN',
+            values: validSamples.map(s => s.bebanPutus.toFixed(1)),
+            average: avgPu.toFixed(1),
+          },
+          {
+            label: 'Tegangan Leleh (fy)',
+            equation: 'Py / A0',
+            unit: 'MPa',
+            values: validSamples.map(s => s.fy.toFixed(1)),
+            average: avgFy.toFixed(1),
+            highlight: true,
+          },
+          {
+            label: 'Tegangan Tarik Maksimum (fu)',
+            equation: 'Pu / A0',
+            unit: 'MPa',
+            values: validSamples.map(s => s.fu.toFixed(1)),
+            average: avgFu.toFixed(1),
+            highlight: true,
+          },
+          {
+            label: 'Rasio Kuat Tarik / Leleh',
+            equation: 'fu / fy',
+            unit: '-',
+            values: validSamples.map(s => s.ratio.toFixed(2)),
+            average: avgRatio.toFixed(2),
+            highlight: true,
+          },
+          {
+            label: 'Regangan / Elongasi (ε)',
+            equation: '((Lu - L0) / L0) × 100%',
+            unit: '%',
+            values: validSamples.map(s => s.elongasi.toFixed(2) + '%'),
+            average: avgElongasi.toFixed(2) + '%',
+            highlight: true,
+          },
+          {
+            label: 'Modulus Elastisitas (E)',
+            equation: 'fu / ε',
+            unit: 'MPa',
+            values: validSamples.map(s => s.eMpa.toFixed(0)),
+            average: avgE.toFixed(0),
+          },
+        ],
+      }
 
       return {
         results: [
-          { 
-            label: 'Tegangan Leleh (fy)', 
-            value: `${fyMpa.toFixed(1)} MPa`, 
-            unit: `(${Math.round(fyPa).toLocaleString('en-US')} N/m²)`, 
-            highlight: true 
-          },
-          { 
-            label: 'Tegangan Maks (fu)', 
-            value: `${fuMpa.toFixed(1)} MPa`, 
-            unit: `(${Math.round(fuPa).toLocaleString('en-US')} N/m²)`, 
-            highlight: true 
-          },
-          { 
-            label: 'Regangan (ε)', 
-            value: `${strain.toFixed(3)}`, 
-            unit: `(${strainPct.toFixed(1)}%)` 
-          },
-          { 
-            label: 'Modulus Elastisitas (E)', 
-            value: `${eMpa.toFixed(1)} MPa`, 
-            unit: `(${Math.round(ePa).toLocaleString('en-US')} N/m²)`, 
-            highlight: true 
-          },
+          { label: 'Tegangan Leleh Rata-rata (fy)', value: avgFy.toFixed(1), unit: 'MPa', highlight: true, sub: `Syarat: ≥ ${spec.minFy} MPa` },
+          { label: 'Tegangan Tarik Rata-rata (fu)', value: avgFu.toFixed(1), unit: 'MPa', highlight: true, sub: `Syarat: ≥ ${spec.minFu} MPa` },
+          { label: 'Rasio Kuat (fu / fy)', value: avgRatio.toFixed(2), unit: '', sub: `Syarat: ≥ ${spec.minRatio}` },
+          { label: 'Regangan / Elongasi (ε)', value: avgElongasi.toFixed(2), unit: '%', highlight: true, sub: `Syarat: ≥ ${spec.minElongasi}%` },
         ],
-        formulaSteps: [
-          `Target Mutu: ${mutu} (Syarat SNI 2052: fy ≥ ${spec.minFy} MPa, fu ≥ ${spec.minFu} MPa, fu/fy ≥ ${spec.minRatio}, ε ≥ ${spec.minElongasi}%)`,
-          dStep,
-          fyStep,
-          fuStep,
-          strainStep,
-          eStep,
-          `Rasio fu / fy = ${fuMpa.toFixed(1)} / ${fyMpa.toFixed(1)} = ${ratio.toFixed(2)} (Syarat Daktilitas Gempa: ≥ ${spec.minRatio})`,
-        ],
+        formulaSteps,
+        recapTable,
+        isError: false,
         status,
+        verdictClass,
         conclusion,
-        summaryString: `fy = ${fyMpa.toFixed(0)} MPa, fu = ${fuMpa.toFixed(0)} MPa, E = ${eMpa.toFixed(0)} MPa (${mutu} ${status})`,
+        summaryString: `fy = ${avgFy.toFixed(0)} MPa, fu = ${avgFu.toFixed(0)} MPa, fu/fy = ${avgRatio.toFixed(2)} (${mutu} ${status})`,
       }
     },
   },

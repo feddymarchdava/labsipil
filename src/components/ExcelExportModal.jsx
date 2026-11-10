@@ -1,41 +1,92 @@
-import React, { useState, useMemo } from 'react'
-import { FileSpreadsheet, X, Check, Download, CheckSquare, Square, Building2, User, Calendar, Layers, Sparkles, CheckCircle2, FileCheck } from 'lucide-react'
-import { exportModuleWithTemplate, TEMPLATE_REGISTRY } from '../utils/excelExporter'
+import React, { useState, useMemo, useEffect } from 'react'
+import { FileSpreadsheet, X, Check, Download, CheckSquare, Calendar, Layers, CheckCircle2, AlertTriangle } from 'lucide-react'
+import { exportModuleWithTemplate } from '../utils/excelExporter'
 
 export default function ExcelExportModal({
   isOpen,
   onClose,
-  currentTestConfig,
-  currentInputs,
-  currentCalcOutput,
+  savedTests = [],
   calculatorRegistry = {},
   allModuleInputs = {},
 }) {
   if (!isOpen) return null
 
-  // State Pilihan Modul (Default ke modul aktif)
-  const [selectedModuleId, setSelectedModuleId] = useState(currentTestConfig?.id || 'bb-1-1')
+  const isDashboardEmpty = !Array.isArray(savedTests) || savedTests.length === 0
 
-  // Hitung konfigurasi modul yang sedang dipilih
+  // State Pilihan Rekaman Uji dari Dashboard Utama
+  const [selectedRecordId, setSelectedRecordId] = useState(() => {
+    return isDashboardEmpty ? '' : savedTests[0]?.id || ''
+  })
+
+  // Sinkronkan pilihan saat savedTests berubah
+  useEffect(() => {
+    if (!isDashboardEmpty) {
+      if (!savedTests.some((t) => t.id === selectedRecordId)) {
+        setSelectedRecordId(savedTests[0]?.id || '')
+      }
+    } else {
+      setSelectedRecordId('')
+    }
+  }, [savedTests, isDashboardEmpty, selectedRecordId])
+
+  // Objek rekaman pengujian yang sedang dipilih dari Dashboard Utama
+  const selectedRecord = useMemo(() => {
+    if (isDashboardEmpty) return null
+    return savedTests.find((r) => r.id === selectedRecordId) || savedTests[0]
+  }, [isDashboardEmpty, savedTests, selectedRecordId])
+
+  // Cari konfigurasi modul pengujian di registry atau fallback sintetis
   const activeConfig = useMemo(() => {
-    if (selectedModuleId === currentTestConfig?.id) {
-      return currentTestConfig
+    if (!selectedRecord) return null
+    const tId = selectedRecord.moduleId || selectedRecord.testId
+    if (tId && calculatorRegistry[tId]) {
+      return calculatorRegistry[tId]
     }
-    return calculatorRegistry[selectedModuleId] || currentTestConfig
-  }, [selectedModuleId, currentTestConfig, calculatorRegistry])
 
-  // Hitung input modul yang sedang dipilih
+    // Cari kesamaan kode / id / nama di registry
+    const matchKey = Object.keys(calculatorRegistry || {}).find((k) => {
+      const reg = calculatorRegistry[k]
+      const prefix = reg.code ? reg.code.split('-')[0].toUpperCase() : ''
+      const recPrefix = (selectedRecord.id || '').split('-')[0].toUpperCase()
+      return (
+        reg.id === selectedRecord.id ||
+        reg.code === selectedRecord.baseCode ||
+        (recPrefix && prefix && prefix === recPrefix) ||
+        reg.name.toLowerCase() === (selectedRecord.name || '').toLowerCase()
+      )
+    })
+
+    if (matchKey && calculatorRegistry[matchKey]) {
+      return calculatorRegistry[matchKey]
+    }
+
+    return {
+      id: tId || selectedRecord.id,
+      code: selectedRecord.baseCode || selectedRecord.id,
+      name: selectedRecord.name,
+      standard: selectedRecord.standard,
+      category: selectedRecord.category,
+      lab: selectedRecord.lab,
+      fields: [],
+      initialInputs: selectedRecord.inputs || {},
+    }
+  }, [selectedRecord, calculatorRegistry])
+
+  // Input teknis modul
   const activeInputs = useMemo(() => {
-    if (selectedModuleId === currentTestConfig?.id) {
-      return currentInputs || currentTestConfig?.initialInputs || {}
+    if (!selectedRecord) return {}
+    if (selectedRecord.inputs && Object.keys(selectedRecord.inputs).length > 0) {
+      return selectedRecord.inputs
     }
-    return allModuleInputs[selectedModuleId] || activeConfig?.initialInputs || {}
-  }, [selectedModuleId, currentTestConfig, currentInputs, allModuleInputs, activeConfig])
+    const tId = selectedRecord.moduleId || selectedRecord.testId
+    return allModuleInputs[tId] || activeConfig?.initialInputs || {}
+  }, [selectedRecord, allModuleInputs, activeConfig])
 
-  // Hitung output kalkulasi modul yang sedang dipilih
+  // Hasil perhitungan modul
   const activeCalcOutput = useMemo(() => {
-    if (selectedModuleId === currentTestConfig?.id && currentCalcOutput) {
-      return currentCalcOutput
+    if (!selectedRecord) return {}
+    if (selectedRecord.calcOutput && Object.keys(selectedRecord.calcOutput).length > 0) {
+      return selectedRecord.calcOutput
     }
     try {
       if (typeof activeConfig?.calculate === 'function') {
@@ -44,21 +95,41 @@ export default function ExcelExportModal({
     } catch (e) {
       console.warn('Gagal menghitung output modul:', e)
     }
-    return {}
-  }, [selectedModuleId, currentTestConfig, currentCalcOutput, activeConfig, activeInputs])
+    return {
+      conclusion: selectedRecord.notes || selectedRecord.summary || '',
+      status: selectedRecord.status || 'Valid',
+      summaryString: selectedRecord.summary || '',
+    }
+  }, [selectedRecord, activeConfig, activeInputs])
 
-  // Daftar sampel yang tersedia pada modul terpilih
+  // Daftar sampel yang tersedia pada data pengujian terpilih
   const availableSamples = useMemo(() => {
+    if (!selectedRecord) return null
+    if (Array.isArray(selectedRecord.samples) && selectedRecord.samples.length > 0) {
+      return selectedRecord.samples
+    }
     if (Array.isArray(activeInputs?.samples) && activeInputs.samples.length > 0) {
       return activeInputs.samples
     }
     if (Array.isArray(activeCalcOutput?.samples) && activeCalcOutput.samples.length > 0) {
       return activeCalcOutput.samples
     }
+    if (Array.isArray(activeInputs?.sieves) && activeInputs.sieves.length > 0) {
+      return activeInputs.sieves.map((s, idx) => ({
+        id: s.id ?? idx + 1,
+        name: s.label || `Ayakan #${idx + 1}`,
+      }))
+    }
+    if (Array.isArray(activeInputs?.proctorSamples) && activeInputs.proctorSamples.length > 0) {
+      return activeInputs.proctorSamples.map((s, idx) => ({
+        id: s.id ?? idx + 1,
+        name: s.name || `Titik #${idx + 1}`,
+      }))
+    }
     return null
-  }, [activeInputs, activeCalcOutput])
+  }, [selectedRecord, activeInputs, activeCalcOutput])
 
-  // State Sampel Terpilih (Default: pilih semua sampel yang ada)
+  // State Sampel Terpilih
   const [selectedSampleIds, setSelectedSampleIds] = useState(() => {
     if (availableSamples && availableSamples.length > 0) {
       return availableSamples.map((s, idx) => s.id ?? idx + 1)
@@ -66,34 +137,36 @@ export default function ExcelExportModal({
     return []
   })
 
-  // Update selectedSampleIds saat berganti modul
-  React.useEffect(() => {
+  // Sinkronkan checklist sampel saat berpindah pengujian
+  useEffect(() => {
     if (availableSamples && availableSamples.length > 0) {
       setSelectedSampleIds(availableSamples.map((s, idx) => s.id ?? idx + 1))
     } else {
       setSelectedSampleIds([])
     }
-  }, [selectedModuleId, availableSamples])
+  }, [selectedRecordId, availableSamples])
 
-  // State Metadata Blangko Laboratorium
+  // Metadata Blangko Laboratorium
   const [metadata, setMetadata] = useState({
-    proyek: 'Praktikum Laboratorium Teknik Sipil',
-    lokasi: 'Laboratorium Rekayasa Bahan & Geoteknik',
-    diujiOleh: 'Tim Mahasiswa / Praktikan',
-    diperiksaOleh: 'Asisten Laboratorium',
     tanggal: new Date().toISOString().split('T')[0],
-    sampelDesc: activeConfig?.category || 'Contoh Bahan Pengujian Laboratorium',
+    sampelDesc: '',
   })
 
-  // State Opsi Tambahan
+  useEffect(() => {
+    if (selectedRecord) {
+      const cat = activeConfig?.category || selectedRecord.category || ''
+      const nm = activeConfig?.name || selectedRecord.name || ''
+      setMetadata((prev) => ({
+        ...prev,
+        sampelDesc: cat ? `${cat} • ${nm}` : nm,
+      }))
+    }
+  }, [selectedRecord, activeConfig])
+
+  // Opsi Formula Excel
   const [includeFormulas, setIncludeFormulas] = useState(true)
-  const [includeSignature, setIncludeSignature] = useState(true)
-  const [useMasterTemplate, setUseMasterTemplate] = useState(true)
 
-  // Cek ketersediaan master template pada modul terpilih
-  const templateInfo = useMemo(() => TEMPLATE_REGISTRY[selectedModuleId], [selectedModuleId])
-
-  // State Loading / Status Download
+  // Status Download
   const [isExporting, setIsExporting] = useState(false)
   const [exportSuccess, setExportSuccess] = useState(false)
 
@@ -120,8 +193,13 @@ export default function ExcelExportModal({
 
   // Eksekusi Download Excel
   const handleExecuteExport = async () => {
+    if (isDashboardEmpty || !selectedRecord || !activeConfig) {
+      alert('Belum ada data pengujian di Dashboard Utama untuk diekspor.')
+      return
+    }
+
     if (availableSamples && availableSamples.length > 0 && selectedSampleIds.length === 0) {
-      alert('Pilih minimal satu sampel pengujian untuk disertakan dalam blangko Excel.')
+      alert('Pilih minimal satu sampel pengujian untuk disertakan dalam file Excel.')
       return
     }
 
@@ -135,8 +213,6 @@ export default function ExcelExportModal({
         selectedSampleIds,
         options: {
           includeFormulas,
-          includeSignature,
-          useGeneratedFallback: !useMasterTemplate,
         },
       })
       setExportSuccess(true)
@@ -152,313 +228,543 @@ export default function ExcelExportModal({
     }
   }
 
-  // Daftar Modul yang Terorganisir untuk Dropdown
-  const registryList = useMemo(() => {
-    return Object.values(calculatorRegistry || {}).map((item) => ({
-      id: item.id,
-      name: item.name,
-      code: item.code,
-      standard: item.standard,
-      category: item.category,
-      lab: item.lab,
-    }))
-  }, [calculatorRegistry])
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 backdrop-blur-sm animate-fadeIn">
-      <div 
-        className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-2xl max-h-[92vh] flex flex-col overflow-hidden animate-scaleUp"
+    <div
+      className="excel-export-modal-overlay"
+      style={{
+        position: 'fixed',
+        inset: 0,
+        background: 'rgba(15, 23, 42, 0.55)',
+        backdropFilter: 'blur(5px)',
+        WebkitBackdropFilter: 'blur(5px)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 9999,
+        padding: '16px',
+        boxSizing: 'border-box',
+      }}
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose()
+      }}
+    >
+      <div
+        className="excel-export-modal-card"
+        style={{
+          background: '#FFFFFF',
+          borderRadius: '16px',
+          maxWidth: '540px',
+          width: '100%',
+          maxHeight: '90vh',
+          display: 'flex',
+          flexDirection: 'column',
+          overflow: 'hidden',
+          boxShadow: '0 25px 50px -12px rgba(15, 23, 42, 0.25), 0 0 0 1px rgba(226, 232, 240, 0.8)',
+          boxSizing: 'border-box',
+        }}
         role="dialog"
         aria-modal="true"
         aria-labelledby="modal-export-title"
       >
         {/* Header Modal */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 bg-gradient-to-r from-emerald-50/70 to-teal-50/40">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center shadow-md shadow-emerald-600/20 shrink-0">
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: '18px 24px',
+            borderBottom: '1px solid #E2E8F0',
+            background: 'linear-gradient(135deg, #F0FDF4 0%, #ECFDF5 50%, #F8FAFC 100%)',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <div
+              style={{
+                width: '42px',
+                height: '42px',
+                borderRadius: '12px',
+                background: '#16A34A',
+                color: '#FFFFFF',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                boxShadow: '0 4px 10px rgba(22, 163, 74, 0.25)',
+                flexShrink: 0,
+              }}
+            >
               <FileSpreadsheet size={22} strokeWidth={2.2} />
             </div>
             <div>
-              <h3 id="modal-export-title" className="text-base sm:text-lg font-bold text-slate-900 leading-tight">
+              <h3
+                id="modal-export-title"
+                style={{
+                  margin: 0,
+                  fontSize: '16px',
+                  fontWeight: '700',
+                  color: '#0F172A',
+                  lineHeight: 1.3,
+                }}
+              >
                 Export Blangko Laboratorium ke Excel
               </h3>
-              <p className="text-xs text-slate-500 font-medium">
-                Format tabel standar SNI/ASTM, border grid, dan rumus formula sel otomatis (.xlsx)
+              <p
+                style={{
+                  margin: '3px 0 0',
+                  fontSize: '12px',
+                  color: '#64748B',
+                  fontWeight: '500',
+                }}
+              >
+                Format tabel standar SNI/ASTM, border grid, dan formula sel (.xlsx)
               </p>
             </div>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="w-8 h-8 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-800 flex items-center justify-center transition-colors"
             aria-label="Tutup Dialog"
+            style={{
+              width: '32px',
+              height: '32px',
+              borderRadius: '8px',
+              background: '#F1F5F9',
+              border: 'none',
+              color: '#64748B',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              transition: 'background 0.15s ease',
+            }}
+            onMouseOver={(e) => (e.currentTarget.style.background = '#E2E8F0')}
+            onMouseOut={(e) => (e.currentTarget.style.background = '#F1F5F9')}
           >
             <X size={18} />
           </button>
         </div>
 
         {/* Body Modal (Scrollable) */}
-        <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4 text-slate-700 text-xs sm:text-sm">
-          
-          {/* 1. Pemilihan Modul Pengujian */}
-          <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200/80 space-y-2">
-            <div className="flex items-center justify-between">
-              <label htmlFor="select-module" className="font-bold text-slate-800 flex items-center gap-1.5">
-                <Layers size={15} className="text-blue-600" />
-                <span>Pilih Modul Pengujian :</span>
-              </label>
-              {activeConfig?.standard && (
-                <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 border border-blue-200">
-                  {activeConfig.standard}
-                </span>
-              )}
-            </div>
-
-            <select
-              id="select-module"
-              value={selectedModuleId}
-              onChange={(e) => setSelectedModuleId(e.target.value)}
-              className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-xs sm:text-sm font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        <div
+          style={{
+            flex: 1,
+            overflowY: 'auto',
+            padding: '20px 24px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '16px',
+            boxSizing: 'border-box',
+          }}
+        >
+          {isDashboardEmpty ? (
+            /* Kotak Informasi Jika Dashboard Utama Kosong */
+            <div
+              style={{
+                padding: '24px 16px',
+                background: '#F8FAFC',
+                borderRadius: '12px',
+                border: '1px dashed #CBD5E1',
+                textAlign: 'center',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: '12px',
+              }}
             >
-              {registryList.length > 0 ? (
-                registryList.map((mod) => (
-                  <option key={mod.id} value={mod.id}>
-                    {mod.code ? `[${mod.code}] ` : ''}{mod.name} ({mod.standard})
-                  </option>
-                ))
-              ) : (
-                <option value={activeConfig?.id || ''}>{activeConfig?.name}</option>
-              )}
-            </select>
-            <div className="flex items-center justify-between text-[11px] text-slate-500">
-              <span>Kategori: <strong className="text-slate-700">{activeConfig?.category || '-'}</strong></span>
-              {templateInfo && (
-                <span className="inline-flex items-center gap-1 font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
-                  <FileCheck size={13} className="text-emerald-600" />
-                  Template Master Tersedia
-                </span>
-              )}
-            </div>
-
-            {/* Banner Master Template Info */}
-            {templateInfo ? (
-              <div className="mt-2 p-2.5 rounded-lg bg-emerald-50/90 border border-emerald-200/90 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                <div className="flex items-start sm:items-center gap-2">
-                  <FileCheck size={18} className="text-emerald-600 shrink-0 mt-0.5 sm:mt-0" />
-                  <div>
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      <span className="text-xs font-bold text-emerald-950">Master Blangko Excel Resmi:</span>
-                      <span className="text-[11px] font-mono font-semibold px-1.5 py-0.5 rounded bg-white text-emerald-800 border border-emerald-300">
-                        {templateInfo.fileName}
-                      </span>
-                    </div>
-                    <p className="text-[11px] text-emerald-700 leading-tight mt-0.5">
-                      {templateInfo.name || 'Format blangko terstandarisasi SNI/ASTM dengan rumus aktif.'}
-                    </p>
-                  </div>
-                </div>
-
-                <label className="flex items-center gap-1.5 cursor-pointer text-xs font-bold text-emerald-900 bg-white/80 hover:bg-white px-2.5 py-1.5 rounded-md border border-emerald-200 select-none shrink-0 transition-colors">
-                  <input
-                    type="checkbox"
-                    checked={useMasterTemplate}
-                    onChange={(e) => setUseMasterTemplate(e.target.checked)}
-                    className="rounded border-emerald-300 text-emerald-600 focus:ring-emerald-500"
-                  />
-                  <span>Gunakan Master</span>
-                </label>
+              <div
+                style={{
+                  width: '44px',
+                  height: '44px',
+                  borderRadius: '50%',
+                  background: '#FEF2F2',
+                  color: '#DC2626',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <AlertTriangle size={22} />
               </div>
-            ) : (
-              <div className="mt-2 p-2.5 rounded-lg bg-slate-100/90 border border-slate-200/90 flex items-center gap-2 text-xs text-slate-600">
-                <Sparkles size={16} className="text-blue-600 shrink-0" />
-                <span>
-                  Menggunakan <strong>Generator Blangko Excel Dinamis</strong> dengan kop resmi, batas toleransi, dan formula sel otomatis.
-                </span>
+              <div style={{ maxWidth: '400px' }}>
+                <strong style={{ fontSize: '14px', color: '#1E293B', display: 'block', marginBottom: '4px' }}>
+                  Tidak Ada Data Pengujian di Dashboard Utama
+                </strong>
+                <p style={{ margin: 0, fontSize: '12px', color: '#64748B', lineHeight: 1.5 }}>
+                  Belum ada data pengujian di Dashboard Utama. Silakan hitung dan simpan hasil pengujian dari modul terlebih dahulu.
+                </p>
               </div>
-            )}
-          </div>
-
-          {/* 2. Pemilihan Benda Uji / Sampel (Jika Multi-Sampel) */}
-          {availableSamples && availableSamples.length > 0 ? (
-            <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200/80 space-y-2.5">
-              <div className="flex items-center justify-between">
-                <span className="font-bold text-slate-800 flex items-center gap-1.5">
-                  <CheckSquare size={15} className="text-emerald-600" />
-                  <span>Pilih Sampel / Titik Uji yang Diexport :</span>
-                </span>
-                <button
-                  type="button"
-                  onClick={handleToggleSelectAll}
-                  className="text-xs font-semibold text-blue-600 hover:text-blue-800 underline"
-                >
-                  {selectedSampleIds.length === availableSamples.length ? 'Batal Pilih Semua' : 'Pilih Semua Sampel'}
-                </button>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-40 overflow-y-auto pr-1">
-                {availableSamples.map((sample, idx) => {
-                  const sId = sample.id ?? idx + 1
-                  const isChecked = selectedSampleIds.includes(sId)
-                  return (
-                    <label
-                      key={sId}
-                      className={`flex items-center gap-2.5 p-2 rounded-lg border text-xs cursor-pointer transition-all ${
-                        isChecked
-                          ? 'bg-emerald-50/80 border-emerald-300 text-emerald-900 font-semibold'
-                          : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-100'
-                      }`}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={isChecked}
-                        onChange={() => handleToggleSample(sId)}
-                        className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
-                      />
-                      <span className="truncate flex-1">
-                        {sample.name || `Sampel #${sId}`}
-                      </span>
-                      {sample.w2 && sample.w3 && (
-                        <span className="text-[10px] text-slate-400">
-                          (W2: {sample.w2}g)
-                        </span>
-                      )}
-                    </label>
-                  )
-                })}
-              </div>
-              <p className="text-[11px] text-slate-500">
-                Terpilih: <strong className="text-emerald-700">{selectedSampleIds.length}</strong> dari {availableSamples.length} sampel pengujian.
-              </p>
             </div>
           ) : (
-            <div className="bg-blue-50/60 p-3 rounded-xl border border-blue-200 text-xs text-blue-800 flex items-center gap-2">
-              <Sparkles size={16} className="text-blue-600 shrink-0" />
-              <span>
-                Modul ini menyertakan seluruh baris tabel data teknis, formula, serta parameter evaluasi spesifikasi secara otomatis ke dalam blangko Excel.
-              </span>
-            </div>
+            <>
+              {/* 1. Pemilihan Modul Pengujian (HANYA DARI DATA DASHBOARD UTAMA) */}
+              <div
+                style={{
+                  background: '#F8FAFC',
+                  padding: '14px 16px',
+                  borderRadius: '12px',
+                  border: '1px solid #E2E8F0',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '8px',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <label
+                    htmlFor="select-module"
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      fontSize: '13px',
+                      fontWeight: '700',
+                      color: '#1E293B',
+                      margin: 0,
+                    }}
+                  >
+                    <Layers size={15} style={{ color: '#2563EB' }} />
+                    <span>Pilih Modul Pengujian :</span>
+                  </label>
+                  {selectedRecord?.standard && (
+                    <span
+                      style={{
+                        fontSize: '11px',
+                        fontWeight: '700',
+                        padding: '2px 8px',
+                        borderRadius: '9999px',
+                        background: '#EFF6FF',
+                        color: '#1E40AF',
+                        border: '1px solid #BFDBFE',
+                      }}
+                    >
+                      {selectedRecord.standard}
+                    </span>
+                  )}
+                </div>
+
+                <select
+                  id="select-module"
+                  value={selectedRecordId}
+                  onChange={(e) => setSelectedRecordId(e.target.value)}
+                  className="excel-export-input"
+                  style={{
+                    width: '100%',
+                    padding: '9px 12px',
+                    borderRadius: '8px',
+                    border: '1px solid #CBD5E1',
+                    fontSize: '13px',
+                    fontWeight: '600',
+                    color: '#0F172A',
+                    background: '#FFFFFF',
+                    boxSizing: 'border-box',
+                    outline: 'none',
+                    cursor: 'pointer',
+                  }}
+                >
+                  {savedTests.map((rec) => (
+                    <option key={rec.id} value={rec.id}>
+                      [{rec.id}] {rec.name} ({rec.standard || 'SNI'})
+                    </option>
+                  ))}
+                </select>
+
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '11px', color: '#64748B' }}>
+                  <span>Kategori: <strong style={{ color: '#334155' }}>{selectedRecord?.category || '-'}</strong></span>
+                  <span>Waktu Input: <strong style={{ color: '#334155' }}>{selectedRecord?.time || '-'}</strong></span>
+                </div>
+              </div>
+
+              {/* 2. Pemilihan Benda Uji / Sampel (Jika Multi-Sampel) */}
+              {availableSamples && availableSamples.length > 0 ? (
+                <div
+                  style={{
+                    background: '#F8FAFC',
+                    padding: '14px 16px',
+                    borderRadius: '12px',
+                    border: '1px solid #E2E8F0',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '10px',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <span
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        fontSize: '13px',
+                        fontWeight: '700',
+                        color: '#1E293B',
+                      }}
+                    >
+                      <CheckSquare size={15} style={{ color: '#16A34A' }} />
+                      <span>Pilih Sampel yang Diexport :</span>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={handleToggleSelectAll}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        padding: 0,
+                        fontSize: '12px',
+                        fontWeight: '600',
+                        color: '#2563EB',
+                        cursor: 'pointer',
+                        textDecoration: 'underline',
+                      }}
+                    >
+                      {selectedSampleIds.length === availableSamples.length ? 'Batal Pilih Semua' : 'Pilih Semua Sampel'}
+                    </button>
+                  </div>
+
+                  <div className="excel-export-samples-grid">
+                    {availableSamples.map((sample, idx) => {
+                      const sId = sample.id ?? idx + 1
+                      const isChecked = selectedSampleIds.includes(sId)
+                      return (
+                        <label
+                          key={sId}
+                          className={`excel-export-sample-pill ${isChecked ? 'active' : ''}`}
+                          onClick={() => handleToggleSample(sId)}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px',
+                            padding: '8px 12px',
+                            borderRadius: '8px',
+                            border: isChecked ? '1px solid #86EFAC' : '1px solid #E2E8F0',
+                            background: isChecked ? '#F0FDF4' : '#FFFFFF',
+                            color: isChecked ? '#15803D' : '#1E293B',
+                            cursor: 'pointer',
+                            fontSize: '13px',
+                            fontWeight: isChecked ? '600' : '500',
+                            transition: 'all 0.15s ease',
+                            boxSizing: 'border-box',
+                          }}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={() => {}} // handled by click
+                            style={{
+                              accentColor: '#16A34A',
+                              cursor: 'pointer',
+                              margin: 0,
+                            }}
+                          />
+                          <span style={{ flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            {sample.name || `Sampel #${sId}`}
+                          </span>
+                        </label>
+                      )
+                    })}
+                  </div>
+
+                  <div style={{ fontSize: '11px', color: '#64748B' }}>
+                    Terpilih: <strong style={{ color: '#15803D' }}>{selectedSampleIds.length}</strong> dari {availableSamples.length} sampel pengujian.
+                  </div>
+                </div>
+              ) : (
+                <div
+                  style={{
+                    background: '#F0FDF4',
+                    padding: '12px 14px',
+                    borderRadius: '10px',
+                    border: '1px solid #BBF7D0',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '10px',
+                    fontSize: '12px',
+                    color: '#166534',
+                    lineHeight: 1.4,
+                  }}
+                >
+                  <CheckCircle2 size={18} style={{ color: '#16A34A', flexShrink: 0 }} />
+                  <span>
+                    Seluruh baris parameter teknis, formula kalkulasi aktif, dan batas toleransi pengujian akan disertakan secara otomatis.
+                  </span>
+                </div>
+              )}
+
+              {/* 3. Informasi Blangko Pengujian */}
+              <div
+                style={{
+                  background: '#F8FAFC',
+                  padding: '14px 16px',
+                  borderRadius: '12px',
+                  border: '1px solid #E2E8F0',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '12px',
+                }}
+              >
+                <span
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    fontSize: '13px',
+                    fontWeight: '700',
+                    color: '#1E293B',
+                  }}
+                >
+                  <Calendar size={15} style={{ color: '#2563EB' }} />
+                  <span>Informasi Blangko Pengujian :</span>
+                </span>
+
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                    gap: '12px',
+                  }}
+                >
+                  <div>
+                    <label
+                      style={{
+                        display: 'block',
+                        fontSize: '12px',
+                        fontWeight: '600',
+                        color: '#475569',
+                        marginBottom: '4px',
+                      }}
+                    >
+                      Tanggal Pelaksanaan :
+                    </label>
+                    <input
+                      type="date"
+                      value={metadata.tanggal}
+                      onChange={(e) => setMetadata({ ...metadata, tanggal: e.target.value })}
+                      className="excel-export-input"
+                      style={{
+                        width: '100%',
+                        padding: '8px 12px',
+                        border: '1px solid #CBD5E1',
+                        borderRadius: '8px',
+                        fontSize: '13px',
+                        color: '#0F172A',
+                        background: '#FFFFFF',
+                        boxSizing: 'border-box',
+                        outline: 'none',
+                      }}
+                    />
+                  </div>
+
+                  <div>
+                    <label
+                      style={{
+                        display: 'block',
+                        fontSize: '12px',
+                        fontWeight: '600',
+                        color: '#475569',
+                        marginBottom: '4px',
+                      }}
+                    >
+                      Deskripsi / Bahan Benda Uji :
+                    </label>
+                    <input
+                      type="text"
+                      value={metadata.sampelDesc}
+                      onChange={(e) => setMetadata({ ...metadata, sampelDesc: e.target.value })}
+                      placeholder="misal: Bahan Bangunan • Bab 1: Agregat Halus"
+                      className="excel-export-input"
+                      style={{
+                        width: '100%',
+                        padding: '8px 12px',
+                        border: '1px solid #CBD5E1',
+                        borderRadius: '8px',
+                        fontSize: '13px',
+                        color: '#0F172A',
+                        background: '#FFFFFF',
+                        boxSizing: 'border-box',
+                        outline: 'none',
+                      }}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* 4. Opsi Ekspor Standar */}
+              <div style={{ padding: '0 4px' }}>
+                <label
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    fontSize: '12px',
+                    fontWeight: '500',
+                    color: '#475569',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={includeFormulas}
+                    onChange={(e) => setIncludeFormulas(e.target.checked)}
+                    style={{
+                      accentColor: '#2563EB',
+                      cursor: 'pointer',
+                      margin: 0,
+                    }}
+                  />
+                  <span>Sertakan Rumus Formula Excel Aktif (SUM, AVERAGE, dll.)</span>
+                </label>
+              </div>
+            </>
           )}
-
-          {/* 3. Metadata Kop Blangko Laboratorium */}
-          <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200/80 space-y-3">
-            <span className="font-bold text-slate-800 flex items-center gap-1.5">
-              <Building2 size={15} className="text-indigo-600" />
-              <span>Informasi Kop Blangko Laboratorium :</span>
-            </span>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-              <div>
-                <label className="block text-slate-600 mb-1 font-medium">Proyek / Praktikum :</label>
-                <input
-                  type="text"
-                  value={metadata.proyek}
-                  onChange={(e) => setMetadata({ ...metadata, proyek: e.target.value })}
-                  className="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-slate-800 focus:ring-1 focus:ring-blue-500 focus:outline-none"
-                  placeholder="Nama Praktikum / Proyek"
-                />
-              </div>
-
-              <div>
-                <label className="block text-slate-600 mb-1 font-medium">Lokasi Pengujian :</label>
-                <input
-                  type="text"
-                  value={metadata.lokasi}
-                  onChange={(e) => setMetadata({ ...metadata, lokasi: e.target.value })}
-                  className="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-slate-800 focus:ring-1 focus:ring-blue-500 focus:outline-none"
-                  placeholder="Laboratorium Teknik Sipil"
-                />
-              </div>
-
-              <div>
-                <label className="block text-slate-600 mb-1 font-medium">Diuji Oleh (Praktikan) :</label>
-                <input
-                  type="text"
-                  value={metadata.diujiOleh}
-                  onChange={(e) => setMetadata({ ...metadata, diujiOleh: e.target.value })}
-                  className="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-slate-800 focus:ring-1 focus:ring-blue-500 focus:outline-none"
-                  placeholder="Nama Mahasiswa / Tim Praktikan"
-                />
-              </div>
-
-              <div>
-                <label className="block text-slate-600 mb-1 font-medium">Diperiksa Oleh (Asisten/Dosen) :</label>
-                <input
-                  type="text"
-                  value={metadata.diperiksaOleh}
-                  onChange={(e) => setMetadata({ ...metadata, diperiksaOleh: e.target.value })}
-                  className="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-slate-800 focus:ring-1 focus:ring-blue-500 focus:outline-none"
-                  placeholder="Nama Asisten Laboratorium"
-                />
-              </div>
-
-              <div>
-                <label className="block text-slate-600 mb-1 font-medium">Tanggal Pelaksanaan :</label>
-                <input
-                  type="date"
-                  value={metadata.tanggal}
-                  onChange={(e) => setMetadata({ ...metadata, tanggal: e.target.value })}
-                  className="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-slate-800 focus:ring-1 focus:ring-blue-500 focus:outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="block text-slate-600 mb-1 font-medium">Deskripsi Benda Uji :</label>
-                <input
-                  type="text"
-                  value={metadata.sampelDesc}
-                  onChange={(e) => setMetadata({ ...metadata, sampelDesc: e.target.value })}
-                  className="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-slate-800 focus:ring-1 focus:ring-blue-500 focus:outline-none"
-                  placeholder="Deskripsi contoh bahan"
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* 4. Opsi Ekspor Standar */}
-          <div className="flex flex-wrap items-center gap-4 text-xs font-medium text-slate-600 px-1">
-            <label className="flex items-center gap-1.5 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={includeFormulas}
-                onChange={(e) => setIncludeFormulas(e.target.checked)}
-                className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
-              />
-              <span>Sertakan Rumus Formula Excel Aktif (SUM, AVERAGE, dll.)</span>
-            </label>
-
-            <label className="flex items-center gap-1.5 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={includeSignature}
-                onChange={(e) => setIncludeSignature(e.target.checked)}
-                className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
-              />
-              <span>Sertakan Lembar Pengesahan Tanda Tangan</span>
-            </label>
-          </div>
         </div>
 
         {/* Footer Tombol Aksi */}
-        <div className="flex items-center justify-between px-5 py-3.5 border-t border-slate-100 bg-slate-50">
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: '16px 24px',
+            borderTop: '1px solid #E2E8F0',
+            background: '#F8FAFC',
+          }}
+        >
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold text-slate-600 hover:bg-slate-200 transition-colors"
+            className="excel-export-btn-cancel"
+            style={{
+              background: '#F1F5F9',
+              color: '#475569',
+              padding: '10px 18px',
+              borderRadius: '8px',
+              fontWeight: '600',
+              border: 'none',
+              cursor: 'pointer',
+              fontSize: '13px',
+              transition: 'background 0.15s ease',
+            }}
           >
-            Batal
+            {isDashboardEmpty ? 'Tutup' : 'Batal'}
           </button>
 
           <button
             type="button"
-            disabled={isExporting || (availableSamples && availableSamples.length > 0 && selectedSampleIds.length === 0)}
+            disabled={isDashboardEmpty || isExporting || (availableSamples && availableSamples.length > 0 && selectedSampleIds.length === 0)}
             onClick={handleExecuteExport}
-            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold text-white transition-all shadow-md ${
-              exportSuccess
-                ? 'bg-emerald-600 shadow-emerald-600/30'
-                : isExporting
-                ? 'bg-slate-400 cursor-not-allowed'
-                : 'bg-emerald-600 hover:bg-emerald-700 active:scale-98 shadow-emerald-600/25'
-            }`}
+            className="excel-export-btn-download"
+            style={{
+              background: isDashboardEmpty ? '#94A3B8' : (exportSuccess ? '#15803D' : (isExporting ? '#94A3B8' : '#16A34A')),
+              color: '#FFFFFF',
+              padding: '10px 22px',
+              borderRadius: '8px',
+              fontWeight: '600',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '8px',
+              border: 'none',
+              cursor: (isDashboardEmpty || isExporting) ? 'not-allowed' : 'pointer',
+              fontSize: '13px',
+              boxShadow: isDashboardEmpty ? 'none' : '0 4px 6px -1px rgba(22, 163, 74, 0.25)',
+              transition: 'all 0.15s ease',
+            }}
+            title={isDashboardEmpty ? 'Belum ada data pengujian tersimpan di Dashboard Utama' : ''}
           >
             {exportSuccess ? (
               <>
@@ -467,7 +773,16 @@ export default function ExcelExportModal({
               </>
             ) : isExporting ? (
               <>
-                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                <div
+                  style={{
+                    width: '14px',
+                    height: '14px',
+                    border: '2px solid #FFFFFF',
+                    borderTopColor: 'transparent',
+                    borderRadius: '50%',
+                    animation: 'spin 0.8s linear infinite',
+                  }}
+                />
                 <span>Menyusun Spreadsheet Excel...</span>
               </>
             ) : (

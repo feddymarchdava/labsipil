@@ -5,6 +5,7 @@ import { motion } from 'framer-motion'
 import './App.css'
 import { sidebarGroups, calculatorRegistry, formatScientificInText } from './testCalculatorsData'
 import TestCalculatorPanel from './TestCalculatorPanel'
+import ExcelExportModal from './components/ExcelExportModal'
 
 // Error Boundary untuk mencegah white screen jika terjadi error runtime pada modul kalkulator
 class ModuleErrorBoundary extends Component {
@@ -1113,7 +1114,16 @@ const initialSavedTests = [
     summary: "f'c = 28.4 MPa (Valid)",
     status: 'Valid',
     time: 'Hari ini, 09:30 WIB',
-    inputs: { tipeSample: 'silinder', umurHari: 28, bebanHancur: 502.0, targetFc: 25.0 },
+    inputs: {
+      tipeSample: 'silinder',
+      umurHari: 28,
+      targetFc: 25.0,
+      samples: [
+        { id: 1, name: 'Benda Uji I', bebanHancur: 495.0 },
+        { id: 2, name: 'Benda Uji II', bebanHancur: 512.0 },
+        { id: 3, name: 'Benda Uji III', bebanHancur: 502.0 },
+      ],
+    },
     notes: 'Benda uji silinder D15x30 cm umur 28 hari. Beban aksial hancur 502 kN memenuhi kuat tekan rencana.',
   },
   {
@@ -1169,7 +1179,16 @@ const initialSavedTests = [
     summary: 'MOR = 98.4 MPa, MOE = 52.903 MPa',
     status: 'Valid',
     time: '26 Okt 2026',
-    inputs: { lebarB: 50.0, tinggiH: 50.0, bentangL: 1000.0, bebanP: 8200.0, lendutan: 6.2 },
+    inputs: {
+      lebarB: 50.0,
+      tinggiH: 50.0,
+      bentangL: 1000.0,
+      samples: [
+        { id: 1, name: 'Benda Uji I', bebanP: 8200.0, lendutan: 6.2 },
+        { id: 2, name: 'Benda Uji II', bebanP: 8450.0, lendutan: 6.5 },
+        { id: 3, name: 'Benda Uji III', bebanP: 8100.0, lendutan: 6.1 },
+      ],
+    },
     notes: 'Pengujian balok kayu penampang standar 50x50 mm bentang 1000 mm dengan tumpuan sendi-rol.',
   },
   {
@@ -1477,6 +1496,9 @@ export default function App() {
 
   // State untuk modal lihat detail uji
   const [selectedTestDetail, setSelectedTestDetail] = useState(null)
+
+  // State untuk modal export blangko Excel pada Dashboard Utama
+  const [isExcelExportModalOpen, setIsExcelExportModalOpen] = useState(false)
 
   // State untuk filter dan pencarian tabel
   const [searchQuery, setSearchQuery] = useState('')
@@ -1984,6 +2006,8 @@ export default function App() {
 
     const newEntry = {
       id: newTestData.id.trim() || `UJ-${String(savedTests.length + 1).padStart(2, '0')}`,
+      moduleId: newTestData.testId || newTestData.moduleId || 'bb-3-2',
+      testId: newTestData.testId || newTestData.moduleId || 'bb-3-2',
       name: newTestData.name.trim(),
       lab: newTestData.lab,
       category: newTestData.category,
@@ -1991,6 +2015,8 @@ export default function App() {
       summary: newTestData.summary.trim() || 'Data Uji Tervalidasi',
       status: 'Valid',
       time: timeString,
+      inputs: {},
+      calcOutput: { conclusion: newTestData.summary.trim() || 'Data Uji Tervalidasi', status: 'Valid' },
       notes: newTestData.notes.trim() || 'Data pengujian dicatat melalui form pengisian mandiri.',
     }
 
@@ -2027,56 +2053,9 @@ export default function App() {
     }
   }
 
-  // Ekspor seluruh riwayat pengujian ke format spreadsheet Microsoft Excel (.xlsx)
+  // Buka dialog modal export blangko laboratorium ke format Microsoft Excel (.xlsx)
   const handleExportToExcel = () => {
-    let dataToExport = savedTests
-    if (!dataToExport || dataToExport.length === 0) {
-      try {
-        const stored = localStorage.getItem('labsipil_saved_tests')
-        if (stored) {
-          const parsed = JSON.parse(stored)
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            dataToExport = parsed
-          }
-        }
-      } catch (err) {
-        console.error('Gagal membaca data dari localStorage:', err)
-      }
-    }
-
-    if (!dataToExport || dataToExport.length === 0) {
-      alert('Tidak ada data riwayat pengujian untuk diekspor.')
-      return
-    }
-
-    // Format array of objects yang rapi sesuai kolom spesifikasi:
-    // Kode ID, Nama Pengujian, Kategori, Standar SNI, Ringkasan Hasil, Waktu Input
-    const formattedData = dataToExport.map((item) => ({
-      'Kode ID': item.id || '-',
-      'Nama Pengujian': item.name || '-',
-      'Kategori': item.category || '-',
-      'Standar SNI': item.standard || '-',
-      'Ringkasan Hasil': item.summary || '-',
-      'Waktu Input': item.time || '-',
-    }))
-
-    // Generate worksheet Excel
-    const worksheet = XLSX.utils.json_to_sheet(formattedData)
-
-    // Pengaturan lebar kolom agar tampilan tabel Excel rapi dan proporsional
-    worksheet['!cols'] = [
-      { wch: 14 }, // Kode ID
-      { wch: 38 }, // Nama Pengujian
-      { wch: 28 }, // Kategori
-      { wch: 20 }, // Standar SNI
-      { wch: 34 }, // Ringkasan Hasil
-      { wch: 22 }, // Waktu Input
-    ]
-
-    // Buat workbook baru dan unduh dengan nama Data_Praktikum_LabSipil.xlsx
-    const workbook = XLSX.utils.book_new()
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'Riwayat Pengujian')
-    XLSX.writeFile(workbook, 'Data_Praktikum_LabSipil.xlsx')
+    setIsExcelExportModalOpen(true)
   }
 
   // Filter Data untuk Ditampilkan di Tabel
@@ -2782,11 +2761,20 @@ export default function App() {
               type="button"
               className="btn-floating-export fixed bottom-8 right-8 z-50 bg-emerald-600 hover:bg-emerald-700 text-white rounded-full shadow-lg"
               onClick={handleExportToExcel}
-              title="Export seluruh riwayat data praktikum ke file Microsoft Excel (.xlsx)"
+              title="Export blangko pengujian laboratorium ke file Microsoft Excel (.xlsx)"
             >
               <FileSpreadsheet size={19} className="btn-floating-export-icon" />
               <span>Export ke Excel</span>
             </button>
+
+            {/* Modal Dialog Export Excel Blangko Laboratorium */}
+            <ExcelExportModal
+              isOpen={isExcelExportModalOpen}
+              onClose={() => setIsExcelExportModalOpen(false)}
+              savedTests={savedTests}
+              calculatorRegistry={calculatorRegistry}
+              allModuleInputs={moduleInputs}
+            />
           </div>
         )}
         </div>

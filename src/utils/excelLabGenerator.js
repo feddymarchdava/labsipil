@@ -46,35 +46,25 @@ const BORDER_DOUBLE_BOTTOM = {
 }
 
 /**
- * Menerapkan styling kop dokumen resmi laboratorium teknik sipil pada baris 1 s.d. 8
+ * Menerapkan styling kop dokumen resmi laboratorium teknik sipil pada baris 1 s.d. 6
  */
 function applyLabDocumentHeader(ws, testConfig, metadata, totalCols = 8) {
-  // Baris 1: Judul Utama Lembaga
+  // Baris 1: Banner Platform Resmi
   ws.mergeCells(1, 1, 1, totalCols)
-  const titleCell = ws.getCell(1, 1)
-  titleCell.value = 'LABORATORIUM TEKNIK SIPIL - PENGOLAHAN DATA PENGUJIAN'
-  titleCell.font = { name: 'Arial', size: 13, bold: true, color: { argb: COLORS.WHITE } }
-  titleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLORS.NAVY_HEADER } }
-  titleCell.alignment = { horizontal: 'center', vertical: 'middle' }
-  ws.getRow(1).height = 26
+  const bannerCell = ws.getCell(1, 1)
+  bannerCell.value = 'LabSipil Engineering Platform'
+  bannerCell.font = { name: 'Arial', size: 10, bold: true, color: { argb: COLORS.WHITE } }
+  bannerCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLORS.TABLE_HEADER } }
+  bannerCell.alignment = { horizontal: 'center', vertical: 'middle' }
+  ws.getRow(1).height = 24
 
-  // Baris 2: Sub-judul Aplikasi & Sistem
+  // Baris 2: Judul Modul Pengujian Terpilih
   ws.mergeCells(2, 1, 2, totalCols)
-  const subCell = ws.getCell(2, 1)
-  subCell.value = 'Aplikasi Komputer Teknik Sipil (LabSipil) • Standar SNI / ASTM / Bina Marga'
-  subCell.font = { name: 'Arial', size: 9, bold: true, color: { argb: 'FFE2E8F0' } }
-  subCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLORS.BLUE_SUBHEADER } }
-  subCell.alignment = { horizontal: 'center', vertical: 'middle' }
-  ws.getRow(2).height = 18
-
-  // Baris 3: Pemisah
-  ws.getRow(3).height = 6
-
-  // Baris 4: Judul Modul Pengujian Terpilih
-  ws.mergeCells(4, 1, 4, totalCols)
-  const modCell = ws.getCell(4, 1)
-  modCell.value = `BLANGKO UJI: ${testConfig.name ? testConfig.name.toUpperCase() : 'PENGUJIAN LABORATORIUM'} (${testConfig.standard || 'SNI'})`
-  modCell.font = { name: 'Arial', size: 10.5, bold: true, color: { argb: COLORS.DARK_TEXT } }
+  const modCell = ws.getCell(2, 1)
+  const modName = testConfig.name ? testConfig.name.toUpperCase() : 'PENGUJIAN LABORATORIUM'
+  const modStd = testConfig.standard ? ` (${testConfig.standard})` : ''
+  modCell.value = `${modName}${modStd}`
+  modCell.font = { name: 'Arial', size: 11, bold: true, color: { argb: COLORS.DARK_TEXT } }
   modCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEFF6FF' } }
   modCell.alignment = { horizontal: 'center', vertical: 'middle' }
   modCell.border = {
@@ -83,59 +73,47 @@ function applyLabDocumentHeader(ws, testConfig, metadata, totalCols = 8) {
     left: { style: 'thin', color: { argb: COLORS.BORDER_GRID } },
     right: { style: 'thin', color: { argb: COLORS.BORDER_GRID } },
   }
-  ws.getRow(4).height = 24
+  ws.getRow(2).height = 26
 
-  // Baris 5-7: Informasi Metadata Proyek (Grid 2 Kolom Kiri & Kanan)
-  const midCol = Math.max(3, Math.floor(totalCols / 2))
+  // Baris 3: Pemisah
+  ws.getRow(3).height = 6
 
-  const metaItemsLeft = [
-    { label: 'Proyek / Mata Kuliah', value: metadata.proyek || 'Praktikum Laboratorium Teknik Sipil' },
-    { label: 'Lokasi Pengujian', value: metadata.lokasi || 'Laboratorium Bahan & Geoteknik' },
-    { label: 'Benda Uji / Deskripsi', value: metadata.sampelDesc || testConfig.category || '-' },
-  ]
+  // Baris 4: Tanggal Pelaksanaan
+  ws.getRow(4).height = 20
+  ws.mergeCells(4, 1, 4, 2)
+  const lblDate = ws.getCell(4, 1)
+  lblDate.value = 'Tanggal Pelaksanaan'
+  lblDate.font = { name: 'Arial', size: 8.5, bold: true, color: { argb: COLORS.DARK_TEXT } }
+  lblDate.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLORS.ZEBRA_ROW } }
+  lblDate.alignment = { horizontal: 'left', vertical: 'middle', indent: 1 }
+  lblDate.border = BORDER_THIN
 
-  const metaItemsRight = [
-    { label: 'Diuji Oleh (Praktikan)', value: metadata.diujiOleh || 'Tim Mahasiswa / Praktikan' },
-    { label: 'Diperiksa Oleh (Asisten)', value: metadata.diperiksaOleh || 'Asisten Laboratorium' },
-    { label: 'Tanggal Pelaksanaan', value: metadata.tanggal || new Date().toISOString().split('T')[0] },
-  ]
+  ws.mergeCells(4, 3, 4, totalCols)
+  const valDate = ws.getCell(4, 3)
+  valDate.value = `:  ${metadata.tanggal || new Date().toISOString().split('T')[0]}`
+  valDate.font = { name: 'Arial', size: 8.5, color: { argb: COLORS.DARK_TEXT } }
+  valDate.alignment = { horizontal: 'left', vertical: 'middle' }
+  valDate.border = BORDER_THIN
 
-  metaItemsLeft.forEach((item, idx) => {
-    const rowNum = 5 + idx
-    ws.getRow(rowNum).height = 18
+  // Baris 5: Deskripsi / Bahan Benda Uji
+  ws.getRow(5).height = 20
+  ws.mergeCells(5, 1, 5, 2)
+  const lblDesc = ws.getCell(5, 1)
+  lblDesc.value = 'Deskripsi / Bahan Benda Uji'
+  lblDesc.font = { name: 'Arial', size: 8.5, bold: true, color: { argb: COLORS.DARK_TEXT } }
+  lblDesc.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLORS.ZEBRA_ROW } }
+  lblDesc.alignment = { horizontal: 'left', vertical: 'middle', indent: 1 }
+  lblDesc.border = BORDER_THIN
 
-    // Kiri: Label
-    ws.getCell(rowNum, 1).value = item.label
-    ws.getCell(rowNum, 1).font = { name: 'Arial', size: 8.5, bold: true, color: { argb: COLORS.DARK_TEXT } }
-    ws.getCell(rowNum, 1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLORS.ZEBRA_ROW } }
-    ws.getCell(rowNum, 1).border = BORDER_THIN
+  ws.mergeCells(5, 3, 5, totalCols)
+  const valDesc = ws.getCell(5, 3)
+  valDesc.value = `:  ${metadata.sampelDesc || testConfig.category || 'Bahan Pengujian Laboratorium'}`
+  valDesc.font = { name: 'Arial', size: 8.5, color: { argb: COLORS.DARK_TEXT } }
+  valDesc.alignment = { horizontal: 'left', vertical: 'middle' }
+  valDesc.border = BORDER_THIN
 
-    // Kiri: Value (Merge col 2 s.d. midCol)
-    ws.mergeCells(rowNum, 2, rowNum, midCol)
-    const valCellL = ws.getCell(rowNum, 2)
-    valCellL.value = `:  ${item.value}`
-    valCellL.font = { name: 'Arial', size: 8.5, color: { argb: COLORS.DARK_TEXT } }
-    valCellL.border = BORDER_THIN
-
-    // Kanan: Label
-    const rStartCol = midCol + 1
-    ws.getCell(rowNum, rStartCol).value = metaItemsRight[idx].label
-    ws.getCell(rowNum, rStartCol).font = { name: 'Arial', size: 8.5, bold: true, color: { argb: COLORS.DARK_TEXT } }
-    ws.getCell(rowNum, rStartCol).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLORS.ZEBRA_ROW } }
-    ws.getCell(rowNum, rStartCol).border = BORDER_THIN
-
-    // Kanan: Value (Merge col rStartCol+1 s.d. totalCols)
-    if (rStartCol + 1 <= totalCols) {
-      ws.mergeCells(rowNum, rStartCol + 1, rowNum, totalCols)
-      const valCellR = ws.getCell(rowNum, rStartCol + 1)
-      valCellR.value = `:  ${metaItemsRight[idx].value}`
-      valCellR.font = { name: 'Arial', size: 8.5, color: { argb: COLORS.DARK_TEXT } }
-      valCellR.border = BORDER_THIN
-    }
-  })
-
-  // Baris 8: Spasi Kosong Pemisah Sebelum Tabel Utama
-  ws.getRow(8).height = 10
+  // Baris 6: Spasi Kosong Pemisah Sebelum Tabel Utama
+  ws.getRow(6).height = 8
 }
 
 /**
@@ -167,63 +145,6 @@ function applyLabFooterSection(ws, startRow, calcOutput, metadata, totalCols = 8
   ws.getRow(currRow).height = 22
   ws.getRow(currRow + 1).height = 22
   currRow += 2
-
-  // Spasi sebelum Tanda Tangan
-  currRow++
-
-  // Kolom Tanda Tangan Formal
-  const midCol = Math.max(3, Math.floor(totalCols / 2))
-  const signRow = currRow
-
-  // Tanggal & Tempat
-  ws.mergeCells(signRow, midCol + 1, signRow, totalCols)
-  const dateCell = ws.getCell(signRow, midCol + 1)
-  dateCell.value = `${metadata.lokasi || 'Laboratorium'}, ${metadata.tanggal || new Date().toISOString().split('T')[0]}`
-  dateCell.font = { name: 'Arial', size: 8.5, italic: true }
-  dateCell.alignment = { horizontal: 'center' }
-
-  // Label Pihak Penguji & Pemeriksa
-  ws.mergeCells(signRow + 1, 1, signRow + 1, midCol)
-  const ttdL = ws.getCell(signRow + 1, 1)
-  ttdL.value = 'Diuji oleh (Praktikan):'
-  ttdL.font = { name: 'Arial', size: 9, bold: true }
-  ttdL.alignment = { horizontal: 'center' }
-
-  ws.mergeCells(signRow + 1, midCol + 1, signRow + 1, totalCols)
-  const ttdR = ws.getCell(signRow + 1, midCol + 1)
-  ttdR.value = 'Diperiksa & Disetujui oleh:'
-  ttdR.font = { name: 'Arial', size: 9, bold: true }
-  ttdR.alignment = { horizontal: 'center' }
-
-  // Area Kosong Tanda Tangan
-  ws.getRow(signRow + 2).height = 18
-  ws.getRow(signRow + 3).height = 18
-
-  // Nama Terang
-  ws.mergeCells(signRow + 4, 1, signRow + 4, midCol)
-  const nameL = ws.getCell(signRow + 4, 1)
-  nameL.value = `( ${metadata.diujiOleh || '..............................................'} )`
-  nameL.font = { name: 'Arial', size: 9, bold: true }
-  nameL.alignment = { horizontal: 'center' }
-
-  ws.mergeCells(signRow + 4, midCol + 1, signRow + 4, totalCols)
-  const nameR = ws.getCell(signRow + 4, midCol + 1)
-  nameR.value = `( ${metadata.diperiksaOleh || '..............................................'} )`
-  nameR.font = { name: 'Arial', size: 9, bold: true }
-  nameR.alignment = { horizontal: 'center' }
-
-  // Jabatan / Keterangan
-  ws.mergeCells(signRow + 5, 1, signRow + 5, midCol)
-  const roleL = ws.getCell(signRow + 5, 1)
-  roleL.value = 'Praktikan Laboratorium'
-  roleL.font = { name: 'Arial', size: 8, color: { argb: COLORS.MUTED_TEXT } }
-  roleL.alignment = { horizontal: 'center' }
-
-  ws.mergeCells(signRow + 5, midCol + 1, signRow + 5, totalCols)
-  const roleR = ws.getCell(signRow + 5, midCol + 1)
-  roleR.value = 'Asisten / Kepala Laboratorium'
-  roleR.font = { name: 'Arial', size: 8, color: { argb: COLORS.MUTED_TEXT } }
-  roleR.alignment = { horizontal: 'center' }
 }
 
 /**
@@ -236,7 +157,7 @@ function buildWaterContentSheet(wb, testConfig, inputs, calcOutput, metadata, se
   applyLabDocumentHeader(ws, testConfig, metadata, totalCols)
 
   // Header Tabel Pengujian
-  const headerRow = 9
+  const headerRow = 7
   ws.getRow(headerRow).height = 28
   const headers = [
     { col: 1, text: 'No.' },
@@ -381,7 +302,7 @@ function buildSpecificGravitySheet(wb, testConfig, inputs, calcOutput, metadata,
 
   applyLabDocumentHeader(ws, testConfig, metadata, totalCols)
 
-  const headerRow = 9
+  const headerRow = 7
   ws.getRow(headerRow).height = 28
   const headers = [
     { col: 1, text: 'No.' },
@@ -531,7 +452,7 @@ function buildSieveAnalysisSheet(wb, testConfig, inputs, calcOutput, metadata) {
 
   applyLabDocumentHeader(ws, testConfig, metadata, totalCols)
 
-  const headerRow = 9
+  const headerRow = 7
   ws.getRow(headerRow).height = 28
   const headers = [
     { col: 1, text: 'No.' },
@@ -553,16 +474,33 @@ function buildSieveAnalysisSheet(wb, testConfig, inputs, calcOutput, metadata) {
   })
 
   // Dapatkan baris saringan dari hasil kalkulasi
-  const sieveRows = calcOutput?.sieveRows || calcOutput?.tableData || [
-    { name: '3/8"', size: 9.5, weight: inputs.sieve_3_8 ?? 0 },
-    { name: 'No. 4', size: 4.75, weight: inputs.sieve_4 ?? 25 },
-    { name: 'No. 8', size: 2.36, weight: inputs.sieve_8 ?? 60 },
-    { name: 'No. 16', size: 1.18, weight: inputs.sieve_16 ?? 120 },
-    { name: 'No. 30', size: 0.6, weight: inputs.sieve_30 ?? 145 },
-    { name: 'No. 50', size: 0.3, weight: inputs.sieve_50 ?? 110 },
-    { name: 'No. 100', size: 0.15, weight: inputs.sieve_100 ?? 30 },
-    { name: 'Pan', size: 0, weight: inputs.sieve_pan ?? 10 },
-  ]
+  let sieveRows = calcOutput?.sieveRows || calcOutput?.tableData
+  if (!sieveRows && (calcOutput?.calculatedSieves || inputs?.soilSieves)) {
+    const list = calcOutput?.calculatedSieves
+      ? [...calcOutput.calculatedSieves]
+      : (inputs?.soilSieves ? [...inputs.soilSieves] : [])
+    if (calcOutput?.calculatedPan && !list.some((s) => s.isPan || /pan/i.test(s.sieveNo || s.name))) {
+      list.push(calcOutput.calculatedPan)
+    }
+    sieveRows = list.map((s) => ({
+      name: s.sieveNo || s.name || (s.isPan ? 'Pan' : '-'),
+      size: s.diameter ?? s.size ?? 0,
+      weight: s.retainedWeight ?? s.weight ?? 0,
+      isPan: s.isPan,
+    }))
+  }
+  if (!sieveRows || sieveRows.length === 0) {
+    sieveRows = [
+      { name: '3/8"', size: 9.5, weight: inputs.sieve_3_8 ?? 0 },
+      { name: 'No. 4', size: 4.75, weight: inputs.sieve_4 ?? 25 },
+      { name: 'No. 8', size: 2.36, weight: inputs.sieve_8 ?? 60 },
+      { name: 'No. 16', size: 1.18, weight: inputs.sieve_16 ?? 120 },
+      { name: 'No. 30', size: 0.6, weight: inputs.sieve_30 ?? 145 },
+      { name: 'No. 50', size: 0.3, weight: inputs.sieve_50 ?? 110 },
+      { name: 'No. 100', size: 0.15, weight: inputs.sieve_100 ?? 30 },
+      { name: 'Pan', size: 0, weight: inputs.sieve_pan ?? 10 },
+    ]
+  }
 
   let r = headerRow + 1
   const startDataRow = r
@@ -681,7 +619,7 @@ function buildCptSondirSheet(wb, testConfig, inputs, calcOutput, metadata) {
 
   applyLabDocumentHeader(ws, testConfig, metadata, totalCols)
 
-  const headerRow = 9
+  const headerRow = 7
   ws.getRow(headerRow).height = 28
   const headers = [
     { col: 1, text: 'No.' },
@@ -793,7 +731,7 @@ function buildUniversalSheet(wb, testConfig, inputs, calcOutput, metadata, selec
 
   applyLabDocumentHeader(ws, testConfig, metadata, totalCols)
 
-  let r = 9
+  let r = 7
 
   // Bagian A: Tabel Multi-Sampel Dinamis (jika modul memiliki samples)
   const rawSamples = Array.isArray(inputs.samples) && inputs.samples.length > 0
@@ -853,6 +791,35 @@ function buildUniversalSheet(wb, testConfig, inputs, calcOutput, metadata, selec
       r++
     })
 
+    // Baris Rata-rata Benda Uji
+    ws.getRow(r).height = 20
+    ws.getCell(r, 1).value = ''
+    ws.getCell(r, 1).border = BORDER_THIN
+    ws.getCell(r, 1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE2E8F0' } }
+
+    sampleKeys.slice(0, sampleColsCount).forEach((key, kIdx) => {
+      const cell = ws.getCell(r, kIdx + 2)
+      if (key === 'name' || kIdx === 0) {
+        cell.value = 'RATA-RATA'
+        cell.font = { name: 'Arial', size: 8.5, bold: true, color: { argb: COLORS.DARK_TEXT } }
+        cell.alignment = { horizontal: 'center', vertical: 'middle' }
+      } else {
+        const numVals = activeSamples.map(s => Number(s[key])).filter(v => !isNaN(v))
+        if (numVals.length > 0) {
+          const avg = numVals.reduce((a, b) => a + b, 0) / numVals.length
+          cell.value = +avg.toFixed(2)
+          cell.font = { name: 'Arial', size: 8.5, bold: true, color: { argb: COLORS.DARK_TEXT } }
+          cell.alignment = { horizontal: 'right', vertical: 'middle' }
+        } else {
+          cell.value = '-'
+          cell.alignment = { horizontal: 'center', vertical: 'middle' }
+        }
+      }
+      cell.border = BORDER_THIN
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE2E8F0' } }
+    })
+    r++
+
     r++ // Spasi pemisah
   }
 
@@ -864,7 +831,9 @@ function buildUniversalSheet(wb, testConfig, inputs, calcOutput, metadata, selec
   ws.getRow(r).height = 20
   r++
 
-  const fields = Array.isArray(testConfig.fields) ? testConfig.fields : []
+  const fields = (Array.isArray(testConfig.commonFields) && testConfig.commonFields.length > 0)
+    ? testConfig.commonFields
+    : (Array.isArray(testConfig.fields) ? testConfig.fields : [])
   fields.forEach((f, idx) => {
     ws.getRow(r).height = 19
 
@@ -996,9 +965,9 @@ export async function exportTestModuleToExcel({
   const testId = testConfig.id || ''
 
   // Routing Pemilihan Template Blangko Berdasarkan Modul
-  if (testId === 'mt-2-1' || testId === 'bb-1-2' || testId === 'kadar-air' || testConfig.name?.toLowerCase().includes('kadar air')) {
+  if ((testId === 'mt-2-1' || testId === 'bb-1-2' || testId === 'kadar-air' || testConfig.name?.toLowerCase().includes('kadar air')) && !testId.startsWith('bb-4')) {
     buildWaterContentSheet(wb, testConfig, inputs, calcOutput, metadata, selectedSampleIds)
-  } else if (testId === 'bb-1-1' || testId === 'bb-2-1' || testId === 'mt-2-2' || testConfig.name?.toLowerCase().includes('berat jenis')) {
+  } else if ((testId === 'bb-1-1' || testId === 'bb-2-1' || testId === 'mt-2-2' || testConfig.name?.toLowerCase().includes('berat jenis')) && !testId.startsWith('bb-4')) {
     buildSpecificGravitySheet(wb, testConfig, inputs, calcOutput, metadata, selectedSampleIds)
   } else if (testId === 'bb-1-5' || testId === 'bb-2-5' || testId === 'mt-1-2' || testConfig.name?.toLowerCase().includes('saringan') || testConfig.name?.toLowerCase().includes('gradasi')) {
     buildSieveAnalysisSheet(wb, testConfig, inputs, calcOutput, metadata)
@@ -1020,14 +989,16 @@ export async function exportTestModuleToExcel({
   const cleanDate = (metadata.tanggal || new Date().toISOString().split('T')[0]).replace(/[^a-zA-Z0-9_-]/g, '-')
   const fileName = `Blangko_${cleanCode}_${cleanDate}.xlsx`
 
-  const url = window.URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = fileName
-  document.body.appendChild(a)
-  a.click()
-  document.body.removeChild(a)
-  window.URL.revokeObjectURL(url)
+  if (typeof window !== 'undefined' && window.URL && window.document) {
+    const url = window.URL.createObjectURL(blob)
+    const a = window.document.createElement('a')
+    a.href = url
+    a.download = fileName
+    window.document.body.appendChild(a)
+    a.click()
+    window.document.body.removeChild(a)
+    window.URL.revokeObjectURL(url)
+  }
 
-  return { success: true, fileName }
+  return { success: true, fileName, bufferSize: buffer.byteLength }
 }
