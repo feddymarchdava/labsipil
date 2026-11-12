@@ -1,168 +1,24 @@
-import React, { useState, useMemo, useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { FileSpreadsheet, X, Check, Download, CheckSquare, Calendar, Layers, CheckCircle2, AlertTriangle } from 'lucide-react'
-import { exportModuleWithTemplate } from '../utils/excelExporter'
+import { exportLabReport } from '../utils/excelExporter.js'
+import { getExportSamples, resolveRecordConfig } from '../utils/excelReportData.js'
 
-export default function ExcelExportModal({
-  isOpen,
-  onClose,
-  savedTests = [],
-  calculatorRegistry = {},
-  allModuleInputs = {},
-}) {
-  if (!isOpen) return null
+export default function ExcelExportModal({ isOpen, ...props }) {
+  return isOpen ? <ExcelExportForm {...props} /> : null
+}
 
+function ExcelExportForm({ onClose, savedTests = [], calculatorRegistry = {} }) {
   const isDashboardEmpty = !Array.isArray(savedTests) || savedTests.length === 0
-
-  // State Pilihan Rekaman Uji dari Dashboard Utama
-  const [selectedRecordId, setSelectedRecordId] = useState(() => {
-    return isDashboardEmpty ? '' : savedTests[0]?.id || ''
-  })
-
-  // Sinkronkan pilihan saat savedTests berubah
-  useEffect(() => {
-    if (!isDashboardEmpty) {
-      if (!savedTests.some((t) => t.id === selectedRecordId)) {
-        setSelectedRecordId(savedTests[0]?.id || '')
-      }
-    } else {
-      setSelectedRecordId('')
-    }
-  }, [savedTests, isDashboardEmpty, selectedRecordId])
-
-  // Objek rekaman pengujian yang sedang dipilih dari Dashboard Utama
-  const selectedRecord = useMemo(() => {
-    if (isDashboardEmpty) return null
-    return savedTests.find((r) => r.id === selectedRecordId) || savedTests[0]
-  }, [isDashboardEmpty, savedTests, selectedRecordId])
-
-  // Cari konfigurasi modul pengujian di registry atau fallback sintetis
-  const activeConfig = useMemo(() => {
-    if (!selectedRecord) return null
-    const tId = selectedRecord.moduleId || selectedRecord.testId
-    if (tId && calculatorRegistry[tId]) {
-      return calculatorRegistry[tId]
-    }
-
-    // Cari kesamaan kode / id / nama di registry
-    const matchKey = Object.keys(calculatorRegistry || {}).find((k) => {
-      const reg = calculatorRegistry[k]
-      const prefix = reg.code ? reg.code.split('-')[0].toUpperCase() : ''
-      const recPrefix = (selectedRecord.id || '').split('-')[0].toUpperCase()
-      return (
-        reg.id === selectedRecord.id ||
-        reg.code === selectedRecord.baseCode ||
-        (recPrefix && prefix && prefix === recPrefix) ||
-        reg.name.toLowerCase() === (selectedRecord.name || '').toLowerCase()
-      )
-    })
-
-    if (matchKey && calculatorRegistry[matchKey]) {
-      return calculatorRegistry[matchKey]
-    }
-
-    return {
-      id: tId || selectedRecord.id,
-      code: selectedRecord.baseCode || selectedRecord.id,
-      name: selectedRecord.name,
-      standard: selectedRecord.standard,
-      category: selectedRecord.category,
-      lab: selectedRecord.lab,
-      fields: [],
-      initialInputs: selectedRecord.inputs || {},
-    }
-  }, [selectedRecord, calculatorRegistry])
-
-  // Input teknis modul
-  const activeInputs = useMemo(() => {
-    if (!selectedRecord) return {}
-    if (selectedRecord.inputs && Object.keys(selectedRecord.inputs).length > 0) {
-      return selectedRecord.inputs
-    }
-    const tId = selectedRecord.moduleId || selectedRecord.testId
-    return allModuleInputs[tId] || activeConfig?.initialInputs || {}
-  }, [selectedRecord, allModuleInputs, activeConfig])
-
-  // Hasil perhitungan modul
-  const activeCalcOutput = useMemo(() => {
-    if (!selectedRecord) return {}
-    if (selectedRecord.calcOutput && Object.keys(selectedRecord.calcOutput).length > 0) {
-      return selectedRecord.calcOutput
-    }
-    try {
-      if (typeof activeConfig?.calculate === 'function') {
-        return activeConfig.calculate(activeInputs)
-      }
-    } catch (e) {
-      console.warn('Gagal menghitung output modul:', e)
-    }
-    return {
-      conclusion: selectedRecord.notes || selectedRecord.summary || '',
-      status: selectedRecord.status || 'Valid',
-      summaryString: selectedRecord.summary || '',
-    }
-  }, [selectedRecord, activeConfig, activeInputs])
-
-  // Daftar sampel yang tersedia pada data pengujian terpilih
-  const availableSamples = useMemo(() => {
-    if (!selectedRecord) return null
-    if (Array.isArray(selectedRecord.samples) && selectedRecord.samples.length > 0) {
-      return selectedRecord.samples
-    }
-    if (Array.isArray(activeInputs?.samples) && activeInputs.samples.length > 0) {
-      return activeInputs.samples
-    }
-    if (Array.isArray(activeCalcOutput?.samples) && activeCalcOutput.samples.length > 0) {
-      return activeCalcOutput.samples
-    }
-    if (Array.isArray(activeInputs?.sieves) && activeInputs.sieves.length > 0) {
-      return activeInputs.sieves.map((s, idx) => ({
-        id: s.id ?? idx + 1,
-        name: s.label || `Ayakan #${idx + 1}`,
-      }))
-    }
-    if (Array.isArray(activeInputs?.proctorSamples) && activeInputs.proctorSamples.length > 0) {
-      return activeInputs.proctorSamples.map((s, idx) => ({
-        id: s.id ?? idx + 1,
-        name: s.name || `Titik #${idx + 1}`,
-      }))
-    }
-    return null
-  }, [selectedRecord, activeInputs, activeCalcOutput])
-
-  // State Sampel Terpilih
-  const [selectedSampleIds, setSelectedSampleIds] = useState(() => {
-    if (availableSamples && availableSamples.length > 0) {
-      return availableSamples.map((s, idx) => s.id ?? idx + 1)
-    }
-    return []
-  })
-
-  // Sinkronkan checklist sampel saat berpindah pengujian
-  useEffect(() => {
-    if (availableSamples && availableSamples.length > 0) {
-      setSelectedSampleIds(availableSamples.map((s, idx) => s.id ?? idx + 1))
-    } else {
-      setSelectedSampleIds([])
-    }
-  }, [selectedRecordId, availableSamples])
-
-  // Metadata Blangko Laboratorium
-  const [metadata, setMetadata] = useState({
-    tanggal: new Date().toISOString().split('T')[0],
-    sampelDesc: '',
-  })
-
-  useEffect(() => {
-    if (selectedRecord) {
-      const cat = activeConfig?.category || selectedRecord.category || ''
-      const nm = activeConfig?.name || selectedRecord.name || ''
-      setMetadata((prev) => ({
-        ...prev,
-        sampelDesc: cat ? `${cat} • ${nm}` : nm,
-      }))
-    }
-  }, [selectedRecord, activeConfig])
-
+  const [selectedRecordId, setSelectedRecordId] = useState(savedTests?.[0]?.id || '')
+  const selectedRecord = isDashboardEmpty ? null : savedTests.find((record) => record.id === selectedRecordId) || savedTests[0]
+  const activeConfig = resolveRecordConfig(selectedRecord, calculatorRegistry)
+  const activeInputs = selectedRecord?.inputs ?? {}
+  const availableSamples = getExportSamples(activeConfig?.id, activeInputs)
+  const sampleIds = availableSamples.map((sample) => sample.id)
+  const [selection, setSelection] = useState(null)
+  const selectedSampleIds = selection && selection.recordId === selectedRecord?.id ? selection.ids : sampleIds
+  const [metadata, setMetadata] = useState({ tanggal: new Date().toLocaleDateString('sv-SE'), sampelDesc: null })
+  const description = metadata.sampelDesc ?? [activeConfig?.category, selectedRecord?.name].filter(Boolean).join(' • ')
   // Opsi Formula Excel
   const [includeFormulas, setIncludeFormulas] = useState(true)
 
@@ -170,27 +26,27 @@ export default function ExcelExportModal({
   const [isExporting, setIsExporting] = useState(false)
   const [exportSuccess, setExportSuccess] = useState(false)
 
-  // Toggle Pilihan Sampel
-  const handleToggleSample = (sampleId) => {
-    setSelectedSampleIds((prev) => {
-      if (prev.includes(sampleId)) {
-        return prev.filter((id) => id !== sampleId)
-      } else {
-        return [...prev, sampleId]
-      }
-    })
+  useEffect(() => {
+    if (!exportSuccess) return
+    const timer = setTimeout(onClose, 1200)
+    return () => clearTimeout(timer)
+  }, [exportSuccess, onClose])
+
+  const selectRecord = (id) => {
+    setSelectedRecordId(id)
+    setSelection(null)
+    setMetadata((previous) => ({ ...previous, sampelDesc: null }))
   }
 
-  // Toggle Select All Sampel
+  const handleToggleSample = (id) => {
+    const ids = selectedSampleIds.includes(id) ? selectedSampleIds.filter((sampleId) => sampleId !== id) : [...selectedSampleIds, id]
+    setSelection({ recordId: selectedRecord.id, ids })
+  }
+
   const handleToggleSelectAll = () => {
-    if (!availableSamples) return
-    if (selectedSampleIds.length === availableSamples.length) {
-      setSelectedSampleIds([])
-    } else {
-      setSelectedSampleIds(availableSamples.map((s, idx) => s.id ?? idx + 1))
-    }
+    const ids = selectedSampleIds.length === sampleIds.length ? [] : sampleIds
+    setSelection({ recordId: selectedRecord.id, ids })
   }
-
   // Eksekusi Download Excel
   const handleExecuteExport = async () => {
     if (isDashboardEmpty || !selectedRecord || !activeConfig) {
@@ -205,21 +61,17 @@ export default function ExcelExportModal({
 
     try {
       setIsExporting(true)
-      await exportModuleWithTemplate({
+      await exportLabReport({
         testConfig: activeConfig,
         inputs: activeInputs,
-        calcOutput: activeCalcOutput,
-        metadata,
-        selectedSampleIds,
+        calcOutput: selectedRecord.calcOutput ?? { conclusion: selectedRecord.conclusion || selectedRecord.notes || selectedRecord.summary },
+        metadata: { ...metadata, sampelDesc: description },
+        selectedSampleIds: availableSamples.length ? selectedSampleIds : null,
         options: {
           includeFormulas,
         },
       })
       setExportSuccess(true)
-      setTimeout(() => {
-        setExportSuccess(false)
-        onClose()
-      }, 1200)
     } catch (err) {
       console.error('Gagal mengekspor file Excel:', err)
       alert(`Terjadi kesalahan saat membuat file Excel: ${err.message}`)
@@ -315,7 +167,7 @@ export default function ExcelExportModal({
                   fontWeight: '500',
                 }}
               >
-                Format tabel standar SNI/ASTM, border grid, dan formula sel (.xlsx)
+                Tabel pengukuran, rumus sel, dan grafik yang tersedia (.xlsx)
               </p>
             </div>
           </div>
@@ -442,8 +294,8 @@ export default function ExcelExportModal({
 
                 <select
                   id="select-module"
-                  value={selectedRecordId}
-                  onChange={(e) => setSelectedRecordId(e.target.value)}
+                  value={selectedRecord?.id || ''}
+                  onChange={(e) => selectRecord(e.target.value)}
                   className="excel-export-input"
                   style={{
                     width: '100%',
@@ -525,7 +377,6 @@ export default function ExcelExportModal({
                         <label
                           key={sId}
                           className={`excel-export-sample-pill ${isChecked ? 'active' : ''}`}
-                          onClick={() => handleToggleSample(sId)}
                           style={{
                             display: 'flex',
                             alignItems: 'center',
@@ -545,7 +396,7 @@ export default function ExcelExportModal({
                           <input
                             type="checkbox"
                             checked={isChecked}
-                            onChange={() => {}} // handled by click
+                            onChange={() => handleToggleSample(sId)}
                             style={{
                               accentColor: '#16A34A',
                               cursor: 'pointer',
@@ -664,7 +515,7 @@ export default function ExcelExportModal({
                     </label>
                     <input
                       type="text"
-                      value={metadata.sampelDesc}
+                      value={description}
                       onChange={(e) => setMetadata({ ...metadata, sampelDesc: e.target.value })}
                       placeholder="misal: Bahan Bangunan • Bab 1: Agregat Halus"
                       className="excel-export-input"
@@ -707,7 +558,7 @@ export default function ExcelExportModal({
                       margin: 0,
                     }}
                   />
-                  <span>Sertakan Rumus Formula Excel Aktif (SUM, AVERAGE, dll.)</span>
+                  <span>Sertakan rumus Excel aktif</span>
                 </label>
               </div>
             </>

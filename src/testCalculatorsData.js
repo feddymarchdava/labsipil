@@ -1,3 +1,13 @@
+import { calculateSoilSpecificGravity } from './utils/soilSpecificGravity.js'
+import { calculateSoilWaterContent } from './utils/soilWaterContent.js'
+import { calculateProctor, PROCTOR_EXAMPLE } from './utils/soilCompaction.js'
+import { numeric } from './utils/labInputValues.js'
+import { calculateCptProfile, CPT_AREAS, CPT_EXAMPLE_ROWS } from './utils/cptProfile.js'
+import { calculateAsphaltPenetration, DEFAULT_PENETRATION_GROUPS, PENETRATION_GRADES } from './utils/asphaltPenetration.js'
+import { calculateAggregateGradation } from './utils/aggregateGradation.js'
+import { calculateBinderExtraction } from './utils/binderExtraction.js'
+import { ASPHALT_SOFTENING_MIN, CONCRETE_AGE_FACTORS, LA_BALLS, LASTON_GRADATION, LASTON_MARSHALL, steelTensionLimits } from './utils/labSpecifications.js'
+
 // =========================================================================
 // STRUKTUR DATA SIDEBAR ACCORDION & REGISTRY KALKULATOR PENGUJIAN LABORATORIUM
 // Mencakup 31 Pengujian Resmi (19 Bahan Bangunan & 12 Mekanika Tanah)
@@ -75,7 +85,7 @@ export const sidebarGroups = [
         chapterId: 'mt-bab2',
         title: 'Bab 2: Sifat Fisik Tanah',
         items: [
-          { id: 'mt-2-1', title: 'Kadar Air Tanah', standard: 'SNI 1965:2008' },
+          { id: 'mt-2-1', title: 'Kadar Air Tanah', standard: 'SNI 1965:2019' },
           { id: 'mt-2-2', title: 'Berat Jenis Tanah', standard: 'SNI 1964:2008' },
           { id: 'mt-2-3', title: 'Batas Cair / Liquid Limit', standard: 'SNI 1967:2008' },
           { id: 'mt-2-4', title: 'Batas Plastis & Indeks Plastisitas', standard: 'SNI 1966:2008' },
@@ -359,27 +369,6 @@ export const DEFAULT_DIRECT_SHEAR_POINTS = [
   { id: 3, area: 31.17, normalLoad: 12.65, shearForce: 4.05, sigma: 0.4058, tau: 0.1299 },
 ]
 
-export const DEFAULT_PENETRATION_GROUPS = [
-  {
-    id: 1,
-    name: 'Kelompok 1 (Sampel A)',
-    points: [
-      { id: 1, value: 78.6 },
-      { id: 2, value: 65.6 },
-      { id: 3, value: 59.4 },
-    ],
-  },
-  {
-    id: 2,
-    name: 'Kelompok 2 (Sampel B)',
-    points: [
-      { id: 1, value: 64.2 },
-      { id: 2, value: 65.0 },
-      { id: 3, value: 64.6 },
-    ],
-  },
-]
-
 export const DEFAULT_BB11_SAMPLES = [
   { id: 1, name: 'Benda Uji I', s: 500.0, a: 489.6, b: 664.2, c: 979.2 },
   { id: 2, name: 'Benda Uji II', s: 500.0, a: 479.5, b: 636.1, c: 950.5 },
@@ -488,10 +477,10 @@ export const DEFAULT_MT21_SAMPLES = [
   { id: 3, name: 'Cawan C-3', w1: 15.8, w2: 69.1, w3: 58.2 },
 ]
 
+// SNI 1964:2008, Lampiran B.
 export const DEFAULT_MT22_SAMPLES = [
-  { id: 1, name: 'Piknometer P-1', w1: 34.8, w2: 84.8, w3: 167.4, w4: 136.2 },
-  { id: 2, name: 'Piknometer P-2', w1: 35.2, w2: 85.2, w3: 168.0, w4: 136.8 },
-  { id: 3, name: 'Piknometer P-3', w1: 35.0, w2: 85.0, w3: 167.7, w4: 136.5 },
+  { id: 1, name: 'Piknometer C1', w1: 42.17, w2: 60.96, w3: 159.06, w4: 147.51 },
+  { id: 2, name: 'Piknometer A6', w1: 51.15, w2: 67.44, w3: 157.32, w4: 147.24 },
 ]
 
 export const DEFAULT_MT23_SAMPLES = [
@@ -565,7 +554,6 @@ export const DEFAULT_MARSHALL_SPECIMENS = [
     bacaanStab: 218,
     flow: 1.10,
     angkaKorelasi: 0.924,
-    stabilitas: 2616.46,
   },
   {
     id: 2,
@@ -577,7 +565,6 @@ export const DEFAULT_MARSHALL_SPECIMENS = [
     bacaanStab: 257,
     flow: 2.04,
     angkaKorelasi: 0.850,
-    stabilitas: 2839.88,
   },
   {
     id: 3,
@@ -589,7 +576,6 @@ export const DEFAULT_MARSHALL_SPECIMENS = [
     bacaanStab: 183,
     flow: 0.92,
     angkaKorelasi: 0.886,
-    stabilitas: 2106.16,
   },
 ]
 
@@ -814,12 +800,8 @@ export const calculatorRegistry = {
       const avgSa = validSamples.reduce((sum, r) => sum + r.sa, 0) / n
       const avgSw = validSamples.reduce((sum, r) => sum + r.sw, 0) / n
 
-      // Evaluasi SNI 1970:2016
-      // - BJ Curah Kering (Sd): 2.50 - 2.70
-      // - Penyerapan Air (Sw): Maksimal 3.0%
-      const isSdOk = avgSd >= 2.50 && avgSd <= 2.75
-      const isSwOk = avgSw >= 0 && avgSw <= 3.00
-      const isValid = isSdOk && isSwOk
+      const highAbsorption = validSamples.some(({ sw }) => sw > 3)
+      const isValid = !highAbsorption
 
       const formulaSteps = [
         `Jumlah Benda Uji Aktif = ${n} Sampel`,
@@ -897,24 +879,24 @@ export const calculatorRegistry = {
         ],
       }
 
-      const conclusion = isValid
-        ? `Memenuhi spesifikasi SNI 1970:2016 (Rata-rata BJ Curah Kering Sd = ${avgSd.toFixed(3)} [standar 2.50 - 2.70] dan Penyerapan Air Sw = ${avgSw.toFixed(2)}% [maks 3.0%]). Agregat halus layak digunakan untuk campuran beton struktural maupun perkerasan jalan.`
-        : `Rata-rata Penyerapan Air Sw (${avgSw.toFixed(2)}%) atau BJ Curah Sd (${avgSd.toFixed(3)}) berada di luar rentang standar SNI 1970:2016 (syarat teknis: Sd 2.50 - 2.70 dan Sw ≤ 3.0%). Perhatikan koreksi air pencampur beton.`
+      const conclusion = [
+        `Penyerapan rata-rata ${avgSw.toFixed(2)}%. ${highAbsorption ? 'Ada benda uji di atas pembanding 3% untuk campuran beraspal selain SMA. Periksa data tiap benda uji.' : 'Pembacaan berada dalam pembanding penyerapan 3% untuk campuran beraspal selain SMA.'}`,
+      ].join(' ')
 
       return {
         results: [
-          { label: 'BJ Curah Kering (Sd) Rata-rata', value: avgSd.toFixed(3), unit: '', highlight: true, sub: 'Standar SNI: 2.50 - 2.70' },
+          { label: 'BJ Curah Kering (Sd) Rata-rata', value: avgSd.toFixed(3), unit: '', highlight: true, sub: 'SNI 1970:2016 (metode uji)' },
           { label: 'BJ Curah SSD (Ss) Rata-rata', value: avgSs.toFixed(3), unit: '', sub: 'Kondisi Jenuh Kering Permukaan' },
           { label: 'BJ Semu (Sa) Rata-rata', value: avgSa.toFixed(3), unit: '', sub: 'Massa jenis butiran padat' },
-          { label: 'Penyerapan Air (Sw) Rata-rata', value: avgSw.toFixed(2), unit: '%', highlight: true, sub: 'Standar SNI: Maksimum 3.00%' },
+          { label: 'Penyerapan Air (Sw) Rata-rata', value: avgSw.toFixed(2), unit: '%', highlight: true, sub: 'Pembanding penyerapan 3% untuk campuran selain SMA' },
         ],
         formulaSteps,
         recapTable,
         isError: false,
-        status: isValid ? 'Valid' : 'Perlu Evaluasi',
+        status: isValid ? 'Dalam batas parameter yang diperiksa' : 'Perlu Evaluasi',
         verdictClass: isValid ? 'valid' : 'warning',
         conclusion,
-        summaryString: `Sd = ${avgSd.toFixed(3)}, Ss = ${avgSs.toFixed(3)}, Sa = ${avgSa.toFixed(3)}, Sw = ${avgSw.toFixed(2)}% (${isValid ? 'Memenuhi Standar' : 'Perlu Evaluasi'})`,
+        summaryString: `Sd = ${avgSd.toFixed(3)}, Ss = ${avgSs.toFixed(3)}, Sa = ${avgSa.toFixed(3)}, Sw = ${avgSw.toFixed(2)}% (${isValid ? 'Dalam batas pembanding' : 'Perlu Evaluasi'})`,
       }
     },
   },
@@ -1544,253 +1526,7 @@ export const calculatorRegistry = {
       ],
     },
     fields: [],
-    calculate: (inputs) => {
-      const rawSieves = Array.isArray(inputs.sieves) && inputs.sieves.length > 0
-        ? inputs.sieves
-        : [
-            { id: 1, size: 9.5,   label: '3/8" (9.5 mm)',     weights: [0.0, 0.0, 0.0], weight: 0 },
-            { id: 2, size: 4.75,  label: 'No. 4 (4.75 mm)',   weights: [20.0, 22.0, 18.0], weight: 20 },
-            { id: 3, size: 2.36,  label: 'No. 8 (2.36 mm)',   weights: [60.0, 58.0, 62.0], weight: 60 },
-            { id: 4, size: 1.18,  label: 'No. 16 (1.18 mm)',  weights: [110.0, 112.0, 108.0], weight: 110 },
-            { id: 5, size: 0.60,  label: 'No. 30 (0.60 mm)',  weights: [140.0, 138.0, 142.0], weight: 140 },
-            { id: 6, size: 0.30,  label: 'No. 50 (0.30 mm)',  weights: [100.0, 102.0, 98.0], weight: 100 },
-            { id: 7, size: 0.15,  label: 'No. 100 (0.15 mm)', weights: [50.0, 48.0, 52.0], weight: 50 },
-            { id: 8, size: 0,     label: 'Pan Penampung (Dasar)', weights: [20.0, 20.0, 20.0], weight: 20, isPan: true },
-          ]
-
-      const specimens = Array.isArray(inputs.specimens) && inputs.specimens.length > 0
-        ? inputs.specimens
-        : (Array.isArray(rawSieves[0]?.weights) && rawSieves[0].weights.length > 1
-            ? rawSieves[0].weights.map((_, i) => `Benda Uji ${['I', 'II', 'III', 'IV', 'V', 'VI'][i] || (i + 1)}`)
-            : ['Benda Uji I'])
-
-      const numSpecimens = specimens.length
-
-      const nonPanSieves = rawSieves.filter(
-        (s) => !s.isPan && Number(s.size) > 0 && !String(s.label || '').toLowerCase().includes('pan')
-      )
-
-      if (nonPanSieves.length === 0) {
-        return {
-          results: [
-            { label: 'Total Massa Contoh (Rata-rata)', value: '-', unit: 'gram' },
-            { label: 'Fineness Modulus (FM) Rata-rata', value: '-', unit: '', highlight: true },
-            { label: 'Klasifikasi Zona Ayakan', value: '-', unit: '', highlight: true },
-            { label: 'Status SNI 03-1968', value: 'Input Kosong', unit: '' },
-          ],
-          formulaSteps: ['Minimal harus ada 1 ukuran saringan selain Pan Penampung.'],
-          isError: true,
-          status: 'Input Tidak Wajar / Cek Data',
-          verdictClass: 'error',
-          conclusion: 'Minimal harus ada 1 ukuran saringan yang digunakan untuk pengujian gradasi.',
-          summaryString: 'Saringan Kosong',
-        }
-      }
-
-      // Hitung per spesimen
-      const sortedDesc = [...nonPanSieves].sort((a, b) => Number(b.size) - Number(a.size))
-      const standardSizes = [9.5, 4.75, 2.36, 1.18, 0.60, 0.30, 0.15]
-
-      const specimenResults = specimens.map((name, k) => {
-        const total = rawSieves.reduce((sum, s) => {
-          const w = Array.isArray(s.weights) ? Number(s.weights[k] ?? 0) : Number(s.weight ?? 0)
-          return sum + (w > 0 ? w : 0)
-        }, 0)
-
-        let cumulative = 0
-        const rows = sortedDesc.map((s) => {
-          const w = Array.isArray(s.weights) ? Number(s.weights[k] ?? 0) : Number(s.weight ?? 0)
-          cumulative += w
-          const cumRetainedPct = total > 0 ? (cumulative / total) * 100 : 0
-          const cumPassingPct = total > 0 ? Math.max(0, Math.min(100, ((total - cumulative) / total) * 100)) : 0
-          return {
-            ...s,
-            size: Number(s.size),
-            weight: w,
-            cumRetained: cumulative,
-            cumRetainedPct,
-            cumPassingPct,
-          }
-        })
-
-        let sumCumPct = 0
-        let matchedCount = 0
-        standardSizes.forEach((stdSz) => {
-          const matched = rows.find((s) => Math.abs(s.size - stdSz) / stdSz < 0.12)
-          if (matched) {
-            sumCumPct += matched.cumRetainedPct
-            matchedCount++
-          }
-        })
-
-        const fm = total > 0
-          ? (matchedCount > 0 ? sumCumPct / 100 : rows.reduce((acc, s) => acc + s.cumRetainedPct, 0) / 100)
-          : 0
-
-        return { name, total, rows, fm, sumCumPct }
-      })
-
-      const avgTotal = specimenResults.reduce((s, r) => s + r.total, 0) / numSpecimens
-      const avgFm = specimenResults.reduce((s, r) => s + r.fm, 0) / numSpecimens
-
-      if (avgTotal <= 0) {
-        return {
-          results: [
-            { label: 'Total Massa Contoh (Rata-rata)', value: '0.0', unit: 'gram' },
-            { label: 'Fineness Modulus (FM) Rata-rata', value: '-', unit: '', highlight: true },
-            { label: 'Klasifikasi Zona Ayakan', value: '-', unit: '', highlight: true },
-            { label: 'Status SNI 03-1968', value: 'Input Kosong', unit: '' },
-          ],
-          formulaSteps: ['Total berat benda uji pasir harus lebih besar dari 0 gram.'],
-          isError: true,
-          status: 'Input Tidak Wajar / Cek Data',
-          verdictClass: 'error',
-          conclusion: 'Total berat tertahan pada ayakan harus lebih besar dari 0 gram. Silakan masukkan data penimbangan fraksi ayakan.',
-          summaryString: 'Data Ayakan Kosong (0 gr)',
-        }
-      }
-
-      let zoneNum
-      let zone
-      if (avgFm < 2.3) {
-        zoneNum = 4
-        zone = 'Zona IV (Pasir Sangat Halus)'
-      } else if (avgFm < 2.6) {
-        zoneNum = 3
-        zone = 'Zona III (Pasir Agak Halus)'
-      } else if (avgFm <= 3.1) {
-        zoneNum = 2
-        zone = 'Zona II (Pasir Agak Kasar / Ideal Beton)'
-      } else {
-        zoneNum = 1
-        zone = 'Zona I (Pasir Kasar)'
-      }
-
-      const SNI_ZONE_LOOKUP = {
-        1: { 0.15: [0, 10], 0.30: [5, 20], 0.60: [15, 34], 1.18: [30, 70], 2.36: [60, 95], 4.75: [90, 100], 9.5: [100, 100] },
-        2: { 0.15: [0, 10], 0.30: [8, 30], 0.60: [35, 59], 1.18: [55, 90], 2.36: [75, 100], 4.75: [90, 100], 9.5: [100, 100] },
-        3: { 0.15: [0, 10], 0.30: [12, 40], 0.60: [60, 79], 1.18: [75, 100], 2.36: [85, 100], 4.75: [90, 100], 9.5: [100, 100] },
-        4: { 0.15: [0, 15], 0.30: [15, 50], 0.60: [80, 100], 1.18: [90, 100], 2.36: [95, 100], 4.75: [95, 100], 9.5: [100, 100] },
-      }
-
-      // Hitung rata-rata passing untuk Recharts
-      const sortedAsc = [...sortedDesc].reverse()
-      const sieves = sortedAsc.map((s) => Number(s.size))
-      const sieveLabels = sortedAsc.map((s) => formatSieveLabel(s.size))
-      const sieveNames = sortedAsc.map((s) => s.label || formatSieveLabel(s.size))
-
-      const actualPassing = sortedAsc.map((s) => {
-        const passVals = specimenResults.map((sr) => {
-          const row = sr.rows.find((r) => r.id === s.id || Math.abs(r.size - Number(s.size)) < 0.01)
-          return row ? row.cumPassingPct : 0
-        })
-        const avg = passVals.reduce((a, b) => a + b, 0) / numSpecimens
-        return Number(avg.toFixed(1))
-      })
-
-      const activeZoneLookup = SNI_ZONE_LOOKUP[zoneNum]
-      const baList = []
-      const bbList = []
-      sortedAsc.forEach((s) => {
-        let bb = 0
-        let ba = 100
-        const matchedKey = Object.keys(activeZoneLookup).find((k) => Math.abs(Number(k) - Number(s.size)) < 0.15)
-        if (matchedKey) {
-          [bb, ba] = activeZoneLookup[matchedKey]
-        } else if (Number(s.size) >= 9.5) {
-          bb = 100
-          ba = 100
-        } else if (Number(s.size) >= 4.75) {
-          bb = zoneNum === 4 ? 95 : 90
-          ba = 100
-        } else if (Number(s.size) < 0.15) {
-          bb = 0
-          ba = 10
-        } else {
-          bb = 0
-          ba = 100
-        }
-        bbList.push(bb)
-        baList.push(ba)
-      })
-
-      const isWithinBounds = actualPassing.every((val, idx) => val <= baList[idx] && val >= bbList[idx])
-      const isValid = avgFm >= 2.20 && avgFm <= 3.20
-
-      // Tabel Rekapitulasi Gradasi
-      const recapTable = {
-        title: 'Tabel Rekapitulasi Gradasi & MHB Multi-Benda Uji (Format Laporan Praktikum)',
-        headers: ['Ukuran Saringan (mm)', 'Label Saringan', ...specimens.map(name => `${name} (% Lolos)`), 'Rata-rata % Lolos'],
-        rows: [
-          ...sortedDesc.map((s) => {
-            const passVals = specimenResults.map((sr) => {
-              const row = sr.rows.find((r) => r.id === s.id || Math.abs(r.size - Number(s.size)) < 0.01)
-              return row ? row.cumPassingPct : 0
-            })
-            const avgPass = passVals.reduce((a, b) => a + b, 0) / numSpecimens
-            return {
-              label: `${s.size} mm`,
-              equation: s.label || `${s.size} mm`,
-              unit: '%',
-              values: passVals.map((v) => v.toFixed(1) + '%'),
-              average: avgPass.toFixed(1) + '%',
-            }
-          }),
-          {
-            label: 'Modulus Halus Butir (MHB)',
-            equation: 'MHB = Σ(% Tertahan Kum.) / 100',
-            unit: '',
-            values: specimenResults.map((sr) => sr.fm.toFixed(2)),
-            average: avgFm.toFixed(2),
-            highlight: true,
-          },
-        ],
-      }
-
-      const formulaSteps = [
-        `Jumlah Benda Uji = ${numSpecimens} (${specimens.join(', ')})`,
-        ...specimenResults.map(
-          (sr) => `${sr.name}: Total = ${sr.total.toFixed(1)} g | MHB = ${sr.sumCumPct.toFixed(1)} / 100 = ${sr.fm.toFixed(2)}`
-        ),
-        `Rata-rata Fineness Modulus (FM) = (${specimenResults.map(sr => sr.fm.toFixed(2)).join(' + ')}) / ${numSpecimens} = ${avgFm.toFixed(2)}`,
-        `Klasifikasi Zona Gradasi = ${zone}`,
-      ]
-
-      const conclusion = isValid
-        ? `Nilai rata-rata Fineness Modulus (FM) = ${avgFm.toFixed(2)} tergolong dalam ${zone}. Memenuhi spesifikasi standar SNI 03-1968-1990 untuk agregat halus beton struktural (rentang standar FM: 2.20 - 3.20).`
-        : `Nilai Fineness Modulus (FM) = ${avgFm.toFixed(2)} berada di luar rentang standar SNI 03-1968-1990 (syarat FM beton: 2.20 - 3.20). Pasir ${avgFm < 2.2 ? 'terlalu halus' : 'terlalu kasar'} sehingga perlu pencampuran gradasi pasir lain.`
-
-      return {
-        results: [
-          { label: 'Total Massa Contoh (Rata-rata)', value: avgTotal.toFixed(1), unit: 'gram', sub: `${numSpecimens} Benda Uji` },
-          { label: 'Fineness Modulus (FM) Rata-rata', value: avgFm.toFixed(2), unit: '', highlight: true, sub: 'Syarat SNI: 2.20 - 3.20' },
-          { label: 'Klasifikasi Zona Ayakan', value: zone, unit: '', highlight: true, sub: 'SNI 03-1968-1990' },
-          { label: 'MHB per Benda Uji', value: specimenResults.map(sr => sr.fm.toFixed(2)).join(' | '), unit: '', sub: 'Distribusi MHB sampel' },
-        ],
-        formulaSteps,
-        recapTable,
-        gradationChart: {
-          isCoarse: false,
-          chartTitle: 'Grafik Kurva Gradasi Agregat Halus',
-          chartSubtitle: `Distribusi Butiran Pasir & Amplop Batas Spesifikasi SNI 03-1968 (${zone})`,
-          zoneNum,
-          zoneLabel: `Zona ${zoneNum}`,
-          zoneFullName: zone,
-          sieves,
-          sieveLabels,
-          sieveNames,
-          actualPassing,
-          upperBound: baList,
-          lowerBound: bbList,
-          isWithinBounds,
-        },
-        isError: false,
-        status: isValid ? 'Valid' : 'Perlu Evaluasi',
-        verdictClass: isValid ? 'valid' : 'warning',
-        conclusion,
-        summaryString: `FM = ${avgFm.toFixed(2)}, ${zone} (${isValid ? 'Memenuhi Standar' : 'Perlu Evaluasi'})`,
-      }
-    },
+    calculate: (inputs) => calculateAggregateGradation(inputs, false),
   },
 
   // -----------------------------------------------------------------------
@@ -1805,12 +1541,19 @@ export const calculatorRegistry = {
     standard: 'SNI 1969:2016',
     desc: 'Menghitung parameter Berat Jenis Curah Kering (Sd), Jenuh Permukaan / SSD (Ss), Semu (Sa), dan Penyerapan Air batu pecah/kerikil multi-sampel dinamis.',
     hasMultiSample: true,
+    commonFieldsTitle: 'Pembanding untuk Campuran Beraspal',
+    commonFieldsSubtitle: 'Pasal 6.3.2 Bina Marga 2018 Revisi 2',
+    commonFields: [
+      { key: 'pairedFineGsb', label: 'BJ Curah Kering Agregat Halus', min: 0.001, step: 'any',
+        desc: 'Opsional. Gunakan hasil dari agregat halus yang akan dicampur dengan agregat kasar ini.' },
+    ],
     sampleFields: [
       { key: 'a', label: 'Berat Kering Oven (A)', unit: 'gram', desc: 'Massa benda uji kering oven 110°C', min: 0.1 },
       { key: 'b', label: 'Berat Kondisi SSD (B)', unit: 'gram', desc: 'Massa benda uji jenuh kering permukaan', min: 0.1 },
       { key: 'c', label: 'Berat dalam Air (C)', unit: 'gram', desc: 'Massa ditimbang dalam keranjang terendam air', min: 0.1 },
     ],
     initialInputs: {
+      pairedFineGsb: '',
       samples: JSON.parse(JSON.stringify(DEFAULT_BB21_SAMPLES)),
     },
     fields: [
@@ -1904,10 +1647,10 @@ export const calculatorRegistry = {
       const avgSa = validSamples.reduce((sum, r) => sum + r.sa, 0) / n
       const avgSw = validSamples.reduce((sum, r) => sum + r.sw, 0) / n
 
-      // Standar SNI 1969:2016: Absorpsi <= 3.00% (batu normal <= 2.50%), BJ Curah >= 2.45 (batu apung/ringan >= 2.0)
-      const isSwOk = avgSw >= 0 && avgSw <= 3.00
-      const isBulkOk = avgSd >= 2.10
-      const isValid = isSwOk && isBulkOk
+      const highAbsorption = validSamples.some(({ sw }) => sw > 3)
+      const fineGsb = Number(inputs.pairedFineGsb)
+      const gsbDifference = fineGsb > 0 && Number.isFinite(fineGsb) ? Math.abs(avgSd - fineGsb) : null
+      const isValid = !highAbsorption && gsbDifference !== null && gsbDifference <= 0.2 + 1e-9
 
       const formulaSteps = [
         `Jumlah Benda Uji Aktif = ${n} Sampel`,
@@ -1978,24 +1721,27 @@ export const calculatorRegistry = {
         ],
       }
 
-      const conclusion = isValid
-        ? `Agregat kasar memenuhi spesifikasi SNI 1969:2016 (Rata-rata Penyerapan Air Sw = ${avgSw.toFixed(2)}% ≤ 3.00% dan BJ Curah Sd = ${avgSd.toFixed(3)}). Agregat layak digunakan untuk campuran beton struktural maupun perkerasan jalan.`
-        : `Rata-rata Penyerapan Air Sw (${avgSw.toFixed(2)}%) atau BJ Curah Sd (${avgSd.toFixed(3)}) memerlukan evaluasi terhadap standar SNI 1969:2016 (syarat teknis: Sw ≤ 3.00%).`
+      const conclusion = [
+        `Penyerapan rata-rata ${avgSw.toFixed(2)}%. ${highAbsorption ? 'Ada benda uji di atas pembanding 3% untuk campuran beraspal selain SMA. Periksa data tiap benda uji.' : 'Pembacaan berada dalam pembanding penyerapan 3% untuk campuran beraspal selain SMA.'}`,
+        gsbDifference === null ? 'Masukkan BJ curah kering agregat halus dari rancangan yang sama untuk memeriksa selisih maksimum 0,2.'
+          : `Selisih BJ curah kering kasar dan halus ${gsbDifference.toFixed(3)} (${gsbDifference <= 0.2 + 1e-9 ? 'dalam batas' : 'melebihi batas'} 0,2).`,
+      ].join(' ')
 
       return {
         results: [
-          { label: 'BJ Curah Kering (Sd) Rata-rata', value: avgSd.toFixed(3), unit: '', highlight: true, sub: 'Standar SNI 1969:2016' },
+          { label: 'BJ Curah Kering (Sd) Rata-rata', value: avgSd.toFixed(3), unit: '', highlight: true, sub: 'SNI 1969:2016 (metode uji)' },
           { label: 'BJ SSD (Ss) Rata-rata', value: avgSs.toFixed(3), unit: '', sub: 'Kondisi Jenuh Kering Permukaan' },
           { label: 'BJ Semu (Sa) Rata-rata', value: avgSa.toFixed(3), unit: '', sub: 'Massa jenis butiran padat' },
-          { label: 'Penyerapan Air (Sw) Rata-rata', value: avgSw.toFixed(2), unit: '%', highlight: true, sub: 'Standar SNI: Maksimum 3.00%' },
+          { label: 'Penyerapan Air (Sw) Rata-rata', value: avgSw.toFixed(2), unit: '%', highlight: true, sub: 'Pembanding penyerapan 3% untuk campuran selain SMA' },
+          { label: 'Selisih BJ Curah Kasar dan Halus', value: gsbDifference?.toFixed(3) ?? '—', unit: '', sub: 'Maksimum 0,2 untuk campuran beraspal' },
         ],
         formulaSteps,
         recapTable,
         isError: false,
-        status: isValid ? 'Valid' : 'Perlu Evaluasi',
+        status: isValid ? 'Dalam batas parameter yang diperiksa' : 'Perlu Evaluasi',
         verdictClass: isValid ? 'valid' : 'warning',
         conclusion,
-        summaryString: `Sd = ${avgSd.toFixed(3)}, Ss = ${avgSs.toFixed(3)}, Abs = ${avgSw.toFixed(2)}% (${isValid ? 'Memenuhi Standar' : 'Perlu Evaluasi'})`,
+        summaryString: `Sd = ${avgSd.toFixed(3)}, Ss = ${avgSs.toFixed(3)}, Abs = ${avgSw.toFixed(2)}% (${isValid ? 'Dalam batas pembanding' : 'Perlu Evaluasi'})`,
       }
     },
   },
@@ -2587,225 +2333,7 @@ export const calculatorRegistry = {
       ],
     },
     fields: [],
-    calculate: (inputs) => {
-      const rawSieves = Array.isArray(inputs.sieves) && inputs.sieves.length > 0
-        ? inputs.sieves
-        : [
-            { id: 1, size: 37.5,  label: '1 1/2" (37.5 mm)',  weights: [0.0, 0.0, 0.0], weight: 0 },
-            { id: 2, size: 25.0,  label: '1" (25.0 mm)',      weights: [120.0, 125.0, 115.0], weight: 120 },
-            { id: 3, size: 19.0,  label: '3/4" (19.0 mm)',    weights: [350.0, 345.0, 355.0], weight: 350 },
-            { id: 4, size: 12.5,  label: '1/2" (12.5 mm)',    weights: [650.0, 655.0, 645.0], weight: 650 },
-            { id: 5, size: 9.5,   label: '3/8" (9.5 mm)',     weights: [480.0, 475.0, 485.0], weight: 480 },
-            { id: 6, size: 4.75,  label: 'No. 4 (4.75 mm)',   weights: [320.0, 325.0, 315.0], weight: 320 },
-            { id: 7, size: 2.36,  label: 'No. 8 (2.36 mm)',   weights: [60.0, 55.0, 65.0], weight: 60 },
-            { id: 8, size: 0,     label: 'Pan Penampung (Dasar)', weights: [20.0, 20.0, 20.0], weight: 20, isPan: true },
-          ]
-
-      const specimens = Array.isArray(inputs.specimens) && inputs.specimens.length > 0
-        ? inputs.specimens
-        : (Array.isArray(rawSieves[0]?.weights) && rawSieves[0].weights.length > 1
-            ? rawSieves[0].weights.map((_, i) => `Benda Uji ${['I', 'II', 'III', 'IV', 'V', 'VI'][i] || (i + 1)}`)
-            : ['Benda Uji I'])
-
-      const numSpecimens = specimens.length
-
-      const nonPanSieves = rawSieves.filter(
-        (s) => !s.isPan && Number(s.size) > 0 && !String(s.label || '').toLowerCase().includes('pan')
-      )
-
-      if (nonPanSieves.length === 0) {
-        return {
-          results: [
-            { label: 'Total Massa Contoh (Rata-rata)', value: '-', unit: 'gram' },
-            { label: 'Fineness Modulus (FM) Rata-rata', value: '-', unit: '', highlight: true },
-            { label: 'Status Gradasi Agregat Kasar', value: '-', unit: '', highlight: true },
-            { label: 'Status SNI 03-1968', value: 'Input Kosong', unit: '' },
-          ],
-          formulaSteps: ['Minimal harus ada 1 ukuran saringan selain Pan Penampung.'],
-          isError: true,
-          status: 'Input Tidak Wajar / Cek Data',
-          verdictClass: 'error',
-          conclusion: 'Minimal harus ada 1 ukuran saringan yang digunakan untuk pengujian gradasi.',
-          summaryString: 'Saringan Kosong',
-        }
-      }
-
-      const sortedDesc = [...nonPanSieves].sort((a, b) => Number(b.size) - Number(a.size))
-      const standardSizes = [75, 37.5, 19.0, 9.5, 4.75, 2.36, 1.18, 0.60, 0.30, 0.15]
-
-      const specimenResults = specimens.map((name, k) => {
-        const total = rawSieves.reduce((sum, s) => {
-          const w = Array.isArray(s.weights) ? Number(s.weights[k] ?? 0) : Number(s.weight ?? 0)
-          return sum + (w > 0 ? w : 0)
-        }, 0)
-
-        let cumulative = 0
-        const rows = sortedDesc.map((s) => {
-          const w = Array.isArray(s.weights) ? Number(s.weights[k] ?? 0) : Number(s.weight ?? 0)
-          cumulative += w
-          const cumRetainedPct = total > 0 ? (cumulative / total) * 100 : 0
-          const cumPassingPct = total > 0 ? Math.max(0, Math.min(100, ((total - cumulative) / total) * 100)) : 0
-          return {
-            ...s,
-            size: Number(s.size),
-            weight: w,
-            cumRetained: cumulative,
-            cumRetainedPct,
-            cumPassingPct,
-          }
-        })
-
-        let sumCumPct = 0
-        let matchedCount = 0
-        standardSizes.forEach((stdSz) => {
-          const matched = rows.find((s) => Math.abs(s.size - stdSz) / stdSz < 0.12)
-          if (matched) {
-            sumCumPct += matched.cumRetainedPct
-            matchedCount++
-          }
-        })
-
-        // Pada kerikil, ayakan < 2.36 mm biasanya tertahan 100%
-        const fm = total > 0
-          ? (matchedCount > 0 ? (sumCumPct + (standardSizes.length - matchedCount) * 100) / 100 : rows.reduce((acc, s) => acc + s.cumRetainedPct, 0) / 100 + 4.0)
-          : 0
-
-        return { name, total, rows, fm: Math.min(8.5, Math.max(5.5, fm)), sumCumPct }
-      })
-
-      const avgTotal = specimenResults.reduce((s, r) => s + r.total, 0) / numSpecimens
-      const avgFm = specimenResults.reduce((s, r) => s + r.fm, 0) / numSpecimens
-
-      if (avgTotal <= 0) {
-        return {
-          results: [
-            { label: 'Total Massa Contoh (Rata-rata)', value: '0.0', unit: 'gram' },
-            { label: 'Fineness Modulus (FM) Rata-rata', value: '-', unit: '', highlight: true },
-            { label: 'Status Gradasi Agregat Kasar', value: '-', unit: '', highlight: true },
-            { label: 'Status SNI 03-1968', value: 'Input Kosong', unit: '' },
-          ],
-          formulaSteps: ['Total berat benda uji kerikil harus lebih besar dari 0 gram.'],
-          isError: true,
-          status: 'Input Tidak Wajar / Cek Data',
-          verdictClass: 'error',
-          conclusion: 'Total berat tertahan pada ayakan harus lebih besar dari 0 gram.',
-          summaryString: 'Data Ayakan Kosong (0 gr)',
-        }
-      }
-
-      // Standar ASTM C33 / SNI untuk agregat kasar nominal 20-25 mm
-      const sortedAsc = [...sortedDesc].reverse()
-      const sieves = sortedAsc.map((s) => Number(s.size))
-      const sieveLabels = sortedAsc.map((s) => formatSieveLabel(s.size))
-      const sieveNames = sortedAsc.map((s) => s.label || formatSieveLabel(s.size))
-
-      const actualPassing = sortedAsc.map((s) => {
-        const passVals = specimenResults.map((sr) => {
-          const row = sr.rows.find((r) => r.id === s.id || Math.abs(r.size - Number(s.size)) < 0.01)
-          return row ? row.cumPassingPct : 0
-        })
-        const avg = passVals.reduce((a, b) => a + b, 0) / numSpecimens
-        return Number(avg.toFixed(1))
-      })
-
-      // Amplop batas spesifikasi agregat kasar ukuran nominal 25 mm (ASTM C33 Size 57)
-      const baList = sortedAsc.map(s => {
-        const sz = Number(s.size)
-        if (sz >= 37.5) return 100
-        if (sz >= 25.0) return 100
-        if (sz >= 19.0) return 100
-        if (sz >= 12.5) return 60
-        if (sz >= 9.5) return 50
-        if (sz >= 4.75) return 10
-        return 5
-      })
-      const bbList = sortedAsc.map(s => {
-        const sz = Number(s.size)
-        if (sz >= 37.5) return 100
-        if (sz >= 25.0) return 95
-        if (sz >= 19.0) return 40
-        if (sz >= 12.5) return 25
-        if (sz >= 9.5) return 20
-        if (sz >= 4.75) return 0
-        return 0
-      })
-
-      const isWithinBounds = actualPassing.every((val, idx) => val <= baList[idx] && val >= bbList[idx])
-      const isValid = avgFm >= 6.00 && avgFm <= 7.50
-
-      const recapTable = {
-        title: 'Tabel Rekapitulasi Gradasi & MHB Agregat Kasar Multi-Benda Uji',
-        headers: ['Ukuran Saringan (mm)', 'Label Saringan', ...specimens.map(name => `${name} (% Lolos)`), 'Rata-rata % Lolos'],
-        rows: [
-          ...sortedDesc.map((s) => {
-            const passVals = specimenResults.map((sr) => {
-              const row = sr.rows.find((r) => r.id === s.id || Math.abs(r.size - Number(s.size)) < 0.01)
-              return row ? row.cumPassingPct : 0
-            })
-            const avgPass = passVals.reduce((a, b) => a + b, 0) / numSpecimens
-            return {
-              label: `${s.size} mm`,
-              equation: s.label || `${s.size} mm`,
-              unit: '%',
-              values: passVals.map((v) => v.toFixed(1) + '%'),
-              average: avgPass.toFixed(1) + '%',
-            }
-          }),
-          {
-            label: 'Modulus Halus Butir (MHB)',
-            equation: 'MHB = Σ(% Tertahan Kum.) / 100',
-            unit: '',
-            values: specimenResults.map((sr) => sr.fm.toFixed(2)),
-            average: avgFm.toFixed(2),
-            highlight: true,
-          },
-        ],
-      }
-
-      const formulaSteps = [
-        `Jumlah Benda Uji = ${numSpecimens} (${specimens.join(', ')})`,
-        ...specimenResults.map(
-          (sr) => `${sr.name}: Total = ${sr.total.toFixed(1)} g | MHB = ${sr.fm.toFixed(2)}`
-        ),
-        `Rata-rata Modulus Halus Butir (MHB) = (${specimenResults.map(sr => sr.fm.toFixed(2)).join(' + ')}) / ${numSpecimens} = ${avgFm.toFixed(2)}`,
-        `Standar MHB Agregat Kasar SNI 03-1968-1990: 6.00 - 7.50`,
-      ]
-
-      const conclusion = isValid
-        ? `Nilai rata-rata MHB = ${avgFm.toFixed(2)} memenuhi batas spesifikasi SNI 03-1968-1990 untuk batu pecah / kerikil beton (rentang standar MHB: 6.00 - 7.50). Gradasi butiran terdistribusi baik untuk campuran beton.`
-        : `Nilai rata-rata MHB = ${avgFm.toFixed(2)} berada di luar rentang ideal SNI (6.00 - 7.50). Perlu penyesuaian proporsi fraksi kerikil.`
-
-      return {
-        results: [
-          { label: 'Total Massa Contoh (Rata-rata)', value: avgTotal.toFixed(1), unit: 'gram', sub: `${numSpecimens} Benda Uji` },
-          { label: 'Fineness Modulus (FM) Rata-rata', value: avgFm.toFixed(2), unit: '', highlight: true, sub: 'Standar SNI: 6.00 - 7.50' },
-          { label: 'Status Gradasi Agregat Kasar', value: isValid ? 'Gradasi Baik (Well Graded)' : 'Gradasi Buruk', unit: '', highlight: true, sub: 'SNI 03-1968-1990' },
-          { label: 'MHB per Benda Uji', value: specimenResults.map(sr => sr.fm.toFixed(2)).join(' | '), unit: '', sub: 'Distribusi MHB sampel' },
-        ],
-        formulaSteps,
-        recapTable,
-        gradationChart: {
-          isCoarse: true,
-          chartTitle: 'Grafik Kurva Gradasi Agregat Kasar',
-          chartSubtitle: 'Distribusi Butiran Kerikil & Amplop Batas Spesifikasi SNI 03-1968',
-          zoneNum: 1,
-          zoneLabel: 'Agregat Kasar',
-          zoneFullName: 'Batu Pecah / Kerikil Standar Beton',
-          sieves,
-          sieveLabels,
-          sieveNames,
-          actualPassing,
-          upperBound: baList,
-          lowerBound: bbList,
-          isWithinBounds,
-        },
-        isError: false,
-        status: isValid ? 'Valid' : 'Perlu Evaluasi',
-        verdictClass: isValid ? 'valid' : 'warning',
-        conclusion,
-        summaryString: `FM = ${avgFm.toFixed(2)} (${isValid ? 'Memenuhi Standar' : 'Perlu Evaluasi'})`,
-      }
-    },
+    calculate: (inputs) => calculateAggregateGradation(inputs, true),
   },
 
   'bb-2-6': {
@@ -3022,14 +2550,7 @@ export const calculatorRegistry = {
         const slumpCm = a - b
         const slumpMm = slumpCm * 10
 
-        let tipeRuntuhan
-        if (slumpCm > 24) {
-          tipeRuntuhan = 'Collapse (Runtuh)'
-        } else if (slumpCm < 2) {
-          tipeRuntuhan = 'Zero Slump (Kaku)'
-        } else {
-          tipeRuntuhan = 'True Slump (Normal)'
-        }
+        const tipeRuntuhan = s.bentukSlump || 'Belum dicatat'
 
         validSamples.push({
           id: s.id || idx + 1,
@@ -3064,16 +2585,7 @@ export const calculatorRegistry = {
       const avgSlumpCm = validSamples.reduce((sum, r) => sum + r.slumpCm, 0) / n
       const avgSlumpMm = avgSlumpCm * 10
 
-      let avgShape
-      if (avgSlumpCm > 24) {
-        avgShape = 'Collapse (Runtuh Total)'
-      } else if (avgSlumpCm < 2) {
-        avgShape = 'Zero Slump (Sangat Kaku)'
-      } else {
-        avgShape = 'True Slump (Normal)'
-      }
-
-      // Standar SNI 1972:2008 untuk beton normal struktural: rentang target 8 - 15 cm
+      const avgShape = 'Perlu observasi visual'
       const isNormal = avgSlumpCm >= 8.0 && avgSlumpCm <= 15.0
 
       const formulaSteps = [
@@ -3084,8 +2596,8 @@ export const calculatorRegistry = {
         `Rata-rata Tinggi Alat (A) = (${validSamples.map(r => r.tinggiA.toFixed(1)).join(' + ')}) / ${n} = ${avgA.toFixed(1)} cm`,
         `Rata-rata Tinggi Beton (B) = (${validSamples.map(r => r.tinggiB.toFixed(1)).join(' + ')}) / ${n} = ${avgB.toFixed(1)} cm`,
         `Rata-rata Nilai Slump = (${validSamples.map(r => r.slumpCm.toFixed(1)).join(' + ')}) / ${n} = ${avgSlumpCm.toFixed(1)} cm (${avgSlumpMm.toFixed(0)} mm)`,
-        `Bentuk Runtuhan Konsensus = ${avgShape}`,
-        `Rentang Standar Beton Normal Struktural SNI 1972:2008 = 8.0 - 15.0 cm (80 - 150 mm)`,
+        `Bentuk runtuhan dicatat lewat observasi visual.`,
+        `Rentang pembanding praktikum = 8.0 - 15.0 cm (80 - 150 mm)`,
       ]
 
       const recapTable = {
@@ -3131,16 +2643,14 @@ export const calculatorRegistry = {
         ],
       }
 
-      const conclusion = isNormal
-        ? `Rata-rata Nilai Slump = ${avgSlumpCm.toFixed(1)} cm (${avgSlumpMm.toFixed(0)} mm) memenuhi rentang rencana beton normal struktural SNI 1972:2008 (8 - 15 cm / 80 - 150 mm). Adukan memiliki kelecakan (workability) yang baik untuk pengecoran tanpa risiko segregasi.`
-        : `Rata-rata Nilai Slump = ${avgSlumpCm.toFixed(1)} cm berada di luar rentang standar beton normal (8 - 15 cm). ${avgSlumpCm < 8.0 ? 'Adukan terlalu kaku/kering, kelecakan rendah sehingga sulit dipadatkan.' : 'Adukan terlalu encer, risiko bleeding & segregasi tinggi.'} Evaluasi perbandingan faktor air-semen (fas).`
+      const conclusion = `Rata-rata slump ${avgSlumpMm.toFixed(0)} mm ${isNormal ? 'berada di dalam' : 'berada di luar'} rentang pembanding praktikum 80–150 mm. Bandingkan dengan target campuran pada spesifikasi proyek dan catat bentuk runtuhan hasil observasi.`
 
       return {
         results: [
-          { label: 'Nilai Slump Rata-rata (cm)', value: avgSlumpCm.toFixed(1), unit: 'cm', highlight: true, sub: 'Standar SNI: 8.0 - 15.0 cm' },
-          { label: 'Nilai Slump Rata-rata (mm)', value: avgSlumpMm.toFixed(0), unit: 'mm', sub: 'Standar: 80 - 150 mm' },
+          { label: 'Nilai Slump Rata-rata (cm)', value: avgSlumpCm.toFixed(1), unit: 'cm', highlight: true, sub: 'Pembanding praktikum: 8–15 cm' },
+          { label: 'Nilai Slump Rata-rata (mm)', value: avgSlumpMm.toFixed(0), unit: 'mm', sub: 'Pembanding praktikum: 80–150 mm' },
           { label: 'Bentuk Runtuhan Slump', value: avgShape, unit: '', sub: 'Evaluasi konsistensi adukan' },
-          { label: 'Standar Normal Struktural', value: '8 - 15', unit: 'cm', sub: 'SNI 1972:2008 / ASTM C143' },
+          { label: 'Rentang Pembanding Praktikum', value: '8 - 15', unit: 'cm', sub: 'Sesuaikan dengan spesifikasi proyek' },
         ],
         formulaSteps,
         recapTable,
@@ -3163,8 +2673,11 @@ export const calculatorRegistry = {
     desc: 'Menghitung kuat tekan beton karakteristik f\'c pada umur 3, 7, 14, 21, atau 28 hari berdasarkan beban aksial hancur multi-sampel dinamis.',
     hasMultiSample: true,
     commonFieldsTitle: 'Parameter Mutu & Umur Perawatan Beton',
-    commonFieldsSubtitle: 'Target kuat tekan rencana dan umur pengujian spesimen silinder:',
+    commonFieldsSubtitle: 'Target, umur, dan dimensi penampang benda uji:',
     commonFields: [
+      { key: 'tipeSample', label: 'Bentuk Benda Uji', type: 'select', options: [{ value: 'silinder', label: 'Silinder' }, { value: 'kubus', label: 'Kubus' }] },
+      { key: 'diameterMm', label: 'Diameter Rata-rata Silinder', unit: 'mm', min: 1, step: 0.1 },
+      { key: 'sisiMm', label: 'Sisi Penampang Kubus', unit: 'mm', min: 1, step: 0.1 },
       { 
         key: 'targetFc', 
         label: 'Target Kuat Tekan Rencana (f\'c)', 
@@ -3195,6 +2708,8 @@ export const calculatorRegistry = {
       targetFc: 25.0,
       umurHari: 28,
       tipeSample: 'silinder',
+      diameterMm: 150,
+      sisiMm: 150,
       samples: JSON.parse(JSON.stringify(DEFAULT_BB32_SAMPLES)),
     },
     fields: [
@@ -3206,16 +2721,10 @@ export const calculatorRegistry = {
       const target = Number(inputs.targetFc ?? 25.0)
       const umur = Number(inputs.umurHari ?? 28)
 
-      // Standar faktor konversi umur PBI 1971 / SNI: 3=0.40, 7=0.65, 14=0.88, 21=0.95, 28=1.00
-      const FAKTOR_UMUR = {
-        3: 0.40,
-        7: 0.65,
-        14: 0.88,
-        21: 0.95,
-        28: 1.00,
-      }
+      const kubus = inputs.tipeSample === 'kubus'
+      const dimensi = Number(kubus ? inputs.sisiMm ?? 150 : inputs.diameterMm ?? 150)
 
-      if (target <= 0 || isNaN(target)) {
+      if (!(target > 0) || !(dimensi > 0)) {
         return {
           results: [
             { label: 'Kuat Tekan Aktual', value: '-', unit: 'MPa', highlight: true },
@@ -3226,12 +2735,12 @@ export const calculatorRegistry = {
           isError: true,
           status: 'Input Tidak Wajar / Cek Kembali Data',
           verdictClass: 'error',
-          conclusion: 'Nilai target kuat tekan rencana f\'c harus lebih besar dari 0.',
+          conclusion: 'Target kuat tekan dan dimensi penampang harus lebih besar dari 0.',
           summaryString: 'Target f\'c Tidak Valid',
         }
       }
 
-      if (FAKTOR_UMUR[umur] === undefined) {
+      if (CONCRETE_AGE_FACTORS[umur] === undefined) {
         return {
           results: [
             { label: 'Kuat Tekan Aktual', value: '-', unit: 'MPa', highlight: true },
@@ -3247,8 +2756,8 @@ export const calculatorRegistry = {
         }
       }
 
-      const konversi = FAKTOR_UMUR[umur]
-      const luasMm2 = 17671.46 // Silinder D15 cm -> (π/4) * 150²
+      const konversi = CONCRETE_AGE_FACTORS[umur]
+      const luasMm2 = kubus ? dimensi ** 2 : Math.PI * dimensi ** 2 / 4
 
       const rawSamples = Array.isArray(inputs.samples) && inputs.samples.length > 0
         ? inputs.samples
@@ -3272,7 +2781,6 @@ export const calculatorRegistry = {
 
         const fcAktual = (p * 1000) / luasMm2
         const fcPrediksi28 = konversi > 0 ? fcAktual / konversi : fcAktual
-        const ekuivalenK = fcPrediksi28 / 0.083
 
         validSamples.push({
           id: s.id || idx + 1,
@@ -3280,7 +2788,6 @@ export const calculatorRegistry = {
           bebanHancur: p,
           fcAktual,
           fcPrediksi28,
-          ekuivalenK,
         })
       })
 
@@ -3304,25 +2811,24 @@ export const calculatorRegistry = {
       const avgP = validSamples.reduce((sum, r) => sum + r.bebanHancur, 0) / n
       const avgFcAktual = validSamples.reduce((sum, r) => sum + r.fcAktual, 0) / n
       const avgFcPrediksi28 = validSamples.reduce((sum, r) => sum + r.fcPrediksi28, 0) / n
-      const avgK = avgFcPrediksi28 / 0.083
       const targetUmur = target * konversi
       const isValid = avgFcAktual >= targetUmur
 
       const formulaSteps = [
         `Target Mutu Rencana = f'c ${target} MPa (Umur 28 Hari)`,
         `Faktor Konversi Umur (${umur} Hari) = ${konversi.toFixed(2)} | Target Umur ${umur} Hari = ${target} × ${konversi.toFixed(2)} = ${targetUmur.toFixed(2)} MPa`,
-        `Luas Penampang Silinder D15 cm = (π/4) × 150² = 17.671,46 mm²`,
+        `Luas penampang ${kubus ? 'kubus' : 'silinder'}: ${kubus ? 's²' : 'πD²/4'} = ${luasMm2.toFixed(2)} mm²`,
         `Jumlah Benda Uji Aktif = ${n} Sampel`,
         ...validSamples.map(r =>
-          `${r.name}: P = ${r.bebanHancur.toFixed(1)} kN → f'c (${umur}d) = (${r.bebanHancur.toFixed(1)} × 1000) / 17.671,46 = ${r.fcAktual.toFixed(2)} MPa (Proyeksi 28d = ${r.fcPrediksi28.toFixed(2)} MPa ~ K-${Math.round(r.ekuivalenK)})`
+          `${r.name}: P = ${r.bebanHancur.toFixed(1)} kN → f'c (${umur}d) = (${r.bebanHancur.toFixed(1)} × 1000) / ${luasMm2.toFixed(2)} = ${r.fcAktual.toFixed(2)} MPa (Proyeksi 28d = ${r.fcPrediksi28.toFixed(2)} MPa)`
         ),
         `Rata-rata Beban Hancur (P) = (${validSamples.map(r => r.bebanHancur.toFixed(1)).join(' + ')}) / ${n} = ${avgP.toFixed(1)} kN`,
         `Rata-rata Kuat Tekan Aktual (${umur} Hari) = (${validSamples.map(r => r.fcAktual.toFixed(2)).join(' + ')}) / ${n} = ${avgFcAktual.toFixed(2)} MPa`,
-        `Rata-rata Proyeksi f'c 28 Hari = ${avgFcAktual.toFixed(2)} / ${konversi.toFixed(2)} = ${avgFcPrediksi28.toFixed(2)} MPa (Ekuivalen K-${Math.round(avgK)})`,
+        `Rata-rata Proyeksi f'c 28 Hari = ${avgFcAktual.toFixed(2)} / ${konversi.toFixed(2)} = ${avgFcPrediksi28.toFixed(2)} MPa (estimasi praktikum)`,
       ]
 
       const recapTable = {
-        title: `Tabel Rekapitulasi Pengujian Kuat Tekan Beton Silinder (Umur ${umur} Hari, SNI 1974:2011)`,
+        title: `Tabel Rekapitulasi Kuat Tekan Beton ${kubus ? 'Kubus' : 'Silinder'} (Umur ${umur} Hari)`,
         headers: ['Parameter Pengujian', 'Rumus Acuan', 'Satuan', ...validSamples.map(s => s.name), 'Rata-rata'],
         rows: [
           {
@@ -3348,26 +2854,17 @@ export const calculatorRegistry = {
             average: avgFcPrediksi28.toFixed(2),
             highlight: true,
           },
-          {
-            label: 'Ekuivalen Karakteristik Kubus',
-            equation: 'f\'c / 0.083',
-            unit: 'kg/cm²',
-            values: validSamples.map(s => `K-${Math.round(s.ekuivalenK)}`),
-            average: `K-${Math.round(avgK)}`,
-          },
         ],
       }
 
-      const conclusion = isValid
-        ? `Rata-rata kuat tekan aktual tercapai f'c = ${avgFcAktual.toFixed(2)} MPa pada umur ${umur} hari, melampaui target minimum umur ${umur} hari (${targetUmur.toFixed(2)} MPa) untuk mutu rencana f'c ${target} MPa (Proyeksi 28 hari = ${avgFcPrediksi28.toFixed(2)} MPa / K-${Math.round(avgK)}). Mutu beton memenuhi spesifikasi SNI 1974:2011.`
-        : `Rata-rata kuat tekan aktual f'c = ${avgFcAktual.toFixed(2)} MPa pada umur ${umur} hari masih di bawah target minimum (${targetUmur.toFixed(2)} MPa) untuk rencana f'c ${target} MPa. Perlu evaluasi faktor air-semen atau perpanjangan masa curing.`
+      const conclusion = `Kuat tekan rata-rata ${kubus ? 'kubus' : 'silinder'} pada umur ${umur} hari: ${avgFcAktual.toFixed(2)} MPa. ${isValid ? 'Mencapai' : 'Di bawah'} target pembanding praktikum ${targetUmur.toFixed(2)} MPa. Proyeksi umur merupakan estimasi; kriteria penerimaan mengikuti spesifikasi proyek dan bentuk benda uji.`
 
       return {
         results: [
           { label: `Kuat Tekan Rata-rata (${umur} Hari)`, value: avgFcAktual.toFixed(2), unit: 'MPa', highlight: true, sub: `Target umur: ≥ ${targetUmur.toFixed(2)} MPa` },
           { label: 'Proyeksi f\'c (28 Hari)', value: avgFcPrediksi28.toFixed(2), unit: 'MPa', highlight: true, sub: `Target rencana: ${target.toFixed(1)} MPa` },
-          { label: 'Ekuivalen Karakteristik', value: `K-${Math.round(avgK)}`, unit: 'kg/cm²', sub: 'Konversi kubus 15x15 cm' },
-          { label: 'Target Mutu Rencana', value: target.toFixed(1), unit: 'MPa', sub: `f'c 28 hari (SNI 1974:2011)` },
+          { label: 'Luas Penampang', value: luasMm2.toFixed(2), unit: 'mm?' },
+          { label: 'Target Mutu Rencana', value: target.toFixed(1), unit: 'MPa', sub: `Target pembanding umur 28 hari` },
         ],
         formulaSteps,
         recapTable,
@@ -4364,7 +3861,7 @@ export const calculatorRegistry = {
       { key: 'bebanPutus', label: 'Beban Putus (Pu)', unit: 'kN', min: 0.1, step: 0.1, desc: 'Beban tarik maksimum' },
     ],
     initialInputs: {
-      mutuBaja: 'BjTS 420',
+      mutuBaja: 'BjTS 420B',
       samples: JSON.parse(JSON.stringify(DEFAULT_BB51_SAMPLES)),
     },
     fields: [
@@ -4387,15 +3884,8 @@ export const calculatorRegistry = {
       { key: 'bebanPutus', label: 'Beban Tarik Maksimum (Pu)', unit: 'kN', min: 0.1, step: 0.1, desc: 'Beban tarik maksimum' },
     ],
     calculate: (inputs) => {
-      const mutu = inputs.mutuBaja || 'BjTS 420'
-
-      const STANDAR_MUTU = {
-        'BjTS 280': { minFy: 280, minFu: 350, minRatio: 1.25, minElongasi: 12.0 },
-        'BjTS 420': { minFy: 420, minFu: 550, minRatio: 1.25, minElongasi: 14.0 },
-        'BjTS 520': { minFy: 520, minFu: 650, minRatio: 1.25, minElongasi: 12.0 },
-      }
-
-      const spec = STANDAR_MUTU[mutu] || STANDAR_MUTU['BjTS 420']
+      const mutu = !inputs.mutuBaja || inputs.mutuBaja === 'BjTS 420' ? 'BjTS 420B' : inputs.mutuBaja
+      const spec = steelTensionLimits(mutu, 0)
 
       const rawSamples = Array.isArray(inputs.samples) && inputs.samples.length > 0
         ? inputs.samples
@@ -4439,7 +3929,6 @@ export const calculatorRegistry = {
         const strain = (lu - l0) / l0
         const elongasi = strain * 100
         const ratio = fy > 0 ? fu / fy : 0
-        const eMpa = strain > 0 ? fu / strain : 0
 
         validSamples.push({
           id: s.id || idx + 1,
@@ -4455,7 +3944,6 @@ export const calculatorRegistry = {
           strain,
           elongasi,
           ratio,
-          eMpa,
         })
       })
 
@@ -4487,48 +3975,33 @@ export const calculatorRegistry = {
       const avgFu = validSamples.reduce((sum, r) => sum + r.fu, 0) / n
       const avgRatio = validSamples.reduce((sum, r) => sum + r.ratio, 0) / n
       const avgElongasi = validSamples.reduce((sum, r) => sum + r.elongasi, 0) / n
-      const avgE = validSamples.reduce((sum, r) => sum + r.eMpa, 0) / n
 
-      const isFyOk = avgFy >= spec.minFy
-      const isFuOk = avgFu >= spec.minFu
-      const isRatioOk = avgRatio >= spec.minRatio
-      const isElongasiOk = avgElongasi >= spec.minElongasi
-
-      let status
-      let verdictClass
-      let conclusion
-
-      if (!isFyOk || !isFuOk) {
-        status = 'Tidak Memenuhi Standar'
-        verdictClass = 'error'
-        const failReasons = []
-        if (!isFyOk) failReasons.push(`fy = ${avgFy.toFixed(1)} MPa < ${spec.minFy} MPa`)
-        if (!isFuOk) failReasons.push(`fu = ${avgFu.toFixed(1)} MPa < ${spec.minFu} MPa`)
-        conclusion = `Baja tulangan TIDAK MEMENUHI standar mutu ${mutu} sesuai SNI 2052:2017. Rata-rata di bawah batas minimum: ${failReasons.join(' dan ')}.`
-      } else if (!isRatioOk || !isElongasiOk) {
-        status = 'Perlu Evaluasi'
-        verdictClass = 'warning'
-        const evalReasons = []
-        if (!isRatioOk) evalReasons.push(`rasio fu/fy = ${avgRatio.toFixed(2)} < ${spec.minRatio} (daktilitas gempa)`)
-        if (!isElongasiOk) evalReasons.push(`elongasi = ${avgElongasi.toFixed(2)}% < ${spec.minElongasi}%`)
-        conclusion = `Kuat leleh dan tarik rata-rata memenuhi mutu ${mutu}, namun ${evalReasons.join(' dan ')}. Disarankan evaluasi khusus penggunaan penahan gempa (SNI 2052:2017).`
-      } else {
-        status = 'Valid'
-        verdictClass = 'valid'
-        conclusion = `Baja tulangan MEMENUHI seluruh kualifikasi mutu ${mutu} (Rata-rata fy = ${avgFy.toFixed(1)} MPa ≥ ${spec.minFy} MPa, fu = ${avgFu.toFixed(1)} MPa ≥ ${spec.minFu} MPa, rasio fu/fy = ${avgRatio.toFixed(2)} ≥ 1.25, elongasi = ${avgElongasi.toFixed(2)}% ≥ ${spec.minElongasi}%). Lolos seluruh syarat mekanis & daktilitas gempa SNI 2052:2017.`
-      }
+      const evaluatedSamples = validSamples.map((sample) => {
+        const limits = steelTensionLimits(mutu, sample.diameter)
+        if (!limits) return { ...sample, evaluation: 'Kelas baja belum dipilih' }
+        const strengthOk = sample.fy >= limits.fy[0] && sample.fy <= limits.fy[1] && sample.fu >= limits.fu && sample.ratio >= limits.ratio
+        const elongationKnown = sample.pjgAwal === 200 && limits.elongationMin !== undefined
+        const evaluation = !strengthOk || (elongationKnown && sample.elongasi < limits.elongationMin)
+          ? 'Di luar batas uji tarik' : elongationKnown ? 'Memenuhi batas uji tarik' : 'Perlu evaluasi regangan'
+        return { ...sample, limits, evaluation }
+      })
+      const allPassed = evaluatedSamples.every((sample) => sample.evaluation === 'Memenuhi batas uji tarik')
+      const anyFailed = evaluatedSamples.some((sample) => sample.evaluation === 'Di luar batas uji tarik')
+      const status = anyFailed ? 'Di luar batas uji tarik' : allPassed ? 'Memenuhi batas uji tarik' : 'Perlu Evaluasi'
+      const verdictClass = allPassed ? 'valid' : 'warning'
+      const conclusion = `${mutu}: ${status}. Evaluasi per benda uji mengikuti SNI 2052:2017 Tabel 6. Batas regangan berlaku pada panjang ukur 200 mm dan diameter yang tercantum. Uji lengkung dilaporkan terpisah.`
 
       const formulaSteps = [
-        `Target Mutu Acuan: ${mutu} (Syarat SNI 2052: fy ≥ ${spec.minFy} MPa, fu ≥ ${spec.minFu} MPa, fu/fy ≥ ${spec.minRatio}, elongasi ≥ ${spec.minElongasi}%)`,
+        `Acuan uji tarik: ${mutu} • SNI 2052:2017 Tabel 6`,
         `Jumlah Benda Uji Aktif = ${n} Sampel`,
         ...validSamples.map(r =>
-          `${r.name}: A0 = π/4 × ${r.diameter.toFixed(1)}² = ${r.a0.toFixed(2)} mm² | fy = (${r.bebanLeleh.toFixed(1)} × 1000) / ${r.a0.toFixed(2)} = ${r.fy.toFixed(1)} MPa | fu = ${r.fu.toFixed(1)} MPa | fu/fy = ${r.ratio.toFixed(2)} | ε = ${r.elongasi.toFixed(2)}% | E = ${r.eMpa.toFixed(0)} MPa`
+          `${r.name}: A0 = π/4 × ${r.diameter.toFixed(1)}² = ${r.a0.toFixed(2)} mm² | fy = (${r.bebanLeleh.toFixed(1)} × 1000) / ${r.a0.toFixed(2)} = ${r.fy.toFixed(1)} MPa | fu = ${r.fu.toFixed(1)} MPa | fu/fy = ${r.ratio.toFixed(2)} | ε = ${r.elongasi.toFixed(2)}%`
         ),
         `Rata-rata Tegangan Leleh (fy) = (${validSamples.map(r => r.fy.toFixed(1)).join(' + ')}) / ${n} = ${avgFy.toFixed(1)} MPa`,
         `Rata-rata Tegangan Maksimum (fu) = (${validSamples.map(r => r.fu.toFixed(1)).join(' + ')}) / ${n} = ${avgFu.toFixed(1)} MPa`,
-        `Rata-rata Rasio Kuat Tarik / Leleh (fu/fy) = ${avgRatio.toFixed(2)} (Syarat Daktilitas Gempa: ≥ ${spec.minRatio})`,
-        `Rata-rata Regangan / Elongasi (ε) = ${avgElongasi.toFixed(2)}% (Syarat Minimum: ≥ ${spec.minElongasi}%)`,
-        `Rata-rata Modulus Elastisitas (E) = ${avgE.toFixed(0)} MPa`,
+        `Rata-rata rasio fu/fy = ${avgRatio.toFixed(2)}`,
+        `Rata-rata regangan = ${avgElongasi.toFixed(2)}%`,
+        'Modulus elastisitas memerlukan data tegangan–regangan pada segmen elastis.',
       ]
 
       const recapTable = {
@@ -4609,22 +4082,16 @@ export const calculatorRegistry = {
             average: avgElongasi.toFixed(2) + '%',
             highlight: true,
           },
-          {
-            label: 'Modulus Elastisitas (E)',
-            equation: 'fu / ε',
-            unit: 'MPa',
-            values: validSamples.map(s => s.eMpa.toFixed(0)),
-            average: avgE.toFixed(0),
-          },
+          { label: 'Evaluasi uji tarik per benda uji', equation: 'SNI 2052:2017, Tabel 6', unit: '', values: evaluatedSamples.map((sample) => sample.evaluation), average: status },
         ],
       }
 
       return {
         results: [
-          { label: 'Tegangan Leleh Rata-rata (fy)', value: avgFy.toFixed(1), unit: 'MPa', highlight: true, sub: `Syarat: ≥ ${spec.minFy} MPa` },
-          { label: 'Tegangan Tarik Rata-rata (fu)', value: avgFu.toFixed(1), unit: 'MPa', highlight: true, sub: `Syarat: ≥ ${spec.minFu} MPa` },
-          { label: 'Rasio Kuat (fu / fy)', value: avgRatio.toFixed(2), unit: '', sub: `Syarat: ≥ ${spec.minRatio}` },
-          { label: 'Regangan / Elongasi (ε)', value: avgElongasi.toFixed(2), unit: '%', highlight: true, sub: `Syarat: ≥ ${spec.minElongasi}%` },
+          { label: 'Tegangan Leleh Rata-rata (fy)', value: avgFy.toFixed(1), unit: 'MPa', highlight: true, sub: spec ? `Batas: ${spec.fy[0]}–${spec.fy[1]} MPa` : 'Kelas baja belum dikenal' },
+          { label: 'Tegangan Tarik Rata-rata (fu)', value: avgFu.toFixed(1), unit: 'MPa', highlight: true, sub: spec ? `Batas: ≥ ${spec.fu} MPa` : '' },
+          { label: 'Rasio Kuat (fu / fy)', value: avgRatio.toFixed(2), unit: '', sub: spec ? `Batas: ≥ ${spec.ratio}` : '' },
+          { label: 'Regangan / Elongasi (ε)', value: avgElongasi.toFixed(2), unit: '%', highlight: true, sub: 'Batas menurut diameter pada L0 = 200 mm' },
         ],
         formulaSteps,
         recapTable,
@@ -4648,307 +4115,21 @@ export const calculatorRegistry = {
     lab: 'Mekanika Tanah',
     category: 'Mekanika Tanah • Bab 1: Penyelidikan Lapangan',
     standard: 'SNI 2827:2008 / ASTM D3441',
-    desc: 'Pengujian penetrasi konus Belanda (Sondir / Dutch Cone Penetrometer) dengan tabel perhitungan dinamis mirip spreadsheet Excel, evaluasi hambatan konus (qc), friction ratio (FR), serta visualisasi kurva stratigrafi real-time.',
+    desc: 'Olah pembacaan manometer sondir mekanis menjadi profil tahanan terhadap kedalaman. Reset Contoh memuat data simulasi tiap 20 cm, bukan hasil pengukuran lapangan.',
     hasDynamicCptTable: true,
     initialInputs: {
-      cptRows: [
-        { id: 1, depth: 0.0, qc: 0, tw: 0 },
-        { id: 2, depth: 0.2, qc: 5, tw: 7 },
-        { id: 3, depth: 0.4, qc: 8, tw: 11 },
-        { id: 4, depth: 0.6, qc: 10, tw: 14 },
-        { id: 5, depth: 0.8, qc: 15, tw: 20 },
-        { id: 6, depth: 1.0, qc: 22, tw: 30 },
-        { id: 7, depth: 1.2, qc: 35, tw: 46 },
-        { id: 8, depth: 1.4, qc: 40, tw: 52 },
-        { id: 9, depth: 1.6, qc: 18, tw: 23 },
-        { id: 10, depth: 1.8, qc: 15, tw: 19 },
-        { id: 11, depth: 2.0, qc: 20, tw: 25 },
-        { id: 12, depth: 2.2, qc: 45, tw: 56 },
-        { id: 13, depth: 2.4, qc: 65, tw: 80 },
-        { id: 14, depth: 2.6, qc: 85, tw: 103 },
-        { id: 15, depth: 2.8, qc: 110, tw: 132 },
-      ],
-      depth: 8.4,
-      qc: 145.0,
-      tw: 175.0,
+      cptRows: CPT_EXAMPLE_ROWS,
+      ...CPT_AREAS,
     },
     fields: [
-      { key: 'depth', label: 'Kedalaman Titik Uji (z)', unit: 'meter', desc: 'Posisi kedalaman ujung bikonus', min: 0.1, step: 0.1 },
-      { key: 'qc', label: 'Perlawanan Konus / Cone Resistance (qc)', unit: 'kg/cm²', desc: 'Tekanan terbaca pada manometer 1 (minimal 0.01 kg/cm²)', min: 0.01, step: 0.1 },
-      { key: 'tw', label: 'Perlawanan Total Gesek + Konus (tw)', unit: 'kg/cm²', desc: 'Tekanan terbaca pada manometer 2 (harus >= qc)', min: 0.01, step: 0.1 },
+      { key: 'depth', label: 'Kedalaman (z)', unit: 'm', min: 0.01, step: 0.01 },
+      { key: 'qc', label: 'Bacaan Konus (Cw)', unit: 'kgf/cm²', min: 0, step: 0.01 },
+      { key: 'tw', label: 'Bacaan Total (Tw)', unit: 'kgf/cm²', min: 0, step: 0.01 },
+      { key: 'pistonArea', label: 'Luas Piston (Ap)', unit: 'cm²', min: 0.01, step: 0.01 },
+      { key: 'coneArea', label: 'Luas Konus (Ac)', unit: 'cm²', min: 0.01, step: 0.01 },
+      { key: 'sleeveArea', label: 'Luas Selimut Geser (As)', unit: 'cm²', min: 0.01, step: 0.01 },
     ],
-    calculate: (inputs) => {
-      // 1. DYNAMIC CPT TABLE MODE (Default & Primary)
-      if (Array.isArray(inputs.cptRows)) {
-        const rawRows = inputs.cptRows.length > 0
-          ? inputs.cptRows
-          : [
-              { id: 1, depth: 0.0, qc: 0, tw: 0 },
-              { id: 2, depth: 0.2, qc: 5, tw: 7 },
-              { id: 3, depth: 0.4, qc: 8, tw: 11 },
-              { id: 4, depth: 0.6, qc: 10, tw: 14 },
-              { id: 5, depth: 0.8, qc: 15, tw: 20 },
-              { id: 6, depth: 1.0, qc: 22, tw: 30 },
-              { id: 7, depth: 1.2, qc: 35, tw: 46 },
-              { id: 8, depth: 1.4, qc: 40, tw: 52 },
-              { id: 9, depth: 1.6, qc: 18, tw: 23 },
-              { id: 10, depth: 1.8, qc: 15, tw: 19 },
-              { id: 11, depth: 2.0, qc: 20, tw: 25 },
-              { id: 12, depth: 2.2, qc: 45, tw: 56 },
-              { id: 13, depth: 2.4, qc: 65, tw: 80 },
-              { id: 14, depth: 2.6, qc: 85, tw: 103 },
-              { id: 15, depth: 2.8, qc: 110, tw: 132 },
-            ]
-
-        let hasInvalidRow = false
-        let runningJhp = 0
-
-        const computedRows = rawRows.map((row, idx) => {
-          const depth = row.depth !== undefined && row.depth !== '' ? Number(row.depth) : 0
-          const qc = row.qc !== undefined && row.qc !== '' ? Number(row.qc) : 0
-          const tw = row.tw !== undefined && row.tw !== '' ? Number(row.tw) : 0
-
-          const isInvalid = tw < qc
-          if (isInvalid) hasInvalidRow = true
-
-          const friction = isInvalid ? 0 : Math.max(0, tw - qc)
-          const hambatanSetempat = Number((friction / 10).toFixed(3))
-
-          // Hitung interval kedalaman delta z (standar: 0.20 m = 20 cm)
-          let deltaZCm = 20
-          if (idx > 0) {
-            const prevDepth = Number(rawRows[idx - 1].depth || 0)
-            const diff = depth - prevDepth
-            if (diff > 0) deltaZCm = diff * 100
-          } else {
-            deltaZCm = 0
-          }
-
-          // Hambatan pelekat interval: fs * deltaZ (cm) = (friction / 10) * 20 = friction * 2
-          const deltaJhp = isInvalid ? 0 : (idx === 0 && depth === 0 ? 0 : Number((hambatanSetempat * deltaZCm).toFixed(2)))
-
-          // Akumulasi kumulatif berantai dari atas ke bawah: JHP_n = JHP_{n-1} + deltaJhp
-          if (!isInvalid) {
-            runningJhp = Number((runningJhp + deltaJhp).toFixed(2))
-          }
-          const jumlahHambatanPelekat = runningJhp
-          const frictionRatio = qc > 0 ? Number(((hambatanSetempat / qc) * 100).toFixed(2)) : 0
-
-          // Klasifikasi jenis tanah per lapisan (Korelasi Robertson / Begemann CPT)
-          let rowSoil = 'Lempung Lunak'
-          if (qc >= 100 && frictionRatio < 1.5) {
-            rowSoil = 'Pasir Padat / Tanah Keras'
-          } else if (qc >= 50 && frictionRatio < 2.0) {
-            rowSoil = 'Pasir Sedang / Berlanau'
-          } else if (frictionRatio < 1.0) {
-            rowSoil = 'Pasir Kasar / Kerikil'
-          } else if (frictionRatio < 2.0) {
-            rowSoil = 'Pasir Berlanau'
-          } else if (frictionRatio < 4.0) {
-            rowSoil = 'Lanau / Lempung Berlanau'
-          } else if (frictionRatio < 6.5) {
-            rowSoil = 'Lempung Plastis'
-          } else {
-            rowSoil = 'Lempung Sangat Lunak / Gambut'
-          }
-
-          return {
-            id: row.id || idx + 1,
-            depth,
-            qc,
-            tw,
-            friction,
-            hambatanSetempat,
-            deltaJhp,
-            jumlahHambatanPelekat,
-            frictionRatio,
-            rowSoil,
-            isInvalid,
-            errorMessage: isInvalid ? 'Jumlah Hambatan (tw) tidak boleh lebih kecil dari Hambatan Konus (qc)' : null,
-          }
-        })
-
-        const totalKedalaman = computedRows.reduce((max, r) => Math.max(max, r.depth), 0)
-        const totalJhp = computedRows.length > 0 ? computedRows[computedRows.length - 1].jumlahHambatanPelekat : 0
-
-        const validRowsForAvg = computedRows.filter((r) => r.qc > 0 && !r.isInvalid)
-        const avgQc = validRowsForAvg.length > 0
-          ? validRowsForAvg.reduce((sum, r) => sum + r.qc, 0) / validRowsForAvg.length
-          : (computedRows.length > 0 ? computedRows.reduce((sum, r) => sum + r.qc, 0) / computedRows.length : 0)
-
-        const avgFr = validRowsForAvg.length > 0
-          ? validRowsForAvg.reduce((sum, r) => sum + r.frictionRatio, 0) / validRowsForAvg.length
-          : 0
-
-        let predictedSoil = 'Tanah Tidak Teridentifikasi'
-        if (avgQc >= 100 && avgFr < 1.5) {
-          predictedSoil = 'Pasir Padat / Tanah Keras'
-        } else if (avgQc >= 50 && avgFr < 2.0) {
-          predictedSoil = 'Pasir Sedang / Berlanau'
-        } else if (avgFr < 1.0) {
-          predictedSoil = 'Pasir Kasar / Kerikilan'
-        } else if (avgFr < 2.0) {
-          predictedSoil = 'Pasir Berlanau / Pasir Bersih'
-        } else if (avgFr < 4.0) {
-          predictedSoil = 'Lanau / Lempung Berlanau'
-        } else if (avgFr < 6.5) {
-          predictedSoil = 'Lempung Plastis / Lunak'
-        } else {
-          predictedSoil = 'Lempung Sangat Plastis / Gambut'
-        }
-
-        const chartData = computedRows.map((r) => ({
-          depth: r.depth,
-          qc: r.qc,
-          tw: r.tw,
-          friction: r.friction,
-          hambatanSetempat: Number(r.hambatanSetempat.toFixed(2)),
-          fs: Number(r.hambatanSetempat.toFixed(2)),
-          deltaJhp: r.deltaJhp,
-          jumlahHambatanPelekat: Number(r.jumlahHambatanPelekat.toFixed(1)),
-          frictionRatio: Number(r.frictionRatio.toFixed(2)),
-          fr: Number(r.frictionRatio.toFixed(2)),
-          rowSoil: r.rowSoil,
-          isInvalid: r.isInvalid,
-        })).sort((a, b) => a.depth - b.depth)
-
-        const isError = hasInvalidRow
-        const status = hasInvalidRow ? 'Input Tidak Wajar / Cek Kembali Data' : 'Valid'
-        const verdictClass = hasInvalidRow ? 'danger' : 'valid'
-
-        return {
-          results: [
-            { label: 'Total Kedalaman', value: `${totalKedalaman.toFixed(2)} m`, unit: '', highlight: true },
-            { label: 'Rata-rata qc', value: `${avgQc.toFixed(1)} kg/cm²`, unit: '', highlight: true },
-            { label: 'Total JHP Kumulatif', value: `${totalJhp.toFixed(1)} kg/cm`, unit: '', highlight: true },
-            { label: 'Rata-rata FR', value: `${avgFr.toFixed(2)}%`, unit: '', highlight: true },
-            { label: 'Prediksi Lapisan Tanah', value: predictedSoil, unit: '', highlight: true },
-          ],
-          formulaSteps: [
-            'Metode Analisis Sondir Bikonus (Dutch Cone Penetrometer) SNI 2827:2008 & ASTM D3441:',
-            '1. Hambatan Gesek Selubung: Friction (d) = tw - qc (kg/cm²)',
-            '2. Hambatan Setempat: fs = (tw - qc) / 10 = d / 10 (kg/cm²)',
-            '3. Hambatan Pelekat Interval: ΔJHP = fs × 20 cm = d × 2 (kg/cm)',
-            '4. Jumlah Hambatan Pelekat Kumulatif: JHP_n = JHP_{n-1} + ΔJHP (kg/cm) [Akumulasi berantai kumulatif dari permukaan ke dasar penetrasi]',
-            '5. Rasio Gesekan: Friction Ratio FR = (fs / qc) × 100%',
-            `6. Interpretasi Stratigrafi (Robertson): FR Rata-rata = ${avgFr.toFixed(2)}%, qc Rata-rata = ${avgQc.toFixed(1)} kg/cm² → Terklasifikasi sebagai ${predictedSoil}`,
-          ],
-          cptRows: computedRows,
-          chartData,
-          totalKedalaman,
-          avgQc,
-          totalJhp,
-          avgFr,
-          predictedSoil,
-          hasInvalidRow,
-          isError,
-          status,
-          verdictClass,
-          conclusion: hasInvalidRow
-            ? 'Perhatian: Terdapat baris pengujian di mana perlawanan total (tw) lebih kecil dari perlawanan konus (qc). Harap periksa kembali input manometer lapangan.'
-            : `Uji Sondir CPT terekam hingga kedalaman ${totalKedalaman.toFixed(2)} m dengan perlawanan konus rata-rata qc = ${avgQc.toFixed(1)} kg/cm², total hambatan pelekat kumulatif JHP = ${totalJhp.toFixed(1)} kg/cm, dan rasio gesekan FR rata-rata = ${avgFr.toFixed(2)}%. Stratigrafi dominan diidentifikasi sebagai ${predictedSoil}.`,
-          summaryString: `Sondir kedalaman ${totalKedalaman.toFixed(2)}m (qc rata-rata ${avgQc.toFixed(1)} kg/cm², JHP ${totalJhp.toFixed(1)} kg/cm, ${predictedSoil})`,
-        }
-      }
-
-      // 2. LEGACY SINGLE-POINT MODE (Support for depth, qc, tw)
-      const z = Number(inputs.depth || 0)
-      const qc = Number(inputs.qc !== undefined && inputs.qc !== '' ? inputs.qc : 0)
-      const tw = Number(inputs.tw !== undefined && inputs.tw !== '' ? inputs.tw : 0)
-
-      // Guard clause: jika qc === 0 atau qc <= 0, cegah kalkulasi dan pembagian dengan nol
-      if (qc <= 0) {
-        return {
-          results: [
-            { label: 'Perlawanan Konus (qc)', value: '0', unit: 'kg/cm²', highlight: true },
-            { label: 'Hambatan Pelekat (fs)', value: '-', unit: 'kg/cm²' },
-            { label: 'Friction Ratio (FR)', value: 'Error: qc tidak boleh 0', unit: '', highlight: true },
-            { label: 'Prediksi Lapisan Tanah', value: 'Input Tidak Valid', unit: '', highlight: true },
-          ],
-          formulaSteps: [
-            'Error: qc tidak boleh 0.',
-            'Guard clause aktif: Perhitungan Friction Ratio (FR = (fs / qc) × 100%) dibatalkan karena qc tidak boleh 0 (mencegah pembagian dengan nol).',
-            'Nilai perlawanan konus (qc) harus lebih besar dari 0 (minimal 0.01 kg/cm²).',
-          ],
-          isError: true,
-          status: 'Input Tidak Wajar / Cek Kembali Data',
-          conclusion: 'Error: qc tidak boleh 0. Nilai perlawanan konus harus lebih besar dari 0 kg/cm² agar rasio gesek (FR) dapat dihitung dengan valid.',
-          summaryString: 'Error: qc tidak boleh 0',
-        }
-      }
-
-      // Validasi relasi logis manometer: tw harus >= qc
-      if (tw < qc) {
-        return {
-          results: [
-            { label: 'Perlawanan Konus (qc)', value: qc.toFixed(1), unit: 'kg/cm²', highlight: true },
-            { label: 'Hambatan Pelekat (fs)', value: '-', unit: 'kg/cm²' },
-            { label: 'Friction Ratio (FR)', value: '-', unit: '', highlight: true },
-            { label: 'Prediksi Lapisan Tanah', value: 'Data Tidak Wajar', unit: '', highlight: true },
-          ],
-          formulaSteps: [
-            `Nilai perlawanan total tw (${tw} kg/cm²) lebih kecil dari perlawanan konus qc (${qc} kg/cm²).`,
-            'Secara fisik perlawanan total harus selalu lebih besar atau sama dengan perlawanan konus (tw = qc + qs).',
-          ],
-          isError: true,
-          status: 'Input Tidak Wajar / Cek Kembali Data',
-          conclusion: 'Input tidak logis: Nilai perlawanan total gesek + konus (tw) tidak boleh lebih kecil dari perlawanan konus (qc).',
-          summaryString: 'Input tw < qc tidak valid',
-        }
-      }
-
-      const qs = tw - qc
-      const fs = qs / 10 // faktor luas selubung bikonus
-      const fr = (fs / qc) * 100
-
-      let jenisTanah
-      let status
-      let conclusion
-
-      if (qc < 5) {
-        jenisTanah = 'Lempung Sangat Lunak'
-        status = 'Perlu Evaluasi'
-        conclusion = `Pada kedalaman ${z} m diperoleh nilai qc = ${qc.toFixed(1)} kg/cm² (Tergolong ${jenisTanah}). Tanah tergolong Lempung Sangat Lunak dengan daya dukung sangat rendah. Tidak cocok untuk pondasi dangkal.`
-      } else if (qc < 10) {
-        jenisTanah = 'Lempung Sangat Lunak'
-        status = 'Perlu Evaluasi'
-        conclusion = `Pada kedalaman ${z} m diperoleh nilai qc = ${qc.toFixed(1)} kg/cm² (Tergolong ${jenisTanah}). Daya dukung tanah tergolong sangat rendah, diperlukan perbaikan tanah atau opsi pondasi dalam.`
-      } else if (qc < 25) {
-        jenisTanah = 'Lempung Lunak / Lanau'
-        status = 'Perlu Evaluasi'
-        conclusion = `Pada kedalaman ${z} m diperoleh nilai qc = ${qc.toFixed(1)} kg/cm² (Tergolong ${jenisTanah}). Daya dukung tanah lunak, disarankan evaluasi penurunan konsolidasi sebelum perencanaan beban tinggi.`
-      } else if (qc < 50) {
-        jenisTanah = 'Lempung Kaku Sedang'
-        status = 'Valid'
-        conclusion = `Pada kedalaman ${z} m diperoleh nilai qc = ${qc.toFixed(1)} kg/cm² (Tergolong ${jenisTanah}). Daya dukung tanah mencukupi untuk konstruksi bertingkat rendah/sedang.`
-      } else if (qc < 100) {
-        jenisTanah = 'Pasir Kelanauan / Lempung Sangat Kaku'
-        status = 'Valid'
-        conclusion = `Pada kedalaman ${z} m diperoleh nilai qc = ${qc.toFixed(1)} kg/cm² (Tergolong ${jenisTanah}). Lapisan tanah memiliki daya dukung baik untuk pondasi dangkal maupun tiang.`
-      } else {
-        jenisTanah = 'Pasir Padat / Tanah Keras'
-        status = 'Valid'
-        conclusion = `Pada kedalaman ${z} m diperoleh nilai qc = ${qc.toFixed(1)} kg/cm² (Tergolong ${jenisTanah}). Nilai daya dukung tanah sangat kokoh untuk pondasi tiang/fondasi telapak.`
-      }
-
-      return {
-        results: [
-          { label: 'Perlawanan Konus (qc)', value: qc.toFixed(1), unit: 'kg/cm²', highlight: true },
-          { label: 'Hambatan Pelekat (fs)', value: fs.toFixed(2), unit: 'kg/cm²' },
-          { label: 'Friction Ratio (FR)', value: fr.toFixed(2), unit: '%', highlight: true },
-          { label: 'Prediksi Lapisan Tanah', value: jenisTanah, unit: '', highlight: true },
-        ],
-        formulaSteps: [
-          `Hambatan Gesek Selubung qs = tw - qc = ${tw} - ${qc} = ${qs.toFixed(1)} kg/cm²`,
-          `Friction Sleeve fs = qs / 10 = ${fs.toFixed(2)} kg/cm²`,
-          `Friction Ratio FR = (fs / qc) × 100% = (${fs.toFixed(2)} / ${qc}) × 100% = ${fr.toFixed(2)}%`,
-          `Klasifikasi Lapisan Tanah: ${jenisTanah}`,
-        ],
-        status,
-        conclusion,
-        summaryString: `qc = ${qc.toFixed(0)} kg/cm² pada depth ${z}m (${jenisTanah})`,
-      }
-    },
+    calculate: calculateCptProfile,
   },
 
   // -----------------------------------------------------------------------
@@ -4960,7 +4141,7 @@ export const calculatorRegistry = {
     name: 'Pengujian Kadar Air Alami Tanah',
     lab: 'Mekanika Tanah',
     category: 'Mekanika Tanah • Bab 2: Sifat Fisik Tanah',
-    standard: 'SNI 1965:2008',
+    standard: 'SNI 1965:2019',
     desc: 'Menghitung rasio berat air pori terhadap partikel padat butiran tanah alami dengan sistem multi-sampel dinamis.',
     hasMultiSample: true,
     sampleNamePrefix: 'Cawan C-',
@@ -4980,256 +4161,7 @@ export const calculatorRegistry = {
       { key: 'wBasah', label: 'Berat Cawan + Tanah Basah (W2)', unit: 'gram', min: 0.01, desc: 'Massa tanah alami sebelum dioven' },
       { key: 'wKering', label: 'Berat Cawan + Tanah Kering (W3)', unit: 'gram', min: 0.01, desc: 'Massa tanah kering setelah dioven 110°C konstan' },
     ],
-    calculate: (inputs) => {
-      // 1. Multi-Sampel Dinamis (Mode Utama)
-      if (Array.isArray(inputs.samples)) {
-        const rawSamples = inputs.samples
-        if (rawSamples.length === 0) {
-          return {
-            results: [
-              { label: 'Kadar Air Rata-rata (w)', value: '-', unit: '%', highlight: true },
-              { label: 'Berat Air Pori Rata-rata (Ww)', value: '-', unit: 'gram' },
-              { label: 'Berat Butir Kering Rata-rata (Ws)', value: '-', unit: 'gram' },
-              { label: 'Jumlah Cawan Uji', value: '0', unit: 'Cawan' },
-            ],
-            formulaSteps: ['Tambahkan minimal 1 cawan sampel pengujian kadar air.'],
-            isError: true,
-            status: 'Input Tidak Wajar / Cek Kembali Data',
-            verdictClass: 'invalid',
-            conclusion: 'Tidak ada sampel pengujian aktif. Silakan klik tombol "+ Tambah Sampel".',
-            summaryString: 'Belum ada sampel aktif',
-          }
-        }
-
-        const validSamples = []
-        const sampleErrors = []
-
-        rawSamples.forEach((s, idx) => {
-          const w1 = Number(s.w1 ?? 0)
-          const w2 = Number(s.w2 ?? 0)
-          const w3 = Number(s.w3 ?? 0)
-          const name = s.name || `Cawan C-${idx + 1}`
-
-          if (w1 <= 0 || w2 <= 0 || w3 <= 0) {
-            sampleErrors.push(`${name}: Nilai W1, W2, dan W3 harus lebih besar dari 0 gr`)
-            return
-          }
-          if (w2 <= w3) {
-            sampleErrors.push(`${name}: W2 (${w2} g) harus > W3 (${w3} g)`)
-            return
-          }
-          if (w3 <= w1) {
-            sampleErrors.push(`${name}: W3 (${w3} g) harus > W1 (${w1} g)`)
-            return
-          }
-
-          const ww = w2 - w3
-          const ws = w3 - w1
-          const w = (ww / ws) * 100
-
-          validSamples.push({
-            name,
-            w1,
-            w2,
-            w3,
-            ww,
-            ws,
-            w,
-          })
-        })
-
-        if (validSamples.length === 0) {
-          return {
-            results: [
-              { label: 'Kadar Air Rata-rata (w)', value: '-', unit: '%', highlight: true },
-              { label: 'Berat Air Pori Rata-rata (Ww)', value: '-', unit: 'gram' },
-              { label: 'Berat Butir Kering Rata-rata (Ws)', value: '-', unit: 'gram' },
-              { label: 'Jumlah Cawan Uji', value: String(rawSamples.length), unit: 'Cawan' },
-            ],
-            formulaSteps: sampleErrors.length > 0 ? sampleErrors : ['Data penimbangan pada sampel tidak valid.'],
-            isError: true,
-            status: 'Input Tidak Wajar / Cek Kembali Data',
-            verdictClass: 'invalid',
-            conclusion: `Input data penimbangan cawan belum valid: ${sampleErrors.join(', ')}. Pastikan W2 > W3 > W1.`,
-            summaryString: 'Input Cawan Tidak Valid',
-          }
-        }
-
-        const avgWw = validSamples.reduce((acc, s) => acc + s.ww, 0) / validSamples.length
-        const avgWs = validSamples.reduce((acc, s) => acc + s.ws, 0) / validSamples.length
-        const avgW = validSamples.reduce((acc, s) => acc + s.w, 0) / validSamples.length
-
-        const isHighMoisture = avgW > 100.0
-        const status = isHighMoisture ? 'Perlu Evaluasi (Kadar air tidak wajar untuk tanah normal)' : 'Valid'
-        const verdictClass = isHighMoisture ? 'warning' : 'valid'
-
-        const conclusion = isHighMoisture
-          ? `Kadar air alami rata-rata dari ${validSamples.length} cawan terukur sangat tinggi yaitu ${avgW.toFixed(2)}% (> 100.0%). Nilai ini tidak wajar untuk tanah anorganik normal (rentang wajar 10% - 60%). Nilai w > 100% umumnya hanya terjadi pada tanah organik, gambut berserat tinggi, atau lempung sangat lunak (quick clay). Lakukan evaluasi sampel atau verifikasi ulang pengujian.`
-          : `Kadar air alami tanah rata-rata sebesar ${avgW.toFixed(2)}% dari ${validSamples.length} pengujian cawan (SNI 1965:2008). Parameter ini memenuhi rentang wajar tanah normal serta menjadi acuan batas konsistensi dan derajat kejenuhan tanah.`
-
-        const sampleHeaders = validSamples.map(s => s.name)
-        const recapTable = {
-          title: 'Tabel Rekapitulasi Kadar Air Alami Tanah (SNI 1965:2008)',
-          headers: ['Parameter Pengujian', 'Simbol / Rumus', ...sampleHeaders, 'Rata-rata'],
-          rows: [
-            {
-              label: 'Berat Cawan Kosong',
-              equation: 'W1 (gram)',
-              values: validSamples.map(s => s.w1.toFixed(2)),
-              average: (validSamples.reduce((a, s) => a + s.w1, 0) / validSamples.length).toFixed(2),
-            },
-            {
-              label: 'Berat Cawan + Tanah Basah',
-              equation: 'W2 (gram)',
-              values: validSamples.map(s => s.w2.toFixed(2)),
-              average: (validSamples.reduce((a, s) => a + s.w2, 0) / validSamples.length).toFixed(2),
-            },
-            {
-              label: 'Berat Cawan + Tanah Kering',
-              equation: 'W3 (gram)',
-              values: validSamples.map(s => s.w3.toFixed(2)),
-              average: (validSamples.reduce((a, s) => a + s.w3, 0) / validSamples.length).toFixed(2),
-            },
-            {
-              label: 'Berat Air Pori',
-              equation: 'Ww = W2 - W3 (gram)',
-              values: validSamples.map(s => s.ww.toFixed(2)),
-              average: avgWw.toFixed(2),
-            },
-            {
-              label: 'Berat Butir Kering',
-              equation: 'Ws = W3 - W1 (gram)',
-              values: validSamples.map(s => s.ws.toFixed(2)),
-              average: avgWs.toFixed(2),
-            },
-            {
-              label: 'Kadar Air Tanah (w)',
-              equation: 'w = (Ww / Ws) × 100%',
-              values: validSamples.map(s => `${s.w.toFixed(2)}%`),
-              average: `${avgW.toFixed(2)}%`,
-              highlight: true,
-            },
-          ],
-        }
-
-        const formulaSteps = [
-          `Rumus Kadar Air Alami Tanah (SNI 1965:2008): w = (Ww / Ws) × 100% = ((W2 - W3) / (W3 - W1)) × 100%`,
-          ...validSamples.map(s => `${s.name}: Ww = ${s.w2} - ${s.w3} = ${s.ww.toFixed(2)} g, Ws = ${s.w3} - ${s.w1} = ${s.ws.toFixed(2)} g -> w = (${s.ww.toFixed(2)} / ${s.ws.toFixed(2)}) × 100% = ${s.w.toFixed(2)}%`),
-          `Rata-rata Kadar Air = (${validSamples.map(s => `${s.w.toFixed(2)}%`).join(' + ')}) / ${validSamples.length} = ${avgW.toFixed(2)}%`,
-        ]
-
-        return {
-          results: [
-            { label: 'Kadar Air Rata-rata (w)', value: avgW.toFixed(2), unit: '%', highlight: true, sub: `Rata-rata dari ${validSamples.length} cawan` },
-            { label: 'Berat Air Pori Rata-rata (Ww)', value: avgWw.toFixed(2), unit: 'gram', sub: 'Massa air menguap rata-rata' },
-            { label: 'Berat Butir Kering Rata-rata (Ws)', value: avgWs.toFixed(2), unit: 'gram', sub: 'Massa partikel padat rata-rata' },
-            { label: 'Jumlah Cawan Uji', value: String(validSamples.length), unit: 'Cawan', sub: 'Cawan aktif terverifikasi' },
-          ],
-          formulaSteps,
-          recapTable,
-          isError: false,
-          status,
-          verdictClass,
-          conclusion,
-          warningMessage: isHighMoisture ? `Perlu Evaluasi: Kadar air rata-rata w = ${avgW.toFixed(2)}% melebihi 100%.` : null,
-          summaryString: `Kadar Air Tanah (w) = ${avgW.toFixed(2)}% (${isHighMoisture ? 'Perlu Evaluasi > 100%' : 'Valid'})`,
-        }
-      }
-
-      // 2. Legacy Single-Point Mode (Fallback)
-      const w1 = Number(inputs.wCawan || 0)
-      const w2 = Number(inputs.wBasah || 0)
-      const w3 = Number(inputs.wKering || 0)
-
-      if (w1 <= 0 || w2 <= 0 || w3 <= 0) {
-        return {
-          results: [
-            { label: 'Berat Air Pori (Ww)', value: '-', unit: 'gram' },
-            { label: 'Berat Butir Kering (Ws)', value: '-', unit: 'gram' },
-            { label: 'Kadar Air Alami (w)', value: '-', unit: '%', highlight: true },
-          ],
-          formulaSteps: ['Semua parameter massa (W1, W2, W3) harus bernilai lebih besar dari 0 gr.'],
-          isError: true,
-          status: 'Input Tidak Wajar / Cek Kembali Data',
-          verdictClass: 'invalid',
-          conclusion: 'Input parameter penimbangan tidak boleh 0 atau kosong. Masukkan nilai W1, W2, dan W3 dengan benar.',
-          summaryString: 'Input Belum Lengkap / Tidak Wajar',
-        }
-      }
-
-      if (w2 <= w3) {
-        return {
-          results: [
-            { label: 'Berat Air Pori (Ww)', value: '-', unit: 'gram' },
-            { label: 'Berat Butir Kering (Ws)', value: '-', unit: 'gram' },
-            { label: 'Kadar Air Alami (w)', value: '-', unit: '%', highlight: true },
-          ],
-          formulaSteps: [
-            `Evaluasi Hubungan Berat: W2 (${w2} gr) ≤ W3 (${w3} gr) [TIDAK LOGIS]`,
-            'Berat Cawan + Tanah Basah (W2) harus lebih besar dari Cawan + Tanah Kering (W3) karena penguapan air pori.',
-          ],
-          isError: true,
-          status: 'Input Tidak Wajar / Cek Kembali Data',
-          verdictClass: 'invalid',
-          conclusion: `Input tidak valid: Berat Cawan + Tanah Basah (W2 = ${w2} gr) harus lebih besar dari Berat Cawan + Tanah Kering (W3 = ${w3} gr). Pengeringan oven menguapkan air pori sehingga massa tanah basah selalu lebih besar dari tanah kering.`,
-          summaryString: 'Input Tidak Logis (W2 <= W3)',
-        }
-      }
-
-      if (w3 <= w1) {
-        return {
-          results: [
-            { label: 'Berat Air Pori (Ww)', value: '-', unit: 'gram' },
-            { label: 'Berat Butir Kering (Ws)', value: '-', unit: 'gram' },
-            { label: 'Kadar Air Alami (w)', value: '-', unit: '%', highlight: true },
-          ],
-          formulaSteps: [
-            `Evaluasi Hubungan Berat: W3 (${w3} gr) ≤ W1 (${w1} gr) [TIDAK LOGIS]`,
-            'Berat Cawan + Tanah Kering (W3) harus lebih besar dari Cawan Kosong (W1) agar massa butiran tanah kering bernilai positif.',
-          ],
-          isError: true,
-          status: 'Input Tidak Wajar / Cek Kembali Data',
-          verdictClass: 'invalid',
-          conclusion: `Input tidak valid: Berat Cawan + Tanah Kering (W3 = ${w3} gr) harus lebih besar dari Berat Cawan Kosong (W1 = ${w1} gr). Massa butiran tanah kering (Ws = W3 - W1) harus bernilai positif.`,
-          summaryString: 'Input Tidak Logis (W3 <= W1)',
-        }
-      }
-
-      const wWater = w2 - w3
-      const wDry = w3 - w1
-      const moisture = (wWater / wDry) * 100
-
-      const isHighMoisture = moisture > 100.0
-      const status = isHighMoisture ? 'Perlu Evaluasi (Kadar air tidak wajar untuk tanah normal)' : 'Valid'
-      const verdictClass = isHighMoisture ? 'warning' : 'valid'
-
-      const conclusion = isHighMoisture
-        ? `Kadar air alami tanah terukur sangat tinggi yaitu ${moisture.toFixed(2)}% (> 100.0%). Nilai ini tidak wajar untuk tanah anorganik normal (rentang wajar 10% - 60%). Nilai w > 100% umumnya hanya terjadi pada tanah organik, gambut berserat tinggi, atau lempung sangat lunak (quick clay). Lakukan evaluasi sampel atau verifikasi ulang pengujian.`
-        : `Kadar air alami tanah terukur sebesar ${moisture.toFixed(2)}%. Parameter ini memenuhi rentang wajar tanah normal serta menjadi acuan batas konsistensi dan derajat kejenuhan tanah.`
-
-      const warningMessage = isHighMoisture
-        ? `Perlu Evaluasi (Kadar air tidak wajar untuk tanah normal): Hasil kadar air w = ${moisture.toFixed(2)}% melebihi 100%. Pastikan jenis tanah atau lakukan uji ulang laboratorium.`
-        : null
-
-      return {
-        results: [
-          { label: 'Berat Air Pori (Ww)', value: wWater.toFixed(2), unit: 'gram' },
-          { label: 'Berat Butir Kering (Ws)', value: wDry.toFixed(2), unit: 'gram' },
-          { label: 'Kadar Air Alami (w)', value: moisture.toFixed(2), unit: '%', highlight: true },
-        ],
-        formulaSteps: [
-          `Ww = W2 - W3 = ${w2} - ${w3} = ${wWater.toFixed(2)} gr`,
-          `Ws = W3 - W1 = ${w3} - ${w1} = ${wDry.toFixed(2)} gr`,
-          `w = (Ww / Ws) × 100% = (${wWater.toFixed(2)} / ${wDry.toFixed(2)}) × 100% = ${moisture.toFixed(2)}%`,
-        ],
-        isError: false,
-        status,
-        verdictClass,
-        conclusion,
-        warningMessage,
-        summaryString: `Kadar Air Tanah (w) = ${moisture.toFixed(2)}% (${isHighMoisture ? 'Perlu Evaluasi > 100%' : 'Valid'})`,
-      }
-    },
+    calculate: calculateSoilWaterContent,
   },
 
   'mt-2-2': {
@@ -5243,9 +4175,9 @@ export const calculatorRegistry = {
     hasMultiSample: true,
     sampleNamePrefix: 'Piknometer P-',
     commonFieldsTitle: 'Parameter Kalibrasi & Temperatur Air',
-    commonFieldsSubtitle: 'Suhu pengujian standar laboratorium piknometer:',
+    commonFieldsSubtitle: 'Gunakan suhu yang sama untuk W₃ dan W₄. Contoh penimbangan berasal dari Lampiran B SNI 1964:2008.',
     commonFields: [
-      { key: 'temp', label: 'Temperatur Pengujian (T)', unit: '°C', min: 10, max: 40, step: 0.1, desc: 'Suhu air piknometer saat penimbangan' },
+      { key: 'temp', label: 'Temperatur Pengujian (T)', unit: '°C', min: 18, max: 30, step: 0.1, desc: 'Rentang faktor K di Tabel 1 adalah 18–30 °C.' },
     ],
     sampleFields: [
       { key: 'w1', label: 'Berat Piknometer Kosong (W1)', unit: 'gram', desc: 'Massa piknometer bersih & kering', min: 0.01 },
@@ -5267,330 +4199,7 @@ export const calculatorRegistry = {
       { key: 'wPiknoAirTanah', label: 'Berat Piknometer + Air + Tanah (W3)', unit: 'gram', min: 0.01, desc: 'Setelah divakum hampa udara hingga pori bebas' },
       { key: 'wPiknoAir', label: 'Berat Piknometer + Air Penuh (W4)', unit: 'gram', min: 0.01, desc: 'Piknometer terisi air murni pada suhu sama' },
     ],
-    calculate: (inputs) => {
-      // 1. Multi-Sampel Dinamis (Mode Utama)
-      if (Array.isArray(inputs.samples)) {
-        const rawSamples = inputs.samples
-        const temp = Number(inputs.temp ?? 20)
-
-        if (rawSamples.length === 0) {
-          return {
-            results: [
-              { label: 'Berat Jenis Rata-rata (Gs)', value: '-', unit: '', highlight: true },
-              { label: 'Estimasi Tipe Mineral', value: '-', unit: '', highlight: true },
-              { label: 'Temperatur Uji (T)', value: `${temp.toFixed(1)}`, unit: '°C' },
-              { label: 'Jumlah Piknometer Uji', value: '0', unit: 'Piknometer' },
-            ],
-            formulaSteps: ['Tambahkan minimal 1 piknometer sampel pengujian berat jenis.'],
-            isError: true,
-            status: 'Input Tidak Wajar / Cek Kembali Data',
-            verdictClass: 'invalid',
-            conclusion: 'Tidak ada sampel pengujian aktif. Silakan klik tombol "+ Tambah Sampel".',
-            summaryString: 'Belum ada sampel aktif',
-          }
-        }
-
-        const validSamples = []
-        const sampleErrors = []
-
-        rawSamples.forEach((s, idx) => {
-          const w1 = Number(s.w1 ?? 0)
-          const w2 = Number(s.w2 ?? 0)
-          const w3 = Number(s.w3 ?? 0)
-          const w4 = Number(s.w4 ?? 0)
-          const name = s.name || `Piknometer P-${idx + 1}`
-
-          if (w1 <= 0 || w2 <= 0 || w3 <= 0 || w4 <= 0) {
-            sampleErrors.push(`${name}: W1, W2, W3, W4 harus lebih besar dari 0 gr`)
-            return
-          }
-          if (w2 <= w1) {
-            sampleErrors.push(`${name}: W2 (${w2} g) harus > W1 (${w1} g)`)
-            return
-          }
-          if (w3 <= w2) {
-            sampleErrors.push(`${name}: W3 (${w3} g) harus > W2 (${w2} g)`)
-            return
-          }
-          if (w4 <= w2) {
-            sampleErrors.push(`${name}: W4 (${w4} g) harus > W2 (${w2} g)`)
-            return
-          }
-
-          const ws = w2 - w1
-          const denom = (ws + w4) - w3
-          if (denom <= 0) {
-            sampleErrors.push(`${name}: Volume air terdesak ((Ws+W4)-W3) <= 0`)
-            return
-          }
-
-          const gs = ws / denom
-
-          validSamples.push({
-            name,
-            w1,
-            w2,
-            w3,
-            w4,
-            ws,
-            denom,
-            gs,
-          })
-        })
-
-        if (validSamples.length === 0) {
-          return {
-            results: [
-              { label: 'Berat Jenis Rata-rata (Gs)', value: '-', unit: '', highlight: true },
-              { label: 'Estimasi Tipe Mineral', value: '-', unit: '', highlight: true },
-              { label: 'Temperatur Uji (T)', value: `${temp.toFixed(1)}`, unit: '°C' },
-              { label: 'Jumlah Piknometer Uji', value: String(rawSamples.length), unit: 'Piknometer' },
-            ],
-            formulaSteps: sampleErrors.length > 0 ? sampleErrors : ['Data penimbangan piknometer tidak valid.'],
-            isError: true,
-            status: 'Input Tidak Wajar / Cek Kembali Data',
-            verdictClass: 'invalid',
-            conclusion: `Input data penimbangan piknometer belum valid: ${sampleErrors.join(', ')}. Pastikan W4 > W2 > W1 dan W3 > W2.`,
-            summaryString: 'Input Piknometer Tidak Valid',
-          }
-        }
-
-        const avgWs = validSamples.reduce((a, s) => a + s.ws, 0) / validSamples.length
-        const avgDenom = validSamples.reduce((a, s) => a + s.denom, 0) / validSamples.length
-        const avgGs = validSamples.reduce((a, s) => a + s.gs, 0) / validSamples.length
-
-        let jenis
-        if (avgGs < 2.50) jenis = 'Tanah Organik / Gambut'
-        else if (avgGs < 2.65) jenis = 'Pasir / Lanau Anorganik'
-        else if (avgGs <= 2.75) jenis = 'Lempung Anorganik Normal'
-        else if (avgGs <= 2.80) jenis = 'Lempung Berat / Mineral Mika'
-        else jenis = 'Mengandung Mineral Besi / Laterit'
-
-        const isValid = avgGs >= 2.50 && avgGs <= 2.80
-        const status = isValid ? 'Valid' : 'Perlu Evaluasi'
-        const verdictClass = isValid ? 'valid' : 'warning'
-
-        const conclusion = isValid
-          ? `Nilai berat jenis butir tanah rata-rata Gs = ${avgGs.toFixed(3)} dari ${validSamples.length} pengujian piknometer pada suhu ${temp}°C memenuhi rentang standar tanah normal (2.50 - 2.80 sesuai SNI 1964:2008). Sampel diestimasikan sebagai ${jenis}.`
-          : `Nilai berat jenis butir tanah rata-rata Gs = ${avgGs.toFixed(3)} berada di luar rentang wajar tanah normal (2.50 - 2.80). ${avgGs < 2.50 ? 'Nilai terlalu rendah, terindikasi mengandung bahan organik tinggi atau pembacaan penimbangan kurang teliti.' : 'Nilai sangat tinggi, terindikasi mengandung mineral berat (besi/laterit) atau masih terperangkap gelembung udara dalam piknometer.'} Lakukan evaluasi atau uji ulang.`
-
-        const sampleHeaders = validSamples.map(s => s.name)
-        const recapTable = {
-          title: 'Tabel Rekapitulasi Berat Jenis Tanah Gs (SNI 1964:2008)',
-          headers: ['Parameter Pengujian', 'Simbol / Rumus', ...sampleHeaders, 'Rata-rata'],
-          rows: [
-            {
-              label: 'Berat Piknometer Kosong',
-              equation: 'W1 (gram)',
-              values: validSamples.map(s => s.w1.toFixed(2)),
-              average: (validSamples.reduce((a, s) => a + s.w1, 0) / validSamples.length).toFixed(2),
-            },
-            {
-              label: 'Piknometer + Tanah Kering',
-              equation: 'W2 (gram)',
-              values: validSamples.map(s => s.w2.toFixed(2)),
-              average: (validSamples.reduce((a, s) => a + s.w2, 0) / validSamples.length).toFixed(2),
-            },
-            {
-              label: 'Piknometer + Air + Tanah',
-              equation: 'W3 (gram)',
-              values: validSamples.map(s => s.w3.toFixed(2)),
-              average: (validSamples.reduce((a, s) => a + s.w3, 0) / validSamples.length).toFixed(2),
-            },
-            {
-              label: 'Piknometer + Air Penuh',
-              equation: 'W4 (gram)',
-              values: validSamples.map(s => s.w4.toFixed(2)),
-              average: (validSamples.reduce((a, s) => a + s.w4, 0) / validSamples.length).toFixed(2),
-            },
-            {
-              label: 'Berat Butiran Kering',
-              equation: 'Ws = W2 - W1 (gram)',
-              values: validSamples.map(s => s.ws.toFixed(2)),
-              average: avgWs.toFixed(2),
-            },
-            {
-              label: 'Volume Air Terdesak',
-              equation: '(Ws + W4) - W3 (gram)',
-              values: validSamples.map(s => s.denom.toFixed(2)),
-              average: avgDenom.toFixed(2),
-            },
-            {
-              label: 'Berat Jenis Butir (Gs)',
-              equation: 'Gs = Ws / ((Ws + W4) - W3)',
-              values: validSamples.map(s => s.gs.toFixed(3)),
-              average: avgGs.toFixed(3),
-              highlight: true,
-            },
-          ],
-        }
-
-        const formulaSteps = [
-          `Rumus Berat Jenis Tanah (SNI 1964:2008): Gs = Ws / ((Ws + W4) - W3) = (W2 - W1) / (((W2 - W1) + W4) - W3)`,
-          `Temperatur Pengujian: ${temp}°C`,
-          ...validSamples.map(s => `${s.name}: Ws = ${s.w2} - ${s.w1} = ${s.ws.toFixed(2)} g, Vol Air = (${s.ws.toFixed(2)} + ${s.w4}) - ${s.w3} = ${s.denom.toFixed(2)} g -> Gs = ${s.ws.toFixed(2)} / ${s.denom.toFixed(2)} = ${s.gs.toFixed(3)}`),
-          `Rata-rata Gs = (${validSamples.map(s => s.gs.toFixed(3)).join(' + ')}) / ${validSamples.length} = ${avgGs.toFixed(3)}`,
-          `Klasifikasi Estimasi Mineral: ${jenis} (Standar: 2.50 - 2.80)`,
-        ]
-
-        return {
-          results: [
-            { label: 'Berat Jenis Rata-rata (Gs)', value: avgGs.toFixed(3), unit: '', highlight: true, sub: `Rata-rata dari ${validSamples.length} piknometer` },
-            { label: 'Estimasi Tipe Mineral', value: jenis, unit: '', highlight: true, sub: 'Berdasarkan nilai Gs rata-rata' },
-            { label: 'Temperatur Uji (T)', value: `${temp.toFixed(1)}`, unit: '°C', sub: 'Suhu air pengujian' },
-            { label: 'Jumlah Piknometer Uji', value: String(validSamples.length), unit: 'Piknometer', sub: 'Labu piknometer aktif' },
-          ],
-          formulaSteps,
-          recapTable,
-          isError: false,
-          status,
-          verdictClass,
-          conclusion,
-          warningMessage: !isValid ? `Perlu Evaluasi: Nilai Gs rata-rata (${avgGs.toFixed(3)}) berada di luar rentang wajar tanah normal (2.50 - 2.80).` : null,
-          summaryString: `Gs = ${avgGs.toFixed(3)} (${jenis}, ${isValid ? 'Memenuhi Standar' : 'Perlu Evaluasi'})`,
-        }
-      }
-
-      // 2. Legacy Single-Point Mode (Fallback)
-      const w1 = Number(inputs.wPikno || 0)
-      const w2 = Number(inputs.wPiknoTanah || 0)
-      const w3 = Number(inputs.wPiknoAirTanah || 0)
-      const w4 = Number(inputs.wPiknoAir || 0)
-
-      if (w1 <= 0 || w2 <= 0 || w3 <= 0 || w4 <= 0) {
-        return {
-          results: [
-            { label: 'Berat Butiran Kering (Ws)', value: '-', unit: 'gram' },
-            { label: 'Berat Jenis Butir (Gs)', value: '-', unit: '', highlight: true },
-            { label: 'Estimasi Tipe Mineral', value: '-', unit: '', highlight: true },
-          ],
-          formulaSteps: ['Semua parameter massa piknometer (W1, W2, W3, W4) harus bernilai lebih besar dari 0 gr.'],
-          isError: true,
-          status: 'Input Tidak Wajar / Cek Kembali Data',
-          verdictClass: 'invalid',
-          conclusion: 'Input parameter pengujian tidak boleh 0 atau kosong. Masukkan nilai W1, W2, W3, dan W4 dengan benar.',
-          summaryString: 'Input Belum Lengkap / Tidak Wajar',
-        }
-      }
-
-      if (w2 <= w1) {
-        return {
-          results: [
-            { label: 'Berat Butiran Kering (Ws)', value: '-', unit: 'gram' },
-            { label: 'Berat Jenis Butir (Gs)', value: '-', unit: '', highlight: true },
-            { label: 'Estimasi Tipe Mineral', value: 'Data Tidak Valid (W2 ≤ W1)', unit: '', highlight: true },
-          ],
-          formulaSteps: [
-            `Evaluasi Hubungan Berat: W2 (${w2} gr) ≤ W1 (${w1} gr) [TIDAK LOGIS]`,
-            'Berat Piknometer + Tanah Kering (W2) harus lebih besar dari Berat Piknometer Kosong (W1).',
-          ],
-          isError: true,
-          status: 'Input Tidak Wajar / Cek Kembali Data',
-          verdictClass: 'invalid',
-          conclusion: `Input data tidak valid: Berat Piknometer + Tanah Kering (W2 = ${w2} gr) tidak boleh lebih kecil atau sama dengan Berat Piknometer Kosong (W1 = ${w1} gr).`,
-          summaryString: 'Input Tidak Valid (W2 <= W1)',
-        }
-      }
-
-      if (w3 <= w2) {
-        return {
-          results: [
-            { label: 'Berat Butiran Kering (Ws)', value: '-', unit: 'gram' },
-            { label: 'Berat Jenis Butir (Gs)', value: '-', unit: '', highlight: true },
-            { label: 'Estimasi Tipe Mineral', value: 'Data Tidak Valid (W3 ≤ W2)', unit: '', highlight: true },
-          ],
-          formulaSteps: [
-            `Evaluasi Hubungan Berat: W3 (${w3} gr) ≤ W2 (${w2} gr) [TIDAK LOGIS]`,
-            'Berat Piknometer + Air + Tanah (W3) harus lebih besar dari Berat Piknometer + Tanah Kering (W2).',
-          ],
-          isError: true,
-          status: 'Input Tidak Wajar / Cek Kembali Data',
-          verdictClass: 'invalid',
-          conclusion: `Input data tidak valid: Berat Piknometer + Air + Tanah (W3 = ${w3} gr) harus lebih besar dari Berat Piknometer + Tanah Kering (W2 = ${w2} gr).`,
-          summaryString: 'Input Tidak Valid (W3 <= W2)',
-        }
-      }
-
-      if (w4 <= w2) {
-        return {
-          results: [
-            { label: 'Berat Butiran Kering (Ws)', value: '-', unit: 'gram' },
-            { label: 'Berat Jenis Butir (Gs)', value: '-', unit: '', highlight: true },
-            { label: 'Estimasi Tipe Mineral', value: 'Data Tidak Valid (W4 ≤ W2)', unit: '', highlight: true },
-          ],
-          formulaSteps: [
-            `Evaluasi Hubungan Berat: W4 (${w4} gr) ≤ W2 (${w2} gr) [TIDAK LOGIS]`,
-            'Berat Piknometer + Air Penuh (W4) harus lebih besar dari Berat Piknometer + Tanah Kering (W2).',
-          ],
-          isError: true,
-          status: 'Input Tidak Wajar / Cek Kembali Data',
-          verdictClass: 'invalid',
-          conclusion: `Input data tidak valid: Berat Piknometer + Air Penuh (W4 = ${w4} gr) harus lebih besar dari Berat Piknometer + Tanah Kering (W2 = ${w2} gr).`,
-          summaryString: 'Input Tidak Valid (W4 <= W2)',
-        }
-      }
-
-      const ws = w2 - w1
-      const denom = (ws + w4) - w3
-
-      if (denom <= 0) {
-        return {
-          results: [
-            { label: 'Berat Butiran Kering (Ws)', value: ws.toFixed(1), unit: 'gram' },
-            { label: 'Berat Jenis Butir (Gs)', value: '-', unit: '', highlight: true },
-            { label: 'Estimasi Tipe Mineral', value: 'Data Tidak Logis', unit: '', highlight: true },
-          ],
-          formulaSteps: [
-            `Ws = W2 - W1 = ${w2} - ${w1} = ${ws.toFixed(1)} gr`,
-            `Volume air terdesak: (Ws + W4) - W3 = (${ws.toFixed(1)} + ${w4}) - ${w3} = ${denom.toFixed(1)} gr [<= 0, TIDAK LOGIS]`,
-          ],
-          isError: true,
-          status: 'Input Tidak Wajar / Cek Kembali Data',
-          verdictClass: 'invalid',
-          conclusion: `Input data tidak valid: Volume air yang terdesak oleh butiran tanah bernilai nol atau negatif.`,
-          summaryString: 'Input Tidak Valid (Penyebut <= 0)',
-        }
-      }
-
-      const gs = ws / denom
-
-      let jenis
-      if (gs < 2.50) jenis = 'Tanah Organik / Gambut'
-      else if (gs < 2.65) jenis = 'Pasir / Lanau Anorganik'
-      else if (gs <= 2.75) jenis = 'Lempung Anorganik Normal'
-      else if (gs <= 2.80) jenis = 'Lempung Berat / Mineral Mika'
-      else jenis = 'Mengandung Mineral Besi / Laterit'
-
-      const isValid = gs >= 2.50 && gs <= 2.80
-      const status = isValid ? 'Valid' : 'Perlu Evaluasi'
-      const verdictClass = isValid ? 'valid' : 'warning'
-
-      const conclusion = isValid
-        ? `Nilai berat jenis butir tanah Gs = ${gs.toFixed(3)} masuk rentang standar tanah normal (2.50 - 2.80). Sampel diestimasikan sebagai ${jenis}.`
-        : `Nilai berat jenis butir tanah Gs = ${gs.toFixed(3)} berada di luar rentang wajar tanah normal (2.50 - 2.80). Lakukan evaluasi atau uji ulang.`
-
-      const warningMessage = !isValid
-        ? `Perlu Evaluasi: Nilai Gs = ${gs.toFixed(3)} berada di luar batas wajar tanah normal (2.50 - 2.80).`
-        : null
-
-      return {
-        results: [
-          { label: 'Berat Butiran Kering (Ws)', value: ws.toFixed(1), unit: 'gram' },
-          { label: 'Berat Jenis Butir (Gs)', value: gs.toFixed(3), unit: '', highlight: true },
-          { label: 'Estimasi Tipe Mineral', value: jenis, unit: '', highlight: true },
-        ],
-        formulaSteps: [
-          `Ws = W2 - W1 = ${w2} - ${w1} = ${ws.toFixed(1)} gr`,
-          `Gs = Ws / ((Ws + W4) - W3) = ${ws.toFixed(1)} / ((${ws.toFixed(1)} + ${w4}) - ${w3}) = ${gs.toFixed(3)}`,
-        ],
-        isError: false,
-        status,
-        verdictClass,
-        conclusion,
-        warningMessage,
-        summaryString: `Gs = ${gs.toFixed(3)} (${jenis}, ${isValid ? 'Memenuhi Standar' : 'Perlu Evaluasi'})`,
-      }
-    },
+    calculate: calculateSoilSpecificGravity,
   },
 
   'mt-2-3': {
@@ -5631,7 +4240,7 @@ export const calculatorRegistry = {
               { label: 'Koefisien Korelasi (R²)', value: '-', unit: '' },
               { label: 'Jumlah Titik Uji', value: '0', unit: 'Titik' },
             ],
-            formulaSteps: ['Tambahkan minimal 2 titik uji ketukan Casagrande untuk membentuk kurva aliran.'],
+            formulaSteps: ['Tambahkan minimal 3 titik uji ketukan Casagrande untuk membentuk kurva aliran.'],
             isError: true,
             status: 'Input Tidak Wajar / Cek Kembali Data',
             verdictClass: 'invalid',
@@ -5650,7 +4259,7 @@ export const calculatorRegistry = {
           const w3 = Number(s.w3 ?? 0)
           const name = s.name || `Titik ${idx + 1}`
 
-          if (n <= 0 || w1 <= 0 || w2 <= 0 || w3 <= 0) {
+          if (!Number.isInteger(n) || ![w1, w2, w3].every(Number.isFinite) || n <= 0 || w1 <= 0 || w2 <= 0 || w3 <= 0) {
             pointErrors.push(`${name}: Nilai N, W1, W2, dan W3 harus lebih besar dari 0`)
             return
           }
@@ -5696,73 +4305,28 @@ export const calculatorRegistry = {
           }
         }
 
-        // Regresi Semi-Logaritmik: w = slope * log10(N) + intercept
-        let slope = 0
-        let intercept = 0
-        let r2 = 1.0
-
-        if (validPoints.length === 1) {
-          // Fallback single-point formula Casagrande jika hanya 1 titik
-          const single = validPoints[0]
-          const singleLL = single.w * Math.pow(single.n / 25, 0.121)
-          slope = -15
-          intercept = singleLL - slope * Math.log10(25)
-        } else {
-          const count = validPoints.length
-          const xs = validPoints.map(p => Math.log10(p.n))
-          const ys = validPoints.map(p => p.w)
-
-          const sumX = xs.reduce((a, b) => a + b, 0)
-          const sumY = ys.reduce((a, b) => a + b, 0)
-          const sumXY = xs.reduce((acc, x, i) => acc + x * ys[i], 0)
-          const sumX2 = xs.reduce((acc, x) => acc + x * x, 0)
-
-          const denom = count * sumX2 - sumX * sumX
-          if (Math.abs(denom) > 1e-9) {
-            slope = (count * sumXY - sumX * sumY) / denom
-            intercept = (sumY - slope * sumX) / count
-          } else {
-            slope = 0
-            intercept = sumY / count
-          }
-
-          // Hitung R²
-          const meanY = sumY / count
-          const ssTot = ys.reduce((acc, y) => acc + Math.pow(y - meanY, 2), 0)
-          const ssRes = ys.reduce((acc, y, i) => {
-            const yPred = slope * xs[i] + intercept
-            return acc + Math.pow(y - yPred, 2)
-          }, 0)
-          r2 = ssTot > 0 ? Math.max(0, 1 - (ssRes / ssTot)) : 1.0
-        }
-
-        const ll = slope * Math.log10(25) + intercept
-        const flowIndex = Math.abs(slope)
-
-        // Evaluasi rentang ketukan 15-35
-        const anyOutOfRange = validPoints.some(p => p.n < 15 || p.n > 35)
-        const isHighMoisture = ll > 100.0
-        const hasWarning = anyOutOfRange || isHighMoisture || validPoints.length < 3
+        const counts = new Set(validPoints.map((p) => p.n))
+        const fit = counts.size >= 2 ? fitLinear(validPoints.map((p) => ({ x: Math.log10(p.n), y: p.w }))) : null
+        const slope = fit?.m ?? null
+        const intercept = fit?.c ?? null
+        const r2 = fit?.r2 ?? null
+        const flowIndex = slope === null ? null : Math.abs(slope)
+        const strikes = [...counts]
+        const hasWarning = counts.size < 3 || validPoints.length !== rawSamples.length ||
+          Math.min(...strikes) < 15 || Math.max(...strikes) > 35 || Math.min(...strikes) >= 25 || Math.max(...strikes) <= 25 || !(slope < 0) || !(r2 >= 0.95)
+        const ll = hasWarning ? null : slope * Math.log10(25) + intercept
+        const warningMessage = hasWarning ? 'Gunakan sedikitnya tiga ketukan berbeda dalam rentang 15–35, mengapit 25, dengan kemiringan negatif dan pembacaan sah. R² ≥ 0,95 adalah cek mutu kurva praktikum.' : null
         const status = hasWarning ? 'Perlu Evaluasi' : 'Valid'
         const verdictClass = hasWarning ? 'warning' : 'valid'
-
-        let warningMessage = null
-        if (anyOutOfRange) {
-          warningMessage = 'Beberapa titik uji berada di luar rentang standar 15 - 35 ketukan Casagrande (SNI 1967:2008).'
-        } else if (validPoints.length < 3) {
-          warningMessage = 'Disarankan minimal 3 atau 4 variasi ketukan untuk menghasilkan regresi kurva aliran yang akurat.'
-        } else if (isHighMoisture) {
-          warningMessage = `Nilai LL = ${ll.toFixed(2)}% melebihi 100%, tergolong sangat tinggi untuk tanah normal.`
-        }
-
-        const conclusion = hasWarning
-          ? `Nilai Batas Cair (LL pada N=25) terhitung sebesar ${ll.toFixed(2)}% dengan Indeks Aliran If = ${flowIndex.toFixed(2)} dan R² = ${r2.toFixed(4)}. Evaluasi: ${warningMessage || 'Data perlu diverifikasi kembali.'}`
-          : `Nilai Batas Cair (Liquid Limit) sebesar ${ll.toFixed(2)}% diperoleh pada titik acuan standar N = 25 ketukan melalui kurva aliran Casagrande (${validPoints.length} titik uji, Flow Index If = ${flowIndex.toFixed(2)}, R² = ${r2.toFixed(4)}). Memenuhi ketentuan SNI 1967:2008 / ASTM D4318.`
+        const conclusion = warningMessage || `Batas cair dari regresi pada 25 ketukan = ${ll.toFixed(2)}%. Pelaporan LL = ${Math.round(ll)}%.`
+        const llDisplay = ll?.toFixed(2) ?? '—'
+        const flowDisplay = flowIndex?.toFixed(2) ?? '—'
+        const r2Display = r2?.toFixed(4) ?? '—'
 
         // Data Titik Grafik Kurva Aliran (Flow Curve)
         const allN = Array.from(new Set([10, 12, 14, 15, 16, 18, 20, 21, 22, 24, 25, 26, 28, 30, 32, 34, 35, 36, 38, 40, ...validPoints.map(p => p.n)])).sort((a, b) => a - b)
         const chartData = allN.map(nVal => {
-          const trendVal = Number((slope * Math.log10(nVal) + intercept).toFixed(2))
+          const trendVal = fit ? Number((slope * Math.log10(nVal) + intercept).toFixed(2)) : null
           const ptMatch = validPoints.find(p => p.n === nVal)
           return {
             n: nVal,
@@ -5818,97 +4382,62 @@ export const calculatorRegistry = {
               label: 'Kadar Air Titik Uji (w)',
               equation: 'w = (Ww / Ws) × 100%',
               values: validPoints.map(p => `${p.w.toFixed(2)}%`),
-              average: `${ll.toFixed(2)}%`,
+              average: `${llDisplay}%`,
               highlight: true,
             },
           ],
         }
 
         const formulaSteps = [
-          `Persamaan Garis Aliran Semi-Logaritmik: w = -If × log10(N) + C = ${slope.toFixed(4)} × log10(N) + ${intercept.toFixed(4)}`,
-          `Indeks Aliran (Flow Index / If) = |-slope| = ${flowIndex.toFixed(2)}`,
-          `Batas Cair (LL) pada N = 25 ketukan: LL = ${slope.toFixed(4)} × log10(25) + ${intercept.toFixed(4)} = ${ll.toFixed(2)}%`,
-          `Koefisien Korelasi Regresi: R² = ${r2.toFixed(4)} (${r2 > 0.95 ? 'Korelasi Sangat Kuat' : 'Korelasi Cukup'})`,
+          `Persamaan Garis Aliran Semi-Logaritmik: w = -If × log10(N) + C = ${slope?.toFixed(4) ?? "—"} × log10(N) + ${intercept?.toFixed(4) ?? "—"}`,
+          `Indeks Aliran (Flow Index / If) = |-slope| = ${flowDisplay}`,
+          `Batas Cair (LL) pada N = 25 ketukan: LL = ${slope?.toFixed(4) ?? "—"} × log10(25) + ${intercept?.toFixed(4) ?? "—"} = ${llDisplay}%`,
+          `Koefisien Korelasi Regresi: R² = ${r2Display} (${r2 > 0.95 ? 'Korelasi Sangat Kuat' : 'Korelasi Cukup'})`,
           ...validPoints.map(p => `${p.name} (N=${p.n}): Ww = ${p.ww.toFixed(2)} g, Ws = ${p.ws.toFixed(2)} g -> w = (${p.ww.toFixed(2)} / ${p.ws.toFixed(2)}) × 100% = ${p.w.toFixed(2)}%`),
         ]
 
         return {
           results: [
-            { label: 'Batas Cair (LL)', value: ll.toFixed(2), unit: '%', highlight: true, sub: 'Kadar air pada tepat N = 25 ketukan' },
-            { label: 'Indeks Aliran (If)', value: flowIndex.toFixed(2), unit: '', highlight: true, sub: 'Kemiringan kurva aliran Casagrande' },
-            { label: 'Koefisien Korelasi (R²)', value: r2.toFixed(4), unit: '', sub: 'Akurasi kecocokan regresi' },
+            { label: 'Batas Cair (LL)', value: llDisplay, unit: '%', highlight: true, sub: 'Kadar air pada tepat N = 25 ketukan' },
+            { label: 'Indeks Aliran (If)', value: flowDisplay, unit: '', highlight: true, sub: 'Kemiringan kurva aliran Casagrande' },
+            { label: 'Koefisien Korelasi (R²)', value: r2Display, unit: '', sub: 'Akurasi kecocokan regresi' },
             { label: 'Jumlah Titik Uji', value: String(validPoints.length), unit: 'Titik', sub: 'Variasi pukulan teruji' },
           ],
           formulaSteps,
           recapTable,
           chartData,
-          llValue: Number(ll.toFixed(2)),
-          flowIndex: Number(flowIndex.toFixed(2)),
-          r2: Number(r2.toFixed(4)),
+          llValue: ll,
+          regressionSlope: slope,
+          regressionIntercept: intercept,
+          flowIndex,
+          r2,
           isError: false,
           status,
           verdictClass,
           conclusion,
           warningMessage,
-          summaryString: `Batas Cair (LL) = ${ll.toFixed(2)}% (If=${flowIndex.toFixed(2)}, R²=${r2.toFixed(4)})`,
+          summaryString: `Batas Cair (LL) = ${llDisplay}% (If=${flowDisplay}, R²=${r2Display})`,
         }
       }
 
       // 2. Legacy Single-Point Mode (Fallback)
-      const n = Number(inputs.ketukanN || 0)
-      const w = Number(inputs.kadarAirW || 0)
+      const n = numeric(inputs.ketukanN)
+      const w = numeric(inputs.kadarAirW)
 
-      if (n <= 0 || w <= 0) {
-        return {
-          results: [
-            { label: 'Nilai Batas Cair (LL)', value: '-', unit: '%', highlight: true },
-            { label: 'Jumlah Ketukan Uji', value: '-', unit: 'Ketukan' },
-          ],
-          formulaSteps: ['Jumlah ketukan (N) dan kadar air titik uji (w) harus bernilai lebih besar dari 0.'],
-          isError: true,
-          status: 'Input Tidak Wajar / Cek Kembali Data',
-          verdictClass: 'invalid',
-          conclusion: 'Input parameter pengujian tidak boleh 0 atau kosong. Masukkan nilai jumlah ketukan (N) dan kadar air (w) dengan benar.',
-          summaryString: 'Input Belum Lengkap / Tidak Wajar',
-        }
-      }
-
-      const ll = w * Math.pow(n / 25, 0.121)
-      const isNOutOfRange = n < 15 || n > 35
-      const isMoistureHigh = w > 100.0
-      const hasWarning = isNOutOfRange || isMoistureHigh
-      const status = hasWarning ? 'Perlu Evaluasi' : 'Valid'
-      const verdictClass = hasWarning ? 'warning' : 'valid'
-
-      let warningMessage = null
-      if (isNOutOfRange && isMoistureHigh) {
-        warningMessage = `Jumlah ketukan N (${n}) berada di luar rentang standar Casagrande (15 - 35 ketukan) dan kadar air titik uji w (${w.toFixed(2)}%) melebihi 100%. Data titik uji memerlukan evaluasi ketelitian atau uji ulang.`
-      } else if (isNOutOfRange) {
-        warningMessage = `Jumlah ketukan N (${n}) berada di luar rentang standar metode satu titik Casagrande (15 - 35 ketukan sesuai SNI 1967:2008 / ASTM D4318).`
-      } else if (isMoistureHigh) {
-        warningMessage = `Kadar air titik uji w = ${w.toFixed(2)}% melebihi 100%, tergolong sangat tinggi untuk tanah normal.`
-      }
-
-      const conclusion = hasWarning
-        ? `Nilai Batas Cair (LL) terhitung sebesar ${ll.toFixed(2)}%. Evaluasi: ${warningMessage}`
-        : `Nilai Batas Cair (Liquid Limit) sebesar ${ll.toFixed(2)}%. Pengujian memenuhi ketentuan standar Casagrande (jumlah ketukan ${n} berada dalam rentang valid 15 - 35). Parameter ini menunjukkan batas perubahan konsistensi tanah dari cair ke plastis.`
-
+      const inRange = Number.isInteger(n) && n >= 22 && n <= 28 && w > 0
+      const ll = inRange ? w * (n / 25) ** 0.121 : null
+      const status = inRange ? 'Estimasi satu titik' : 'Perlu Evaluasi'
+      const conclusion = inRange
+        ? `Estimasi LL ${ll.toFixed(2)}%. Metode B memerlukan pembacaan ulang sesuai prosedur sebelum pelaporan.`
+        : 'Metode satu titik menggunakan 22–28 ketukan dan kadar air positif.'
       return {
         results: [
-          { label: 'Nilai Batas Cair (LL)', value: ll.toFixed(2), unit: '%', highlight: true },
-          { label: 'Jumlah Ketukan Uji', value: n.toFixed(0), unit: 'Ketukan' },
+          { label: 'Estimasi Batas Cair (LL)', value: ll?.toFixed(2) ?? '—', numericValue: ll, unit: '%', highlight: true },
+          { label: 'Jumlah Ketukan', value: n ?? '—' },
         ],
-        formulaSteps: [
-          'Metode Satu Titik Casagrande (SNI 1967:2008 / ASTM D4318):',
-          `LL = w × (N / 25)^0.121 = ${w} × (${n} / 25)^0.121 = ${ll.toFixed(2)}%`,
-          isNOutOfRange ? `Evaluasi Ketukan: N = ${n} [DI LUAR RENTANG STANDAR 15 - 35 KETUKAN]` : `Evaluasi Ketukan: N = ${n} [MEMENUHI RENTANG STANDAR 15 - 35 KETUKAN]`,
-        ],
-        isError: false,
-        status,
-        verdictClass,
-        conclusion,
-        warningMessage,
-        summaryString: `Batas Cair (LL) = ${ll.toFixed(2)}% (N=${n}${hasWarning ? ', Perlu Evaluasi' : ''})`,
+        llValue: ll,
+        formulaSteps: ['LL = w × (N / 25)^0,121.'],
+        status, isError: false, verdictClass: 'warning', conclusion, summaryString: conclusion,
       }
     },
   },
@@ -5943,267 +4472,7 @@ export const calculatorRegistry = {
       { key: 'batasCairLL', label: 'Nilai Batas Cair (LL)', unit: '%', min: 0.01, desc: 'Hasil pengujian Casagrande' },
       { key: 'batasPlastisPL', label: 'Kadar Air Batas Plastis (PL)', unit: '%', min: 0.01, desc: 'Kadar air saat silinder tanah digulung retak pada diameter 3.2 mm' },
     ],
-    calculate: (inputs) => {
-      // 1. Multi-Sampel Dinamis (Mode Utama)
-      if (Array.isArray(inputs.samples)) {
-        const rawSamples = inputs.samples
-        const ll = Number(inputs.ll ?? (inputs.batasCairLL ?? 42.18))
-
-        if (rawSamples.length === 0) {
-          return {
-            results: [
-              { label: 'Batas Plastis Rata-rata (PL)', value: '-', unit: '%', highlight: true },
-              { label: 'Indeks Plastisitas (PI)', value: '-', unit: '%', highlight: true },
-              { label: 'Garis-A USCS', value: '-', unit: '%' },
-              { label: 'Klasifikasi Sistem USCS', value: '-', unit: '', highlight: true },
-            ],
-            formulaSteps: ['Tambahkan minimal 1 cawan sampel pengujian batas plastis.'],
-            isError: true,
-            status: 'Input Tidak Wajar / Cek Kembali Data',
-            verdictClass: 'invalid',
-            conclusion: 'Tidak ada sampel pengujian aktif. Silakan klik tombol "+ Tambah Sampel".',
-            summaryString: 'Belum ada sampel aktif',
-          }
-        }
-
-        const validSamples = []
-        const sampleErrors = []
-
-        rawSamples.forEach((s, idx) => {
-          const w1 = Number(s.w1 ?? 0)
-          const w2 = Number(s.w2 ?? 0)
-          const w3 = Number(s.w3 ?? 0)
-          const name = s.name || `Cawan PL-${idx + 1}`
-
-          if (w1 <= 0 || w2 <= 0 || w3 <= 0) {
-            sampleErrors.push(`${name}: Nilai W1, W2, dan W3 harus lebih besar dari 0 gr`)
-            return
-          }
-          if (w2 <= w3) {
-            sampleErrors.push(`${name}: W2 (${w2} g) harus > W3 (${w3} g)`)
-            return
-          }
-          if (w3 <= w1) {
-            sampleErrors.push(`${name}: W3 (${w3} g) harus > W1 (${w1} g)`)
-            return
-          }
-
-          const ww = w2 - w3
-          const ws = w3 - w1
-          const plVal = (ww / ws) * 100
-
-          validSamples.push({
-            name,
-            w1,
-            w2,
-            w3,
-            ww,
-            ws,
-            pl: plVal,
-          })
-        })
-
-        if (validSamples.length === 0) {
-          return {
-            results: [
-              { label: 'Batas Plastis Rata-rata (PL)', value: '-', unit: '%', highlight: true },
-              { label: 'Indeks Plastisitas (PI)', value: '-', unit: '%', highlight: true },
-              { label: 'Garis-A USCS', value: '-', unit: '%' },
-              { label: 'Klasifikasi Sistem USCS', value: '-', unit: '', highlight: true },
-            ],
-            formulaSteps: sampleErrors.length > 0 ? sampleErrors : ['Data penimbangan cawan batas plastis tidak valid.'],
-            isError: true,
-            status: 'Input Tidak Wajar / Cek Kembali Data',
-            verdictClass: 'invalid',
-            conclusion: `Input data penimbangan cawan belum valid: ${sampleErrors.join(', ')}. Pastikan W2 > W3 > W1.`,
-            summaryString: 'Input Cawan PL Tidak Valid',
-          }
-        }
-
-        const avgWw = validSamples.reduce((a, s) => a + s.ww, 0) / validSamples.length
-        const avgWs = validSamples.reduce((a, s) => a + s.ws, 0) / validSamples.length
-        const avgPl = validSamples.reduce((a, s) => a + s.pl, 0) / validSamples.length
-
-        // Validasi Relasional: LL HARUS >= avgPl
-        if (ll < avgPl) {
-          return {
-            results: [
-              { label: 'Batas Plastis Rata-rata (PL)', value: avgPl.toFixed(2), unit: '%' },
-              { label: 'Indeks Plastisitas (PI)', value: '-', unit: '%', highlight: true },
-              { label: 'Garis-A USCS', value: '-', unit: '%' },
-              { label: 'Klasifikasi Sistem USCS', value: 'Data Tidak Valid (LL < PL)', unit: '', highlight: true },
-            ],
-            formulaSteps: [
-              `Evaluasi Konsistensi Atterberg: Batas Cair LL (${ll.toFixed(2)}%) < Batas Plastis PL (${avgPl.toFixed(2)}%) [TIDAK LOGIS]`,
-              'Secara fisis kadar air batas cair (LL) harus selalu lebih besar atau sama dengan batas plastis (PL).',
-              'Indeks Plastisitas PI = LL - PL tidak boleh bernilai negatif.',
-            ],
-            isError: true,
-            status: 'Input Tidak Wajar / Cek Kembali Data',
-            verdictClass: 'invalid',
-            conclusion: `Data tidak valid: Batas Cair acuan (LL = ${ll.toFixed(2)}%) tidak boleh lebih kecil dari Batas Plastis rata-rata (PL = ${avgPl.toFixed(2)}%). Periksa kembali nilai Batas Cair atau penimbangan cawan plastis.`,
-            summaryString: 'Data tidak valid: LL < PL',
-          }
-        }
-
-        const pi = ll - avgPl
-        const aLine = 0.73 * (ll - 20)
-
-        let klasifikasi
-        if (pi <= 0) {
-          klasifikasi = 'NP (Non-Plastis / Pasir-Lanau)'
-        } else if (ll >= 50) {
-          klasifikasi = pi > aLine ? 'CH (Lempung Gemuk / Plastisitas Tinggi)' : 'MH (Lanau Elastis / Plastisitas Tinggi)'
-        } else {
-          klasifikasi = pi > aLine ? 'CL (Lempung Kurus / Plastisitas Sedang)' : 'ML (Lanau Anorganik Plastisitas Rendah)'
-        }
-
-        const sampleHeaders = validSamples.map(s => s.name)
-        const recapTable = {
-          title: 'Tabel Rekapitulasi Batas Plastis PL (SNI 1966:2008)',
-          headers: ['Parameter Pengujian', 'Simbol / Rumus', ...sampleHeaders, 'Rata-rata'],
-          rows: [
-            {
-              label: 'Berat Cawan Kosong',
-              equation: 'W1 (gram)',
-              values: validSamples.map(s => s.w1.toFixed(2)),
-              average: (validSamples.reduce((a, s) => a + s.w1, 0) / validSamples.length).toFixed(2),
-            },
-            {
-              label: 'Cawan + Gulungan Basah',
-              equation: 'W2 (gram)',
-              values: validSamples.map(s => s.w2.toFixed(2)),
-              average: (validSamples.reduce((a, s) => a + s.w2, 0) / validSamples.length).toFixed(2),
-            },
-            {
-              label: 'Cawan + Gulungan Kering',
-              equation: 'W3 (gram)',
-              values: validSamples.map(s => s.w3.toFixed(2)),
-              average: (validSamples.reduce((a, s) => a + s.w3, 0) / validSamples.length).toFixed(2),
-            },
-            {
-              label: 'Berat Air Pori',
-              equation: 'Ww = W2 - W3 (gram)',
-              values: validSamples.map(s => s.ww.toFixed(2)),
-              average: avgWw.toFixed(2),
-            },
-            {
-              label: 'Berat Butir Kering',
-              equation: 'Ws = W3 - W1 (gram)',
-              values: validSamples.map(s => s.ws.toFixed(2)),
-              average: avgWs.toFixed(2),
-            },
-            {
-              label: 'Batas Plastis (PL)',
-              equation: 'PL = (Ww / Ws) × 100%',
-              values: validSamples.map(s => `${s.pl.toFixed(2)}%`),
-              average: `${avgPl.toFixed(2)}%`,
-              highlight: true,
-            },
-          ],
-        }
-
-        const formulaSteps = [
-          `Rumus Batas Plastis Tanah (SNI 1966:2008): PL = (Ww / Ws) × 100% = ((W2 - W3) / (W3 - W1)) × 100%`,
-          ...validSamples.map(s => `${s.name}: Ww = ${s.ww.toFixed(2)} g, Ws = ${s.ws.toFixed(2)} g -> PL = (${s.ww.toFixed(2)} / ${s.ws.toFixed(2)}) × 100% = ${s.pl.toFixed(2)}%`),
-          `Batas Plastis Rata-rata (PL) = (${validSamples.map(s => `${s.pl.toFixed(2)}%`).join(' + ')}) / ${validSamples.length} = ${avgPl.toFixed(2)}%`,
-          `Batas Cair Acuan (LL) = ${ll.toFixed(2)}%`,
-          `Indeks Plastisitas: PI = LL - PL = ${ll.toFixed(2)} - ${avgPl.toFixed(2)} = ${pi.toFixed(2)}%`,
-          `Garis-A Casagrande (A-Line) = 0.73 × (LL - 20) = 0.73 × (${ll.toFixed(2)} - 20) = ${aLine.toFixed(2)}%`,
-          `Posisi Terhadap Garis-A: PI (${pi.toFixed(2)}%) ${pi > aLine ? '> A-Line (Tanah Lempung / Clay)' : '< A-Line (Tanah Lanau / Silt)'}`,
-          `Klasifikasi Sistem USCS: ${klasifikasi}`,
-        ]
-
-        return {
-          results: [
-            { label: 'Batas Plastis Rata-rata (PL)', value: avgPl.toFixed(2), unit: '%', highlight: true, sub: `Rata-rata dari ${validSamples.length} cawan` },
-            { label: 'Indeks Plastisitas (PI)', value: pi.toFixed(2), unit: '%', highlight: true, sub: `PI = LL (${ll.toFixed(2)}%) - PL (${avgPl.toFixed(2)}%)` },
-            { label: 'Garis-A USCS', value: aLine.toFixed(2), unit: '%', sub: 'Batas pemisah Lempung & Lanau' },
-            { label: 'Klasifikasi Sistem USCS', value: klasifikasi, unit: '', highlight: true, sub: 'Berdasarkan Diagram Plastisitas' },
-          ],
-          formulaSteps,
-          recapTable,
-          isError: false,
-          status: 'Valid',
-          verdictClass: 'valid',
-          conclusion: `Nilai PI = ${pi.toFixed(2)}% (Batas Plastis rata-rata ${avgPl.toFixed(2)}% dan Batas Cair ${ll.toFixed(2)}%) mengindikasikan tanah berplastisitas ${pi > 17 ? 'tinggi' : pi >= 7 ? 'sedang' : 'rendah'}. Menurut grafik plastisitas Casagrande (A-Line = ${aLine.toFixed(2)}%) tergolong simbol ${klasifikasi}.`,
-          summaryString: `PL = ${avgPl.toFixed(2)}%, PI = ${pi.toFixed(2)}% (Klasifikasi: ${klasifikasi})`,
-        }
-      }
-
-      // 2. Legacy Single-Point Mode (Fallback)
-      const ll = Number(inputs.batasCairLL || 0)
-      const pl = Number(inputs.batasPlastisPL || 0)
-
-      if (ll <= 0 || pl <= 0) {
-        return {
-          results: [
-            { label: 'Batas Plastis (PL)', value: '-', unit: '%' },
-            { label: 'Indeks Plastisitas (PI)', value: '-', unit: '%', highlight: true },
-            { label: 'Garis-A USCS (0.73(LL-20))', value: '-', unit: '%' },
-            { label: 'Klasifikasi Sistem USCS', value: '-', unit: '', highlight: true },
-          ],
-          formulaSteps: ['Nilai Batas Cair (LL) dan Batas Plastis (PL) harus bernilai lebih besar dari 0%.'],
-          isError: true,
-          status: 'Input Tidak Wajar / Cek Kembali Data',
-          verdictClass: 'invalid',
-          conclusion: 'Input parameter pengujian tidak boleh 0 atau kosong. Masukkan nilai Batas Cair (LL) dan Batas Plastis (PL) dengan benar.',
-          summaryString: 'Input Belum Lengkap / Tidak Wajar',
-        }
-      }
-
-      if (ll < pl) {
-        return {
-          results: [
-            { label: 'Batas Plastis (PL)', value: pl.toFixed(2), unit: '%' },
-            { label: 'Indeks Plastisitas (PI)', value: '-', unit: '%', highlight: true },
-            { label: 'Garis-A USCS (0.73(LL-20))', value: '-', unit: '%' },
-            { label: 'Klasifikasi Sistem USCS', value: 'Data Tidak Valid (LL < PL)', unit: '', highlight: true },
-          ],
-          formulaSteps: [
-            `Evaluasi Konsistensi Atterberg: LL (${ll}%) < PL (${pl}%) [TIDAK LOGIS]`,
-            'Secara fisis kadar air batas cair (LL) harus selalu lebih besar atau sama dengan batas plastis (PL).',
-            'Indeks Plastisitas PI = LL - PL tidak boleh bernilai negatif.',
-          ],
-          isError: true,
-          status: 'Input Tidak Wajar / Cek Kembali Data',
-          verdictClass: 'invalid',
-          conclusion: 'Data tidak valid: Batas Cair (LL) tidak boleh lebih kecil dari Batas Plastis (PL).',
-          summaryString: 'Data tidak valid: LL < PL',
-        }
-      }
-
-      const pi = ll - pl
-      const aLine = 0.73 * (ll - 20)
-
-      let klasifikasi
-      if (pi === 0) {
-        klasifikasi = 'NP (Non-Plastis / Pasir-Lanau)'
-      } else if (ll >= 50) {
-        klasifikasi = pi > aLine ? 'CH (Lempung Gemuk / Plastisitas Tinggi)' : 'MH (Lanau Elastis / Plastisitas Tinggi)'
-      } else {
-        klasifikasi = pi > aLine ? 'CL (Lempung Kurus / Plastisitas Sedang)' : 'ML (Lanau Anorganik Plastisitas Rendah)'
-      }
-
-      return {
-        results: [
-          { label: 'Batas Plastis (PL)', value: pl.toFixed(2), unit: '%' },
-          { label: 'Indeks Plastisitas (PI)', value: pi.toFixed(2), unit: '%', highlight: true },
-          { label: 'Garis-A USCS (0.73(LL-20))', value: aLine.toFixed(2), unit: '%' },
-          { label: 'Klasifikasi Sistem USCS', value: klasifikasi, unit: '', highlight: true },
-        ],
-        formulaSteps: [
-          `Indeks Plastisitas PI = LL - PL = ${ll} - ${pl} = ${pi.toFixed(2)}%`,
-          `Garis-A (A-Line) = 0.73 × (LL - 20) = 0.73 × (${ll} - 20) = ${aLine.toFixed(2)}%`,
-          `Posisi: PI (${pi.toFixed(2)}%) ${pi > aLine ? '> A-Line (Tanah Lempung/Clay)' : '< A-Line (Tanah Lanau/Silt)'}`,
-        ],
-        isError: false,
-        status: 'Valid',
-        verdictClass: 'valid',
-        conclusion: `Nilai PI = ${pi.toFixed(2)}% mengindikasikan tanah berplastisitas ${pi > 17 ? 'tinggi' : pi >= 7 ? 'sedang' : 'rendah'}. Menurut grafik plastisitas Casagrande tergolong simbol ${klasifikasi}.`,
-        summaryString: `PI = ${pi.toFixed(2)}% (Klasifikasi: ${klasifikasi})`,
-      }
-    },
+    calculate: (inputs) => calculateSoilWaterContent(inputs, true),
   },
 
   // -----------------------------------------------------------------------
@@ -6216,50 +4485,10 @@ export const calculatorRegistry = {
     lab: 'Mekanika Tanah',
     category: 'Mekanika Tanah • Bab 3: Pemadatan Tanah',
     standard: 'SNI 1742:2008 / ASTM D698',
-    desc: 'Pengujian pemadatan tanah laboratorium Standard Proctor dengan tabel input multi-titik sampel (S1, S2, S3) dan sub-pengujian kontainer kadar air sesuai standar praktikum Teknik Sipil ITERA.',
+    desc: 'Hitung densitas basah dan kering dari penimbangan cetakan serta kadar air cawan. Contoh lima titik mengikuti kurva latihan WSDOT dengan penimbangan simulasi.',
     hasDynamicProctorTable: true,
     initialInputs: {
-      proctorSamples: [
-        {
-          id: 1,
-          name: 'Sampel 1 (S1)',
-          massMoldSoil: 432.5,
-          diameterMold: 5.5,
-          heightMold: 10.0,
-          gs: 2.65,
-          containers: [
-            { id: 1, label: 'Kontainer 1', m1: 12.4, m2: 36.8, m3: 34.2 },
-            { id: 2, label: 'Kontainer 2', m1: 11.8, m2: 38.5, m3: 35.6 },
-            { id: 3, label: 'Kontainer 3', m1: 12.1, m2: 37.2, m3: 34.5 },
-          ],
-        },
-        {
-          id: 2,
-          name: 'Sampel 2 (S2)',
-          massMoldSoil: 478.0,
-          diameterMold: 5.5,
-          heightMold: 10.0,
-          gs: 2.65,
-          containers: [
-            { id: 1, label: 'Kontainer 1', m1: 12.2, m2: 39.4, m3: 35.8 },
-            { id: 2, label: 'Kontainer 2', m1: 11.9, m2: 41.2, m3: 37.4 },
-            { id: 3, label: 'Kontainer 3', m1: 12.5, m2: 40.8, m3: 37.1 },
-          ],
-        },
-        {
-          id: 3,
-          name: 'Sampel 3 (S3)',
-          massMoldSoil: 465.0,
-          diameterMold: 5.5,
-          heightMold: 10.0,
-          gs: 2.65,
-          containers: [
-            { id: 1, label: 'Kontainer 1', m1: 12.0, m2: 42.6, m3: 37.9 },
-            { id: 2, label: 'Kontainer 2', m1: 12.3, m2: 44.1, m3: 39.2 },
-            { id: 3, label: 'Kontainer 3', m1: 11.7, m2: 43.5, m3: 38.6 },
-          ],
-        },
-      ],
+      proctorSamples: structuredClone(PROCTOR_EXAMPLE),
       volMold: 943.8,
       wMold: 2150.0,
       wMoldTanah: 3980.0,
@@ -6272,205 +4501,18 @@ export const calculatorRegistry = {
       { key: 'kadarAir', label: 'Kadar Air Contoh Tanah (w)', unit: '%', min: 0.01, desc: 'Hasil pengujian kadar air titik pemadatan' },
     ],
     calculate: (inputs) => {
-      // 1. DYNAMIC PROCTOR MULTI-SAMPLE MODE (Standar Praktikum ITERA)
       if (Array.isArray(inputs.proctorSamples) && inputs.proctorSamples.length > 0) {
-        let hasInvalidContainer = false
-        let hasInvalidMold = false
-
-        const computedSamples = inputs.proctorSamples.map((s, sIdx) => {
-          const d = s.diameterMold !== undefined && s.diameterMold !== '' ? Number(s.diameterMold) : 5.5
-          const h = s.heightMold !== undefined && s.heightMold !== '' ? Number(s.heightMold) : 10.0
-          const gs = s.gs !== undefined && s.gs !== '' ? Number(s.gs) : 2.65
-          const rawM = s.massMoldSoil !== undefined && s.massMoldSoil !== '' ? Number(s.massMoldSoil) : 0
-          // Konversi otomatis jika pengguna menginput kg (misal 0.45 kg -> 450 gram)
-          const m = (rawM > 0 && rawM < 10) ? rawM * 1000 : rawM
-
-          // Rumus Volume Mold: V = 0.25 * 3.1416 * D^2 * H
-          const v = 0.25 * 3.1416 * d * d * h
-          if (v <= 0 || m <= 0) {
-            hasInvalidMold = true
-          }
-
-          // Perhitungan 3 sub-pengujian kontainer kadar air
-          const containers = (s.containers || []).map((c, cIdx) => {
-            const m1 = c.m1 !== undefined && c.m1 !== '' ? Number(c.m1) : 0
-            const m2 = c.m2 !== undefined && c.m2 !== '' ? Number(c.m2) : 0
-            const m3 = c.m3 !== undefined && c.m3 !== '' ? Number(c.m3) : 0
-
-            // Validasi: M2 harus > M3 dan M3 harus > M1
-            const isInvalid = (m2 > 0 && m3 > 0 && m1 > 0) ? (m2 <= m3 || m3 <= m1) : false
-            if (isInvalid) hasInvalidContainer = true
-
-            const wAir = isInvalid ? 0 : Math.max(0, m2 - m3)
-            const wPadat = isInvalid ? 0 : Math.max(0, m3 - m1)
-            const wPct = wPadat > 0 ? (wAir / wPadat) * 100 : 0
-
-            return {
-              id: c.id || cIdx + 1,
-              label: c.label || `Kontainer ${cIdx + 1}`,
-              m1,
-              m2,
-              m3,
-              wAir,
-              wPadat,
-              wPct,
-              isInvalid,
-            }
-          })
-
-          const validContainers = containers.filter((c) => !c.isInvalid && c.wPct > 0)
-          const avgW = validContainers.length > 0
-            ? validContainers.reduce((sum, c) => sum + c.wPct, 0) / validContainers.length
-            : (containers.length > 0 ? containers.reduce((sum, c) => sum + c.wPct, 0) / containers.length : 0)
-
-          const gammaWet = v > 0 ? m / v : 0
-          const gammaDry = gammaWet > 0 ? gammaWet / (1 + avgW / 100) : 0
-          const gammaZav = (gs > 0 && avgW > 0) ? (gs * 1.0) / (1 + (avgW * gs / 100)) : 0
-
-          return {
-            id: s.id || sIdx + 1,
-            name: s.name || `Sampel ${sIdx + 1} (S${sIdx + 1})`,
-            diameterMold: d,
-            heightMold: h,
-            volumeMold: v,
-            massMoldSoil: rawM,
-            massSoilGram: m,
-            gs,
-            containers,
-            avgW,
-            gammaWet,
-            gammaDry,
-            gammaZav,
-            isInvalid: v <= 0 || m <= 0 || containers.some((c) => c.isInvalid),
-          }
-        })
-
-        const sorted = [...computedSamples].filter((s) => s.avgW > 0 && s.gammaDry > 0).sort((a, b) => a.avgW - b.avgW)
-
-        let mdd = 0
-        let omc = 0
-        let peakSampleId = null
-
-        if (sorted.length >= 3) {
-          const w1 = sorted[0].avgW, y1 = sorted[0].gammaDry
-          const w2 = sorted[1].avgW, y2 = sorted[1].gammaDry
-          const w3 = sorted[2].avgW, y3 = sorted[2].gammaDry
-          const denom = (w1 - w2) * (w1 - w3) * (w2 - w3)
-          if (Math.abs(denom) > 1e-5) {
-            const a = (w3 * (y2 - y1) + w2 * (y1 - y3) + w1 * (y3 - y2)) / denom
-            const b = (w3 * w3 * (y1 - y2) + w2 * w2 * (y3 - y1) + w1 * w1 * (y2 - y3)) / denom
-            const c = (w2 * w3 * (w2 - w3) * y1 + w3 * w1 * (w3 - w1) * y2 + w1 * w2 * (w1 - w2) * y3) / denom
-
-            if (a < 0) {
-              const wPeak = -b / (2 * a)
-              const yPeak = c - (b * b) / (4 * a)
-              if (wPeak >= w1 - 2 && wPeak <= w3 + 2 && yPeak > 0) {
-                omc = wPeak
-                mdd = yPeak
-              }
-            }
-          }
-        }
-
-        if (mdd <= 0 && computedSamples.length > 0) {
-          const maxSample = computedSamples.reduce((max, s) => (s.gammaDry > max.gammaDry ? s : max), computedSamples[0])
-          mdd = maxSample.gammaDry
-          omc = maxSample.avgW
-          peakSampleId = maxSample.id
-        } else if (computedSamples.length > 0) {
-          const maxSample = computedSamples.reduce((max, s) => (s.gammaDry > max.gammaDry ? s : max), computedSamples[0])
-          peakSampleId = maxSample.id
-        }
-
-        const validWet = computedSamples.filter((s) => s.gammaWet > 0)
-        const avgWet = validWet.length > 0
-          ? validWet.reduce((sum, s) => sum + s.gammaWet, 0) / validWet.length
-          : 0
-
-        const gsDefault = computedSamples[0]?.gs || 2.65
-        const minW = sorted.length > 0 ? Math.max(5, Math.floor(sorted[0].avgW - 3)) : 10
-        const maxW = sorted.length > 0 ? Math.ceil(sorted[sorted.length - 1].avgW + 4) : 25
-
-        const chartPoints = []
-        for (let wStep = minW; wStep <= maxW; wStep += 1) {
-          const zav = (gsDefault * 1.0) / (1 + (wStep * gsDefault / 100))
-          const matchedSample = computedSamples.find((s) => Math.abs(s.avgW - wStep) < 0.6)
-          chartPoints.push({
-            w: wStep,
-            zav: Number(zav.toFixed(3)),
-            gammaDry: matchedSample ? Number(matchedSample.gammaDry.toFixed(3)) : null,
-            sampleName: matchedSample ? matchedSample.name : null,
-          })
-        }
-        computedSamples.forEach((s) => {
-          if (s.avgW > 0 && s.gammaDry > 0) {
-            const zav = (s.gs * 1.0) / (1 + (s.avgW * s.gs / 100))
-            chartPoints.push({
-              w: Number(s.avgW.toFixed(2)),
-              zav: Number(zav.toFixed(3)),
-              gammaDry: Number(s.gammaDry.toFixed(3)),
-              sampleName: s.name,
-              isActualPoint: true,
-            })
-          }
-        })
-        chartPoints.sort((a, b) => a.w - b.w)
-
-        const isError = hasInvalidContainer || hasInvalidMold || mdd <= 0
-        const status = isError ? 'Input Tidak Wajar / Cek Kembali Data' : 'Valid'
-        const verdictClass = isError ? 'danger' : 'valid'
-
-        return {
-          results: [
-            { label: 'Kerapatan Kering Maksimum (MDD)', value: `${mdd.toFixed(3)} gr/cm³`, unit: '', highlight: true },
-            { label: 'Kadar Air Optimum (OMC)', value: `${omc.toFixed(2)}%`, unit: '', highlight: true },
-            { label: 'Rata-rata Berat Volume Basah', value: `${avgWet.toFixed(3)} gr/cm³`, unit: '', highlight: true },
-            { label: 'Status Validasi Standar', value: isError ? 'Perlu Evaluasi' : 'Memenuhi SNI 1742:2008', unit: '', highlight: true },
-          ],
-          formulaSteps: [
-            'Metode Pengujian Pemadatan Standard Proctor Laboratorium Teknik Sipil ITERA (SNI 1742:2008 / ASTM D698):',
-            '1. Kadar Air Tiap Kontainer: w = ((M2 - M3) / (M3 - M1)) × 100%',
-            '2. Kadar Air Rata-rata Sampel: w̄ = (w1 + w2 + w3) / 3',
-            '3. Volume Cetakan Mold: V = 0.25 × 3.1416 × D² × H (cm³)',
-            '4. Berat Volume Basah: γ_wet = M / V (gr/cm³)',
-            '5. Berat Volume Kering: γ_dry = γ_wet / (1 + w̄/100) (gr/cm³)',
-            `6. Titik Puncak Kurva Pemadatan: MDD = ${mdd.toFixed(3)} gr/cm³ pada OMC = ${omc.toFixed(2)}%`,
-            `7. Kurva Nol Rongga Udara (Zero Air Voids / ZAV): γ_zav = (Gs × 1.0) / (1 + w × Gs / 100) [Gs = ${gsDefault}]`,
-          ],
-          proctorSamples: computedSamples,
-          rekapitulasiTable: computedSamples.map((s) => ({
-            id: s.id,
-            name: s.name,
-            avgW: s.avgW,
-            gammaWet: s.gammaWet,
-            gammaDry: s.gammaDry,
-            isPeak: s.id === peakSampleId,
-          })),
-          chartData: chartPoints,
-          mdd,
-          omc,
-          avgWet,
-          peakSampleId,
-          hasInvalidContainer,
-          hasInvalidMold,
-          isError,
-          status,
-          verdictClass,
-          conclusion: isError
-            ? 'Perhatian: Terdapat ketidaksesuaian input data kontainer (M2 ≤ M3 atau M3 ≤ M1) atau massa mold kosong/tanah. Harap periksa kembali angka pengukuran laboratorium.'
-            : `Berdasarkan pengujian pemadatan Standard Proctor SNI 1742:2008 / ASTM D698, diperoleh Kerapatan Kering Maksimum (MDD) sebesar ${mdd.toFixed(3)} gr/cm³ pada Kadar Air Optimum (OMC) sebesar ${omc.toFixed(2)}%. Berat volume basah rata-rata dari 3 titik sampel adalah ${avgWet.toFixed(3)} gr/cm³.`,
-          summaryString: `Proctor MDD = ${mdd.toFixed(3)} gr/cm³, OMC = ${omc.toFixed(2)}% (SNI 1742:2008)`,
-        }
+        return calculateProctor(inputs.proctorSamples)
       }
 
       // 2. FALLBACK SINGLE-POINT MODE (Support for legacy inputs { volMold, wMold, wMoldTanah, kadarAir })
       const v = inputs.volMold !== undefined && inputs.volMold !== '' ? Number(inputs.volMold) : 0
       const w1 = inputs.wMold !== undefined && inputs.wMold !== '' ? Number(inputs.wMold) : 0
       const w2 = inputs.wMoldTanah !== undefined && inputs.wMoldTanah !== '' ? Number(inputs.wMoldTanah) : 0
-      const w = inputs.kadarAir !== undefined && inputs.kadarAir !== '' ? Number(inputs.kadarAir) : 0
+      const w = numeric(inputs.kadarAir)
 
       // Guard clause: Validasi input harus > 0
-      if (v <= 0 || w1 <= 0 || w2 <= 0 || w <= 0) {
+      if (![v, w1, w2, w].every(Number.isFinite) || v <= 0 || w1 <= 0 || w2 <= 0 || w < 0) {
         return {
           results: [
             { label: 'Berat Volume Basah (γ_wet)', value: '-', unit: 'gr/cm³' },
@@ -6511,26 +4553,6 @@ export const calculatorRegistry = {
       const gammaWet = wTanah / v
       const gammaDry = gammaWet / (1 + w / 100)
 
-      // VALIDASI HASIL: Jika hasil Berat Volume Kering (γ_dry) > 3.0 gr/cm³, ubah status dari Hijau menjadi MERAH
-      if (gammaDry > 3.0) {
-        return {
-          results: [
-            { label: 'Berat Volume Basah (γ_wet)', value: gammaWet.toFixed(3), unit: 'gr/cm³' },
-            { label: 'Berat Volume Kering (γ_dry)', value: gammaDry.toFixed(3), unit: 'gr/cm³', highlight: true },
-            { label: 'Kerapatan Kering Standar', value: (gammaDry * 9.81).toFixed(2), unit: 'kN/m³' },
-          ],
-          formulaSteps: [
-            `Berat Tanah Padat = W2 - W1 = ${w2} - ${w1} = ${wTanah.toFixed(1)} gr`,
-            `γ_wet = Berat / Volume = ${wTanah.toFixed(1)} / ${v} = ${gammaWet.toFixed(3)} gr/cm³`,
-            `γ_dry = γ_wet / (1 + w/100) = ${gammaWet.toFixed(3)} / (1 + ${w}/100) = ${gammaDry.toFixed(3)} gr/cm³ [> 3.0 gr/cm³, TIDAK FISIS]`,
-          ],
-          isError: true,
-          status: 'Input Tidak Wajar / Cek Kembali Data',
-          conclusion: 'Hasil tidak wajar. Kepadatan kering melebihi batas fisik tanah normal (maks 2.5 gr/cm³). Periksa kembali volume mold atau berat tanah.',
-          summaryString: `γ_dry = ${gammaDry.toFixed(3)} gr/cm³ (Hasil Tidak Wajar > 3.0)`,
-        }
-      }
-
       return {
         results: [
           { label: 'Berat Volume Basah (γ_wet)', value: gammaWet.toFixed(3), unit: 'gr/cm³' },
@@ -6564,16 +4586,16 @@ export const calculatorRegistry = {
     hasDynamicSoilSieveTable: true,
     initialInputs: {
       wTotal: 500.0,
-      panWeight: 24.0,
+      panWeight: 20.0,
       soilSieves: [
         { id: 1, sieveNo: 'No. 4', diameter: 4.75, retainedWeight: 20.0 },
         { id: 2, sieveNo: 'No. 10', diameter: 2.00, retainedWeight: 60.0 },
         { id: 3, sieveNo: 'No. 20', diameter: 0.850, retainedWeight: 100.0 },
-        { id: 4, sieveNo: 'No. 40', diameter: 0.425, retainedWeight: 100.0 },
+        { id: 4, sieveNo: 'No. 40', diameter: 0.425, retainedWeight: 110.0 },
         { id: 5, sieveNo: 'No. 60', diameter: 0.250, retainedWeight: 90.0 },
-        { id: 6, sieveNo: 'No. 100', diameter: 0.150, retainedWeight: 55.0 },
-        { id: 7, sieveNo: 'No. 200', diameter: 0.075, retainedWeight: 45.0 },
-        { id: 8, sieveNo: 'Pan', diameter: 0, retainedWeight: 24.0, isPan: true },
+        { id: 6, sieveNo: 'No. 100', diameter: 0.150, retainedWeight: 45.0 },
+        { id: 7, sieveNo: 'No. 200', diameter: 0.075, retainedWeight: 55.0 },
+        { id: 8, sieveNo: 'Pan', diameter: 0, retainedWeight: 20.0, isPan: true },
       ],
       // Fallback untuk backward-compatibility dengan form statis lama jika ada
       d10: 0.102,
@@ -6594,12 +4616,12 @@ export const calculatorRegistry = {
       const isDynamic = Array.isArray(inputs.soilSieves) && inputs.soilSieves.length > 0
 
       if (isDynamic) {
-        const rawWTotal = inputs.wTotal !== undefined && inputs.wTotal !== '' ? Number(inputs.wTotal) : 500.0
-        const rawPanInput = inputs.panWeight !== undefined && inputs.panWeight !== '' ? Number(inputs.panWeight) : 0
+        const rawWTotal = numeric(inputs.wTotal)
+        const rawPanInput = numeric(inputs.panWeight)
         const rawSieves = inputs.soilSieves
 
         // Validasi massa total sampel
-        if (rawWTotal <= 0) {
+        if (!(rawWTotal > 0)) {
           return {
             results: [
               { label: 'Koefisien Keseragaman (Cu)', value: '-', unit: '', highlight: true },
@@ -6615,34 +4637,34 @@ export const calculatorRegistry = {
           }
         }
 
-        // Validasi input minus
-        const hasNegative = rawSieves.some((s) => {
-          const w = String(s.retainedWeight ?? '').trim()
-          const d = String(s.diameter ?? '').trim()
-          return (w !== '' && Number(w) < 0) || (d !== '' && Number(d) < 0)
-        }) || rawWTotal < 0 || rawPanInput < 0
+        const pans = rawSieves.filter((s) => s.isPan || numeric(s.diameter) === 0 || /pan/i.test(s.sieveNo))
+        const diameters = rawSieves.filter((s) => !pans.includes(s)).map((s) => numeric(s.diameter))
+        const hasInvalidReading = pans.length > 1 || diameters.some((d) => !(d > 0))
+          || new Set(diameters).size !== diameters.length
+          || rawSieves.some((s) => numeric(s.retainedWeight) === null || numeric(s.retainedWeight) < 0)
+          || (!pans.length && (rawPanInput === null || rawPanInput < 0))
 
-        if (hasNegative) {
+        if (hasInvalidReading) {
           return {
             results: [
               { label: 'Koefisien Keseragaman (Cu)', value: '-', unit: '', highlight: true },
               { label: 'Koefisien Kelengkungan (Cc)', value: '-', unit: '', highlight: true },
               { label: 'Fraksi Halus Lolos #200', value: '-', unit: '%' },
-              { label: 'Klasifikasi Gradasi USCS', value: 'Input Bernilai Negatif', unit: '', highlight: true },
+              { label: 'Klasifikasi Gradasi USCS', value: 'Data ayakan belum sah', unit: '', highlight: true },
             ],
-            formulaSteps: ['Nilai berat tertahan, diameter ayakan, dan berat total sampel tidak boleh negatif.'],
+            formulaSteps: ['Gunakan diameter positif dan unik, maksimal satu pan, serta isi semua massa tertahan. Isi 0 untuk fraksi kosong.'],
             isError: true,
             status: 'Input Tidak Wajar / Cek Kembali Data',
-            conclusion: 'Nilai berat tertahan dan diameter ayakan tidak boleh bernilai negatif.',
+            conclusion: 'Periksa kelengkapan penimbangan, ukuran ayakan, dan jumlah pan.',
             summaryString: 'Input Negatif',
           }
         }
 
         // Pisahkan saringan normal dan pan
-        const normalSieves = rawSieves.filter((s) => !s.isPan && Number(s.diameter) > 0)
-        let panSieve = rawSieves.find((s) => s.isPan || Number(s.diameter) <= 0 || /pan/i.test(s.sieveNo))
+        const normalSieves = rawSieves.filter((s) => !pans.includes(s))
+        let panSieve = pans[0]
 
-        if (!panSieve && rawPanInput > 0) {
+        if (!panSieve && rawPanInput !== null) {
           panSieve = { id: 999, sieveNo: 'Pan', diameter: 0, retainedWeight: rawPanInput, isPan: true }
         }
 
@@ -6709,21 +4731,16 @@ export const calculatorRegistry = {
         const isMassLossValid = massLossPct <= 2.0
 
         // Fraksi butiran: Ayakan No. 4 (4.75 mm) & No. 200 (0.075 mm)
-        const sNo4 = calculatedSieves.find((s) => Math.abs(s.diameter - 4.75) < 0.25 || /no\.?\s*4\b/i.test(s.sieveNo))
-        const sNo200 = calculatedSieves.find((s) => Math.abs(s.diameter - 0.075) < 0.015 || /no\.?\s*200\b/i.test(s.sieveNo))
-
-        const passingNo4 = sNo4 ? sNo4.cumPassingPct : 100
-        const passingNo200 = sNo200 ? sNo200.cumPassingPct : (calculatedSieves[calculatedSieves.length - 1].cumPassingPct)
-
-        const gravelPct = Math.max(0, 100 - passingNo4)
-        const finesPct = Math.max(0, passingNo200)
-        const sandPct = Math.max(0, passingNo4 - finesPct)
+        const sNo4 = calculatedSieves.find((s) => Math.abs(s.diameter - 4.75) < 0.001)
+        const sNo200 = calculatedSieves.find((s) => Math.abs(s.diameter - 0.075) < 0.0001)
+        const gravelPct = sNo4 ? 100 - sNo4.cumPassingPct : null
+        const finesPct = sNo200?.cumPassingPct ?? null
+        const sandPct = sNo4 && sNo200 ? sNo4.cumPassingPct - finesPct : null
+        const isGravel = gravelPct > sandPct
+        const formatPct = (value) => value === null ? "—" : value.toFixed(1) + "%"
 
         // Interpolasi Logaritmik untuk D10, D30, D60
         const interpPoints = calculatedSieves.map((s) => ({ diameter: s.diameter, passing: s.cumPassingPct }))
-        if (interpPoints.length > 0 && interpPoints[interpPoints.length - 1].passing > 0) {
-          interpPoints.push({ diameter: 0.001, passing: 0 })
-        }
 
         const d60 = findDiameterAtPassing(60, interpPoints)
         const d30 = findDiameterAtPassing(30, interpPoints)
@@ -6732,85 +4749,29 @@ export const calculatorRegistry = {
         const cu = (d10 && d60 && d10 > 0) ? (d60 / d10) : null
         const cc = (d10 && d30 && d60 && d10 > 0 && d60 > 0) ? ((d30 * d30) / (d10 * d60)) : null
 
-        // Evaluasi Klasifikasi USCS
-        let uscsCode = ''
-        let uscsName = ''
-        let uscsExplanation = ''
+        const hasFractionData = Boolean(sNo4 && sNo200)
+        const canClassify = hasFractionData && finesPct < 5 && cu !== null && cc !== null
+        const wellGraded = canClassify && cu >= (isGravel ? 4 : 6) && cc >= 1 && cc <= 3
+        const fraction = isGravel ? 'Kerikil' : 'Pasir'
+        let uscsCode = 'Data ayakan acuan belum lengkap'
+        let uscsName = uscsCode
+        let uscsExplanation = 'Fraksi kerikil, pasir, dan halus memerlukan ayakan No. 4 dan No. 200.'
 
-        if (finesPct > 50) {
-          uscsCode = 'Fine-Grained'
-          uscsName = 'Tanah Berbutir Halus (Lanau / Lempung)'
-          uscsExplanation = `Fraksi butiran halus lolos ayakan No. 200 (${finesPct.toFixed(1)}%) > 50%. Tanah tergolong tanah berbutir halus (Lanau/Lempung). Klasifikasi plastisitas membutuhkan pengujian Batas Atterberg (LL & PL).`
-        } else if (gravelPct > sandPct) {
-          // Kerikil
-          if (cu !== null && cc !== null) {
-            const isWell = cu >= 4 && cc >= 1 && cc <= 3
-            if (isWell) {
-              if (finesPct < 5) {
-                uscsCode = 'GW'
-                uscsName = 'GW (Kerikil Bergradasi Baik / Well-Graded Gravel)'
-              } else if (finesPct <= 12) {
-                uscsCode = 'GW-GM'
-                uscsName = 'GW-GM (Kerikil Bergradasi Baik dengan Lanau)'
-              } else {
-                uscsCode = 'GM'
-                uscsName = 'GM (Kerikil Berlanau / Silty Gravel)'
-              }
-            } else {
-              if (finesPct < 5) {
-                uscsCode = 'GP'
-                uscsName = 'GP (Kerikil Bergradasi Buruk / Poorly Graded Gravel)'
-              } else if (finesPct <= 12) {
-                uscsCode = 'GP-GM'
-                uscsName = 'GP-GM (Kerikil Bergradasi Buruk dengan Lanau)'
-              } else {
-                uscsCode = 'GM'
-                uscsName = 'GM (Kerikil Berlanau / Silty Gravel)'
-              }
-            }
-          } else {
-            uscsCode = 'G (Kerikil)'
-            uscsName = 'Tanah Kerikil (Data Gradasi D10/D30/D60 Tidak Lengkap)'
-          }
-          uscsExplanation = `Fraksi kerikil (${gravelPct.toFixed(1)}%) > pasir (${sandPct.toFixed(1)}%). Cu = ${cu ? cu.toFixed(2) : '-'}, Cc = ${cc ? cc.toFixed(2) : '-'}.`
-        } else {
-          // Pasir
-          if (cu !== null && cc !== null) {
-            const isWell = cu >= 6 && cc >= 1 && cc <= 3
-            if (isWell) {
-              if (finesPct < 5) {
-                uscsCode = 'SW'
-                uscsName = 'SW (Pasir Bergradasi Baik / Well-Graded Sand)'
-              } else if (finesPct <= 12) {
-                uscsCode = 'SW-SM'
-                uscsName = 'SW-SM (Pasir Bergradasi Baik dengan Lanau)'
-              } else {
-                uscsCode = 'SM'
-                uscsName = 'SM (Pasir Berlanau / Silty Sand)'
-              }
-            } else {
-              if (finesPct < 5) {
-                uscsCode = 'SP'
-                uscsName = 'SP (Pasir Bergradasi Buruk / Poorly Graded Sand)'
-              } else if (finesPct <= 12) {
-                uscsCode = 'SP-SM'
-                uscsName = 'SP-SM (Pasir Bergradasi Buruk dengan Lanau)'
-              } else {
-                uscsCode = 'SM'
-                uscsName = 'SM (Pasir Berlanau / Silty Sand)'
-              }
-            }
-          } else {
-            uscsCode = 'S (Pasir)'
-            uscsName = 'Tanah Pasir (Data Gradasi D10/D30/D60 Tidak Lengkap)'
-          }
-          uscsExplanation = `Fraksi pasir (${sandPct.toFixed(1)}%) >= kerikil (${gravelPct.toFixed(1)}%). Cu = ${cu ? cu.toFixed(2) : '-'}, Cc = ${cc ? cc.toFixed(2) : '-'}.`
+        if (canClassify) {
+          uscsCode = (isGravel ? 'G' : 'S') + (wellGraded ? 'W' : 'P')
+          uscsName = uscsCode + ' (' + fraction + (wellGraded ? ' bergradasi baik)' : ' bergradasi buruk)')
+          uscsExplanation = 'Klasifikasi berdasarkan Cu dan Cc pada tanah dengan fraksi halus di bawah 5%.'
+        } else if (hasFractionData && finesPct >= 5) {
+          uscsCode = finesPct >= 50 ? 'Berbutir halus' : fraction + ' dengan fraksi halus'
+          uscsName = uscsCode + ' • perlu LL dan PI'
+          uscsExplanation = 'Diperlukan batas Atterberg untuk menetapkan simbol USCS.'
+        } else if (hasFractionData) {
+          uscsCode = fraction + ' • diameter efektif belum lengkap'
+          uscsName = uscsCode
+          uscsExplanation = 'Rentang pembacaan belum mencakup seluruh D10, D30, dan D60.'
         }
-
-        const status = isMassLossValid ? 'Valid' : 'Perlu Evaluasi'
-        const conclusion = isMassLossValid
-          ? `Pengujian memenuhi batas toleransi kehilangan berat (${massLossPct.toFixed(2)}% <= 2.0%). Tanah diklasifikasikan sebagai ${uscsName} (SNI 3423:2008 / ASTM D2487). Distribusi butiran lengkap dan kompak saat dipadatkan.`
-          : `Kehilangan berat sampel (${massLossPct.toFixed(2)}%) melebihi toleransi standar ASTM/SNI (<= 2.0%). Disarankan mengulang penimbangan saringan.`
+        const status = isMassLossValid && canClassify ? 'Data terhitung' : 'Perlu Evaluasi'
+        const conclusion = 'Selisih massa penimbangan ' + massLossPct.toFixed(2) + '%. Pembanding praktikum ≤ 2,0%. Klasifikasi: ' + uscsName + '. ' + uscsExplanation
 
         // Titik data untuk grafik
         const chartDataPoints = calculatedSieves.map((s) => ({
@@ -6825,7 +4786,7 @@ export const calculatorRegistry = {
           results: [
             { label: 'Koefisien Keseragaman (Cu)', value: cu ? cu.toFixed(2) : '-', unit: '', highlight: cu !== null && cu >= (gravelPct > sandPct ? 4 : 6) },
             { label: 'Koefisien Kelengkungan (Cc)', value: cc ? cc.toFixed(2) : '-', unit: '', highlight: cc !== null && cc >= 1 && cc <= 3 },
-            { label: 'Fraksi Halus Lolos #200', value: `${finesPct.toFixed(1)}%`, unit: '', highlight: finesPct <= 50 },
+            { label: 'Fraksi Halus Lolos #200', value: formatPct(finesPct), unit: '', highlight: finesPct !== null && finesPct < 50 },
             { label: 'Klasifikasi Gradasi USCS', value: uscsCode || uscsName, unit: '', highlight: true },
           ],
           formulaSteps: [
@@ -6833,7 +4794,7 @@ export const calculatorRegistry = {
             `   Berat Total Sampel Awal (W_total) = ${rawWTotal.toFixed(1)} gram`,
             `   Total Berat Tertahan Seluruh Ayakan + Pan = ${totalWithPan.toFixed(1)} gram`,
             `   Kehilangan Berat (Mass Loss) = |${rawWTotal.toFixed(1)} - ${totalWithPan.toFixed(1)}| = ${massLoss.toFixed(1)} gram (${massLossPct.toFixed(2)}%)`,
-            `   Batas Toleransi Kehilangan Berat SNI/ASTM = <= 2.0% -> ${isMassLossValid ? 'MEMENUHI SYARAT (LULUS)' : 'MELEBIHI TOLERANSI (TIDAK MEMENUHI)'}`,
+            `   Pembanding neraca massa praktikum ≤ 2,0% -> ${isMassLossValid ? 'MEMENUHI SYARAT (LULUS)' : 'MELEBIHI TOLERANSI (TIDAK MEMENUHI)'}`,
             `2. PERHITUNGAN PERSENTASE TERTAHAN & LOLOS:`,
             ...calculatedSieves.map(
               (s) => `   - ${s.sieveNo} (${s.diameter} mm): Berat = ${s.retainedWeight.toFixed(1)} g | % Tertahan = ${s.retainedPct.toFixed(2)}% | % Kumulatif = ${s.cumRetainedPct.toFixed(2)}% | % Lolos = ${s.cumPassingPct.toFixed(2)}%`
@@ -6849,9 +4810,9 @@ export const calculatorRegistry = {
             `   Koefisien Keseragaman: Cu = D60 / D10 = ${cu ? cu.toFixed(2) : '-'}`,
             `   Koefisien Kelengkungan: Cc = D30^2 / (D10 x D60) = ${cc ? cc.toFixed(2) : '-'}`,
             `5. DISTRIBUSI FRAKSI TANAH & KLASIFIKASI USCS (ASTM D2487):`,
-            `   Fraksi Kerikil (Tertahan No. 4 / > 4.75 mm) = ${gravelPct.toFixed(1)}%`,
-            `   Fraksi Pasir (Lolos No. 4 s.d. Tertahan No. 200) = ${sandPct.toFixed(1)}%`,
-            `   Fraksi Butiran Halus (Lolos No. 200 / < 0.075 mm) = ${finesPct.toFixed(1)}%`,
+            `   Fraksi Kerikil (Tertahan No. 4 / > 4.75 mm) = ${formatPct(gravelPct)}`,
+            `   Fraksi Pasir (Lolos No. 4 s.d. Tertahan No. 200) = ${formatPct(sandPct)}`,
+            `   Fraksi Butiran Halus (Lolos No. 200 / < 0.075 mm) = ${formatPct(finesPct)}`,
             `   Klasifikasi USCS: ${uscsName}`,
           ].filter(Boolean),
           isError: !isMassLossValid,
@@ -6939,7 +4900,7 @@ export const calculatorRegistry = {
       let summaryString
       let formulaSteps
 
-      if (fines > 50) {
+      if (fines >= 50) {
         tipe = 'Lanau/Lempung (Silt/Clay)'
         status = 'Perlu Evaluasi'
         conclusion = 'Tanah didominasi oleh butiran halus (lolos #200). Klasifikasi bukan Pasir, melainkan Lanau/Lempung.'
@@ -7010,7 +4971,10 @@ export const calculatorRegistry = {
         { id: 3, area: 31.17, normalLoad: 12.65, shearForce: 4.05, sigma: 0.4058, tau: 0.1299 },
       ],
     },
-    fields: [],
+    fields: [
+      { key: 'shearInputMode', label: 'Sumber gaya geser', type: 'select' },
+      { key: 'shearCalibration', label: 'Faktor kalibrasi alat geser', unit: 'kgf/div', optional: true },
+    ],
     calculate: (inputs) => {
       // Ambil data pasangan titik pengujian dari input tabel dinamis
       let rawPoints = inputs.points
@@ -7030,86 +4994,26 @@ export const calculatorRegistry = {
         }
       }
 
-      // Deteksi adanya nilai negatif pada input
-      const hasNegative = rawPoints.some((pt) => {
-        if (!pt) return false
-        const a = pt.area !== undefined && pt.area !== '' ? Number(pt.area) : NaN
-        const p = pt.normalLoad !== undefined && pt.normalLoad !== '' ? Number(pt.normalLoad) : NaN
-        const f = pt.shearForce !== undefined && pt.shearForce !== '' ? Number(pt.shearForce) : NaN
-        const s = pt.sigma !== undefined && pt.sigma !== '' ? Number(pt.sigma) : NaN
-        const t = pt.tau !== undefined && pt.tau !== '' ? Number(pt.tau) : NaN
-        return (a < 0) || (p < 0) || (f < 0) || (s < 0) || (t < 0)
+      const fromDial = inputs.shearInputMode === 'dial'
+      const calibration = numeric(inputs.shearCalibration)
+      const processedPoints = rawPoints.map((point, i) => {
+        const pt = point ?? {}
+        const [area, normalLoad, dial] = [pt.area, pt.normalLoad, pt.dialReading].map(numeric)
+        const force = fromDial ? calibration > 0 && dial > 0 ? calibration * dial : null : numeric(pt.shearForce)
+        const raw = fromDial || ['area', 'normalLoad', 'shearForce'].some((key) => Object.hasOwn(pt, key))
+        return {
+          id: pt.id ?? i + 1, pointNum: i + 1, area, normalLoad, shearForce: force, dial, raw,
+          sigma: raw ? area > 0 && normalLoad > 0 ? normalLoad / area : null : numeric(pt.sigma),
+          tau: raw ? area > 0 && force > 0 ? force / area : null : numeric(pt.tau),
+        }
       })
-
-      if (hasNegative) {
+      const validPoints = processedPoints.filter((point) => point.sigma > 0 && point.tau > 0)
+      if (validPoints.length !== processedPoints.length || new Set(validPoints.map(({ sigma }) => sigma)).size < 3) {
+        const conclusion = 'Lengkapi semua titik dengan luas, beban normal, dan gaya geser positif. Regresi memerlukan sedikitnya tiga tegangan normal berbeda.' +
+          (fromDial ? ' Masukkan bacaan puncak dan faktor kalibrasi alat dalam kgf/div.' : '')
         return {
-          results: [
-            { label: 'Kohesi Tanah (c)', value: '-', unit: 'kg/cm²', highlight: true },
-            { label: 'Sudut Geser Dalam (ϕ)', value: '-', unit: '', highlight: true },
-            { label: 'Kemiringan Garis (tan ϕ)', value: '-', unit: '' },
-            { label: 'Koefisien Determinasi (R²)', value: '-', unit: '', highlight: true },
-          ],
-          formulaSteps: [
-            'Input tidak wajar: Nilai beban vertikal (P), gaya geser (F), luas penampang (A), atau tegangan tidak boleh bernilai negatif.',
-          ],
-          isError: true,
-          status: 'Input Tidak Wajar / Cek Kembali Data',
-          conclusion: 'Input tidak valid: Terdapat nilai beban vertikal (P), gaya geser (F), atau luas (A) yang bernilai negatif. Periksa kembali data input.',
-          summaryString: 'Input Bernilai Negatif',
-        }
-      }
-
-      // Konversi titik ke nilai numerik sigma dan tau
-      const processedPoints = rawPoints.map((pt, idx) => {
-        if (!pt) return null
-        let a = pt.area !== undefined && pt.area !== '' ? Number(pt.area) : 31.17
-        let p = pt.normalLoad !== undefined && pt.normalLoad !== '' ? Number(pt.normalLoad) : NaN
-        let f = pt.shearForce !== undefined && pt.shearForce !== '' ? Number(pt.shearForce) : NaN
-        let s = pt.sigma !== undefined && pt.sigma !== '' ? Number(pt.sigma) : NaN
-        let t = pt.tau !== undefined && pt.tau !== '' ? Number(pt.tau) : NaN
-
-        // Jika beban normal (P) dan gaya geser (F) diisi, hitung sigma = P/A dan tau = F/A
-        if (!isNaN(p) && !isNaN(f) && !isNaN(a) && a > 0) {
-          s = p / a
-          t = f / a
-        } else if (!isNaN(s) && !isNaN(t) && !isNaN(a) && a > 0) {
-          if (isNaN(p)) p = s * a
-          if (isNaN(f)) f = t * a
-        }
-
-        return {
-          id: pt.id || (idx + 1),
-          pointNum: idx + 1,
-          area: a,
-          normalLoad: !isNaN(p) ? p : null,
-          shearForce: !isNaN(f) ? f : null,
-          sigma: !isNaN(s) ? s : null,
-          tau: !isNaN(t) ? t : null,
-        }
-      }).filter(Boolean)
-
-      // Validasi pasangan titik: filter titik yang terisi angka valid > 0
-      const validPoints = processedPoints.filter((pt) => {
-        return pt.sigma !== null && pt.tau !== null && pt.sigma > 0 && pt.tau > 0
-      })
-
-      // Minimal 3 titik data sesuai standar SNI 3420:2016
-      if (validPoints.length < 3) {
-        return {
-          results: [
-            { label: 'Kohesi Tanah (c)', value: '-', unit: 'kg/cm²', highlight: true },
-            { label: 'Sudut Geser Dalam (ϕ)', value: '-', unit: '', highlight: true },
-            { label: 'Kemiringan Garis (tan ϕ)', value: '-', unit: '' },
-            { label: 'Koefisien Determinasi (R²)', value: '-', unit: '', highlight: true },
-          ],
-          formulaSteps: [
-            'Pengujian Kuat Geser Langsung (SNI 3420:2016) mensyaratkan minimal 3 titik pengujian dengan beban normal bertingkat.',
-            `Jumlah titik uji valid saat ini: ${validPoints.length} titik. Masukkan minimal 3 pasangan nilai Beban Normal (P) dan Gaya Geser (F) > 0.`,
-          ],
-          isError: true,
-          status: 'Input Tidak Wajar / Cek Kembali Data',
-          conclusion: 'Data belum lengkap: Masukkan minimal 3 pasangan data Beban Normal (P) dan Gaya Geser (F) bernilai lebih besar dari 0.',
-          summaryString: 'Direct Shear: Minimal 3 Titik Uji',
+          results: [], computedPoints: processedPoints, isError: true, status: 'Perlu Evaluasi',
+          verdictClass: 'warning', conclusion, formulaSteps: [conclusion], summaryString: conclusion,
         }
       }
 
@@ -7136,7 +5040,7 @@ export const calculatorRegistry = {
       }
 
       // Validasi variasi tegangan normal (tidak boleh identik)
-      if (ssXX <= 0.000001) {
+      if (!(ssXX > 0)) {
         return {
           results: [
             { label: 'Kohesi Tanah (c)', value: '-', unit: 'kg/cm²', highlight: true },
@@ -7183,23 +5087,23 @@ export const calculatorRegistry = {
       const phiRad = Math.atan(slope)
       const phiDeg = (phiRad * 180) / Math.PI
 
-      // Kohesi c = intercept (jika sedikit negatif akibat variasi sebaran acak pasir non-kohesif, set 0)
-      const c = intercept >= 0 ? intercept : 0
+      // Pertahankan intersep regresi untuk evaluasi, termasuk bila bernilai negatif.
+      const c = intercept
 
       // Koefisien korelasi R²
       const r2 = (ssXX * ssYY) > 0 ? (ssXY * ssXY) / (ssXX * ssYY) : 1
 
       // Format data untuk output dan chart
       const computedPoints = validPoints.map((pt, idx) => ({
-        id: pt.id,
+        ...pt,
         pointNum: idx + 1,
         area: pt.area,
         normalLoad: pt.normalLoad,
         shearForce: pt.shearForce,
         sigma: pt.sigma,
         tau: pt.tau,
-        sigmaKpa: pt.sigma * 98.07,
-        tauKpa: pt.tau * 98.07,
+        sigmaKpa: pt.sigma * 98.0665,
+        tauKpa: pt.tau * 98.0665,
         trendlineTau: c + pt.sigma * slope,
       }))
 
@@ -7238,6 +5142,7 @@ export const calculatorRegistry = {
         return `Titik #${i + 1}: ${pStr} | ${fStr}`
       })
 
+      const needsReview = c < 0 || slope < 0 || r2 < 0.95
       return {
         results: [
           { label: 'Kohesi Tanah (c)', value: c.toFixed(3), unit: 'kg/cm²', highlight: true },
@@ -7247,10 +5152,11 @@ export const calculatorRegistry = {
         ],
         formulaSteps: [
           `1. Konversi Beban ke Tegangan Tiap Titik Uji (σ = P / A dan τ = F / A):`,
+          ...(fromDial ? [`Gaya geser puncak F = bacaan × faktor kalibrasi (${calibration} kgf/div).`] : []),
           ...perPointSteps,
           `2. Rata-rata Tegangan Pengujian (n = ${n} Titik):`,
-          `   • Rata-rata Tegangan Normal (σ_bar) = (Σ σ) / ${n} = ${meanX.toFixed(4)} kg/cm² (${(meanX * 98.07).toFixed(1)} kPa)`,
-          `   • Rata-rata Tegangan Geser Runtuh (τ_bar) = (Σ τ) / ${n} = ${meanY.toFixed(4)} kg/cm² (${(meanY * 98.07).toFixed(1)} kPa)`,
+          `   • Rata-rata Tegangan Normal (σ_bar) = (Σ σ) / ${n} = ${meanX.toFixed(4)} kg/cm² (${(meanX * 98.0665).toFixed(1)} kPa)`,
+          `   • Rata-rata Tegangan Geser Runtuh (τ_bar) = (Σ τ) / ${n} = ${meanY.toFixed(4)} kg/cm² (${(meanY * 98.0665).toFixed(1)} kPa)`,
           `3. Parameter Kovariansi & Variansi Regresi Linier:`,
           `   • SS_xx = Σ(σ - σ_bar)² = ${ssXX.toFixed(6)}`,
           `   • SS_yy = Σ(τ - τ_bar)² = ${ssYY.toFixed(6)}`,
@@ -7260,19 +5166,21 @@ export const calculatorRegistry = {
           `5. Sudut Geser Dalam Tanah (ϕ):`,
           `   ϕ = arctan(tan ϕ) = arctan(${slope.toFixed(4)}) = ${phiDeg.toFixed(2)}°`,
           `6. Kohesi Tanah (c = Intersep Sumbu-Y):`,
-          `   c = τ_bar - tan(ϕ) × σ_bar = ${meanY.toFixed(4)} - (${slope.toFixed(4)} × ${meanX.toFixed(4)}) = ${c.toFixed(4)} kg/cm² (${(c * 98.07).toFixed(2)} kPa)`,
+          `   c = τ_bar - tan(ϕ) × σ_bar = ${meanY.toFixed(4)} - (${slope.toFixed(4)} × ${meanX.toFixed(4)}) = ${c.toFixed(4)} kg/cm² (${(c * 98.0665).toFixed(2)} kPa)`,
           `7. Koefisien Determinasi Regresi (R²):`,
           `   R² = (SS_xy)² / (SS_xx × SS_yy) = ${r2.toFixed(4)} (${(r2 * 100).toFixed(2)}% korelasi data)`,
           `8. Persamaan Garis Keruntuhan Mohr-Coulomb:`,
           `   τ = c + σ × tan(ϕ) = ${c.toFixed(3)} + ${slope.toFixed(3)} × σ (kg/cm²)`,
         ],
         isError: false,
-        status: 'Valid',
-        conclusion: `Berdasarkan analisis regresi linier ${n} titik uji geser langsung (SNI 3420:2016), diperoleh parameter kuat geser tanah: Kohesi c = ${c.toFixed(3)} kg/cm² (${(c * 98.1).toFixed(1)} kPa) dan Sudut Geser Dalam ϕ = ${phiDeg.toFixed(2)}° (R² = ${r2.toFixed(3)}). Persamaan selubung kegagalan Mohr-Coulomb: τ = ${c.toFixed(3)} + ${slope.toFixed(3)}·σ. Data memiliki korelasi yang sangat baik dan siap diaplikasikan pada perhitungan daya dukung fondasi atau analisis kestabilan lereng.`,
+        status: needsReview ? 'Perlu Evaluasi' : 'Data terhitung',
+        verdictClass: needsReview ? 'warning' : 'valid',
+        shearFit: { c, slope, phiDeg, r2 },
+        conclusion: `Regresi ${n} titik menghasilkan c = ${c.toFixed(3)} kgf/cm², ϕ = ${phiDeg.toFixed(2)}°, dan R² = ${r2.toFixed(3)}.${c < 0 ? ' Intersep negatif perlu ditinjau dalam rentang tegangan uji.' : ''}${slope < 0 || r2 < 0.95 ? ' Tinjau tren data dan kecocokan garis. R² ≥ 0,95 adalah pembanding praktikum.' : ''}`,
         summaryString: `c = ${c.toFixed(3)} kg/cm², ϕ = ${phiDeg.toFixed(1)}° (R² = ${r2.toFixed(3)})`,
         // Rich metadata untuk komponen visual
         cKgCm2: c.toFixed(3),
-        cKpa: (c * 98.07).toFixed(2),
+        cKpa: (c * 98.0665).toFixed(2),
         phiDeg: phiDeg.toFixed(2),
         slope: slope.toFixed(4),
         r2: r2.toFixed(4),
@@ -7387,41 +5295,22 @@ export const calculatorRegistry = {
           }
         }
 
-        // Format pembacaan waktu dan penurunan
-        const hZero = readings[0]?.h !== undefined && readings[0]?.h !== '' && Number(readings[0].h) > 0
-          ? Number(readings[0].h)
-          : rawH0
+        const measured = (value) => value == null || String(value).trim() === '' ? NaN : Number(value)
+        const sortedReadings = readings.map((row) => ({ ...row, t: measured(row.t) })).sort((a, b) => a.t - b.t)
+        const firstHeight = measured(sortedReadings[0]?.h)
+        const hAwal = Number.isFinite(firstHeight) ? firstHeight : rawH0
+        sortedReadings.forEach((row) => {
+          const h = measured(row.h)
+          row.h = Number.isFinite(h) ? h : hAwal - measured(row.deltaH)
+          row.sqrtT = Math.sqrt(row.t)
+          row.deltaH = hAwal - row.h
+        })
+        const hAkhir = sortedReadings.at(-1).h
+        const deltaHTotal = hAwal - hAkhir
+        const validReadings = sortedReadings[0].t === 0 && sortedReadings.every((row, i) =>
+          Number.isFinite(row.t) && row.h > 0 && row.h <= hAwal && (i === 0 || row.t > sortedReadings[i - 1].t))
 
-        const sortedReadings = [...readings].map((r, idx) => {
-          const tVal = r.t !== undefined && r.t !== '' ? Number(r.t) : 0
-          const sqrtT = Math.sqrt(Math.max(0, tVal))
-          let dHVal
-          let hVal
-          if (r.deltaH !== undefined && r.deltaH !== '') {
-            dHVal = Number(r.deltaH)
-            hVal = r.h !== undefined && r.h !== '' ? Number(r.h) : Math.max(0, hZero - dHVal)
-          } else if (r.h !== undefined && r.h !== '') {
-            hVal = Number(r.h)
-            dHVal = Math.max(0, hZero - hVal)
-          } else {
-            dHVal = 0
-            hVal = hZero
-          }
-          return {
-            ...r,
-            index: idx + 1,
-            t: tVal,
-            sqrtT,
-            deltaH: dHVal,
-            h: hVal,
-          }
-        }).sort((a, b) => a.t - b.t)
-
-        const hAwal = sortedReadings[0]?.h || hZero
-        const hAkhir = sortedReadings[sortedReadings.length - 1]?.h || Math.max(0, hAwal - (sortedReadings[sortedReadings.length - 1]?.deltaH || 0))
-        const deltaHTotal = Math.abs(hAwal - hAkhir) || (sortedReadings[sortedReadings.length - 1]?.deltaH || 0)
-
-        if (deltaHTotal >= hAwal) {
+        if (!validReadings) {
           return {
             results: [
               { label: 'Koefisien Konsolidasi (Cv)', value: '-', unit: 'cm²/detik', highlight: true },
@@ -7430,81 +5319,37 @@ export const calculatorRegistry = {
               { label: 'Indeks Kompresi (Cc)', value: '-', unit: '', highlight: true },
             ],
             formulaSteps: [
-              `Evaluasi Penurunan Sampel: ΔH (${deltaHTotal.toFixed(3)} cm) ≥ H0 (${hAwal.toFixed(3)} cm) [TIDAK LOGIS]`,
-              'Penurunan konsolidasi (ΔH) tidak boleh lebih besar atau sama dengan tinggi semula sampel tanah.',
+              'Sertakan pembacaan t = 0, waktu berurutan tanpa duplikasi, dan tinggi positif yang tidak melebihi tinggi awal.',
             ],
             isError: true,
             status: 'Input Tidak Wajar / Cek Kembali Data',
-            conclusion: `Input data tidak valid: Penurunan konsolidasi (ΔH = ${deltaHTotal.toFixed(3)} cm) tidak boleh lebih besar atau sama dengan tinggi awal benda uji.`,
-            summaryString: 'Input Tidak Valid (ΔH >= H0)',
+            conclusion: 'Pembacaan waktu atau tinggi belum lengkap atau di luar batas fisik.',
+            summaryString: 'Pembacaan konsolidasi belum sah',
           }
         }
 
         const hRata = (hAwal + hAkhir) / 2
         const ht = 0.5 * hRata // Double drainage (dua arah pengaliran atas dan bawah)
 
-        // Metode Taylor: Regresi linear garis singgung awal pada sqrt(t) <= 1.5
+        // Pilih segmen awal untuk estimasi garis lurus Taylor.
         const earlyPts = sortedReadings.filter((p) => p.sqrtT <= 1.5)
         const candidates = earlyPts.length >= 2 ? earlyPts : sortedReadings.slice(0, Math.min(4, sortedReadings.length))
-        let slope1 = 0.040
-        let d0 = 0.0
-        if (candidates.length >= 2) {
-          let sumX = 0, sumY = 0, sumXY = 0, sumX2 = 0
-          const n = candidates.length
-          for (const p of candidates) {
-            sumX += p.sqrtT
-            sumY += p.deltaH
-            sumXY += p.sqrtT * p.deltaH
-            sumX2 += p.sqrtT * p.sqrtT
-          }
-          const denom = n * sumX2 - sumX * sumX
-          if (Math.abs(denom) > 1e-9) {
-            slope1 = (n * sumXY - sumX * sumY) / denom
-            d0 = (sumY - slope1 * sumX) / n
-          }
-        }
-        if (slope1 <= 0) slope1 = 0.040
-
-        // Garis kedua Taylor: slope2 = slope1 / 1.15 (abscissa 1.15 kali garis singgung awal)
+        const { m: slope1, c: d0 } = fitLinear(candidates.map((row) => ({ x: row.sqrtT, y: row.deltaH })))
         const slope2 = slope1 / 1.15
-
-        let sqrtT90 = null
-        let deltaH90 = null
-
-        // Cari perpotongan Garis 2 dengan kurva pengamatan (setelah segmen awal linear)
-        for (let i = 1; i < sortedReadings.length - 1; i++) {
-          const p1Pt = sortedReadings[i]
-          const p2Pt = sortedReadings[i + 1]
-          const mSeg = (p2Pt.deltaH - p1Pt.deltaH) / (p2Pt.sqrtT - p1Pt.sqrtT || 1e-6)
-          const denom = slope2 - mSeg
-          if (Math.abs(denom) > 1e-9) {
-            const intersectSqrtT = (p1Pt.deltaH - mSeg * p1Pt.sqrtT - d0) / denom
-            if (intersectSqrtT >= p1Pt.sqrtT - 1e-4 && intersectSqrtT <= p2Pt.sqrtT + 1e-4) {
-              sqrtT90 = intersectSqrtT
-              deltaH90 = d0 + slope2 * sqrtT90
-              break
-            }
-          }
-        }
-
-        // Fallback jika tidak berpotongan langsung
-        if (!sqrtT90 && sortedReadings.length > 2) {
-          deltaH90 = d0 + 0.90 * (deltaHTotal - d0)
-          for (let i = 0; i < sortedReadings.length - 1; i++) {
-            if (sortedReadings[i].deltaH <= deltaH90 && sortedReadings[i + 1].deltaH >= deltaH90) {
-              const diff = sortedReadings[i + 1].deltaH - sortedReadings[i].deltaH || 1e-6
-              const frac = (deltaH90 - sortedReadings[i].deltaH) / diff
-              sqrtT90 = sortedReadings[i].sqrtT + frac * (sortedReadings[i + 1].sqrtT - sortedReadings[i].sqrtT)
-              break
-            }
-          }
-        }
-
-        const finalSqrtT90 = sqrtT90 || 2.690
-        const finalT90 = finalSqrtT90 * finalSqrtT90
+        const segmentIntersections = sortedReadings.map((a, i) => {
+          const b = sortedReadings[i + 1]
+          if (!b || i < candidates.length - 1 || slope1 <= 0) return null
+          const aDiff = a.deltaH - (d0 + slope2 * a.sqrtT)
+          const bDiff = b.deltaH - (d0 + slope2 * b.sqrtT)
+          if (aDiff < 0 || bDiff > 0 || aDiff === bDiff) return null
+          return a.sqrtT + (b.sqrtT - a.sqrtT) * aDiff / (aDiff - bDiff)
+        })
+        const finalSqrtT90 = segmentIntersections.find((t) => t > 0) ?? null
+        const deltaH90 = finalSqrtT90 === null ? null : d0 + slope2 * finalSqrtT90
+        const finalT90 = finalSqrtT90 === null ? null : finalSqrtT90 ** 2
         const tv = 0.848 // Time factor untuk U = 90%
-        const cvMin = (tv * ht * ht) / finalT90 // cm²/menit
-        const cvSec = cvMin / 60 // cm²/detik
+        const cvMin = finalT90 === null ? null : (tv * ht * ht) / finalT90
+        const cvSec = cvMin === null ? null : cvMin / 60
 
         // Perhitungan Indeks Kompresi Cc
         const deltaE = (deltaHTotal / hAwal) * (1 + rawE0)
@@ -7512,16 +5357,12 @@ export const calculatorRegistry = {
         const cc = deltaE / logRatio
 
         const isHighCc = cc > 1.0
-        const status = isHighCc ? 'Perlu Evaluasi' : 'Valid'
-        const cvSecFormatted = cvSec < 0.01 ? cvSec.toExponential(3) : cvSec.toFixed(5)
-
-        const conclusion = isHighCc
-          ? 'Nilai Cc > 1.0 mengindikasikan tanah dengan kompresibilitas sangat tinggi (organik/gambut).'
-          : `Koefisien konsolidasi Cv = ${cvSecFormatted} cm²/detik (t90 = ${finalT90.toFixed(2)} menit) dan Indeks Kompresi Cc = ${cc.toFixed(3)}. Mengindikasikan tanah lempung dengan kompresibilitas normal sesuai SNI 2812:2011.`
-
-        const warningMessage = isHighCc
-          ? `Perlu Evaluasi: Indeks kompresi Cc = ${cc.toFixed(3)} (> 1.0) berada di atas rentang tanah anorganik normal. Terindikasi tanah sangat lunak atau mengandung bahan organik tinggi.`
-          : null
+        const status = finalT90 === null || isHighCc ? 'Perlu Evaluasi' : 'Valid'
+        const cvSecFormatted = cvSec === null ? '—' : cvSec < 0.01 ? cvSec.toExponential(3) : cvSec.toFixed(5)
+        const warningMessage = finalT90 === null
+          ? 'Titik potong Taylor belum ditemukan setelah segmen awal. Periksa pemilihan segmen dan cakupan waktu pengamatan.'
+          : isHighCc ? 'Perubahan angka pori pada rentang pembebanan ini besar. Tinjau kurva e–log tegangan.' : null
+        const conclusion = `Cv = ${cvSecFormatted} cm²/detik. Kemiringan kurva e–log tegangan pada rentang P1–P2 = ${cc.toFixed(3)}.`
 
         // Chart Data Points
         const chartDataPoints = sortedReadings.map((r) => {
@@ -7532,15 +5373,15 @@ export const calculatorRegistry = {
             sqrtT: Number(r.sqrtT.toFixed(3)),
             deltaH: Number(r.deltaH.toFixed(4)),
             h: Number(r.h.toFixed(4)),
-            lineTaylor1: r.sqrtT <= 4.5 ? Number(l1.toFixed(4)) : null,
-            lineTaylor2: r.sqrtT <= finalSqrtT90 * 1.3 ? Number(l2.toFixed(4)) : null,
+            lineTaylor1: slope1 > 0 && r.sqrtT <= 4.5 ? Number(l1.toFixed(4)) : null,
+            lineTaylor2: slope2 > 0 && r.sqrtT <= (finalSqrtT90 ?? candidates.at(-1).sqrtT) * 1.3 ? Number(l2.toFixed(4)) : null,
           }
         })
 
         return {
           results: [
             { label: 'Koefisien Konsolidasi (Cv)', value: cvSecFormatted, unit: 'cm²/detik', highlight: true, numericValue: cvSec },
-            { label: 'Waktu t90', value: finalT90.toFixed(2), unit: 'menit' },
+            { label: 'Waktu t90', value: finalT90?.toFixed(2) ?? '—', unit: 'menit' },
             { label: 'Tinggi Jalur Pengaliran (Ht)', value: ht.toFixed(3), unit: 'cm' },
             { label: 'Indeks Kompresi (Cc)', value: cc.toFixed(3), unit: '', highlight: true },
           ],
@@ -7548,7 +5389,7 @@ export const calculatorRegistry = {
             `1. PERHITUNGAN AKAR WAKTU & DATA PEMBACAAN:`,
             `   - Jumlah Data Pengamatan: ${sortedReadings.length} baris pembacaan waktu`,
             `   - Tinggi Semula Benda Uji (H_awal) = ${hAwal.toFixed(3)} cm`,
-            `   - Tinggi Akhir Setelah 24 Jam (H_akhir) = ${hAkhir.toFixed(3)} cm`,
+            `   - Tinggi pada pembacaan terakhir (H_akhir) = ${hAkhir.toFixed(3)} cm`,
             `   - Penurunan Konsolidasi Total (ΔH_total) = ${deltaHTotal.toFixed(3)} cm`,
             `2. PENENTUAN TINGGI RATA-RATA & JALUR PENGALIRAN (DRAINAGE PATH):`,
             `   - Tinggi Rata-rata Benda Uji: H_rata = (H_awal + H_akhir) / 2 = (${hAwal.toFixed(3)} + ${hAkhir.toFixed(3)}) / 2 = ${hRata.toFixed(3)} cm`,
@@ -7557,11 +5398,10 @@ export const calculatorRegistry = {
             `3. METODE TAYLOR (SQUARE ROOT OF TIME METHOD):`,
             `   - Persamaan Garis Singgung Awal: ΔH1 = ${d0.toFixed(4)} + ${slope1.toFixed(4)} × √t`,
             `   - Persamaan Garis Taylor (1.15 × Abscissa): ΔH2 = ${d0.toFixed(4)} + ${(slope2).toFixed(4)} × √t`,
-            `   - Titik Potong Garis Taylor dengan Kurva Konsolidasi: √t90 = ${finalSqrtT90.toFixed(3)} √menit`,
-            `   - Waktu pada 90% Konsolidasi: t90 = (√t90)² = (${finalSqrtT90.toFixed(3)})² = ${finalT90.toFixed(2)} menit`,
+            `   - Titik potong Taylor: √t90 = ${finalSqrtT90?.toFixed(3) ?? '—'} √menit; t90 = ${finalT90?.toFixed(2) ?? '—'} menit`,
             `4. PERHITUNGAN KOEFISIEN KONSOLIDASI (Cv):`,
             `   - Faktor Waktu Teoretis Terzaghi: Tv = 0.848 (untuk Derajat Konsolidasi U = 90%)`,
-            `   - Cv (cm²/menit) = (Tv × Ht²) / t90 = (0.848 × ${(ht * ht).toFixed(4)}) / ${finalT90.toFixed(2)} = ${cvMin.toFixed(4)} cm²/menit`,
+            `   - Cv (cm²/menit) = (Tv × Ht²) / t90 = ${cvMin?.toFixed(4) ?? '—'} cm²/menit`,
             `   - Cv (cm²/detik) = Cv(menit) / 60 = ${cvSecFormatted} cm²/detik`,
             `5. PERHITUNGAN INDEKS KOMPRESI (Cc):`,
             `   - Beban Tekanan: P1 = ${rawP1.toFixed(1)} kPa, P2 = ${rawP2.toFixed(1)} kPa`,
@@ -7573,7 +5413,7 @@ export const calculatorRegistry = {
           status,
           conclusion,
           warningMessage,
-          summaryString: `Cv = ${cvSecFormatted} cm²/s, t90 = ${finalT90.toFixed(2)} m, Cc = ${cc.toFixed(3)}`,
+          summaryString: `Cv = ${cvSecFormatted} cm²/s, t90 = ${finalT90?.toFixed(2) ?? '—'} menit, Cc = ${cc.toFixed(3)}`,
           // Extra payload untuk panel interaktif
           sortedReadings,
           hAwal,
@@ -7584,6 +5424,8 @@ export const calculatorRegistry = {
           d0,
           slope1,
           slope2,
+          initialReadingCount: candidates.length,
+          segmentIntersections,
           sqrtT90: finalSqrtT90,
           t90: finalT90,
           deltaH90,
@@ -7700,11 +5542,12 @@ export const calculatorRegistry = {
   // -----------------------------------------------------------------------
   'mt-6-1': {
     id: 'mt-6-1',
+    hasIndependentSamples: true,
     code: 'PERM-01',
     name: 'Pengujian Permeabilitas Tanah (Constant & Falling Head)',
     lab: 'Mekanika Tanah',
     category: 'Mekanika Tanah • Bab 6: Permeabilitas Tanah',
-    standard: 'SNI 2435:2008 / ASTM D2434',
+    standard: 'SNI 2435:2008 (Constant Head) • Hukum Darcy (Falling Head)',
     desc: 'Menghitung koefisien rembesan (k) tanah untuk analisis rembesan bendungan, debit pemompaan dewatering, dan drainase.',
     methods: [
       {
@@ -7725,7 +5568,7 @@ export const calculatorRegistry = {
       volumeQ: 240.0,
       headH: 45.0,
       waktuT: 120.0,
-      diameterPipaD: 1.04,
+      diameterPipaD: 0.30,
       diameterSampelD: 7.5,
       headH0: 50.0,
       headH1: 20.0,
@@ -7769,8 +5612,8 @@ export const calculatorRegistry = {
       const classifyPermeability = (kVal) => {
         if (kVal > 1.0) {
           return {
-            tipe: 'Kerikil Bersih',
-            labelEn: 'Clean Gravel',
+            tipe: 'Sangat cepat',
+            labelEn: 'Very fast',
             sifat: 'Rembesan sangat cepat / permeabilitas sangat tinggi',
             drainase: 'Sangat baik',
             categoryKey: 'gravel',
@@ -7778,8 +5621,8 @@ export const calculatorRegistry = {
         }
         if (kVal > 0.01) {
           return {
-            tipe: 'Pasir Kasar',
-            labelEn: 'Coarse Sand',
+            tipe: 'Cepat',
+            labelEn: 'Fast',
             sifat: 'Rembesan cepat / permeabilitas tinggi',
             drainase: 'Baik',
             categoryKey: 'coarse_sand',
@@ -7787,8 +5630,8 @@ export const calculatorRegistry = {
         }
         if (kVal > 0.001) {
           return {
-            tipe: 'Pasir Halus',
-            labelEn: 'Fine Sand',
+            tipe: 'Sedang',
+            labelEn: 'Moderate',
             sifat: 'Rembesan sedang / permeabilitas moderat',
             drainase: 'Cukup',
             categoryKey: 'fine_sand',
@@ -7796,16 +5639,16 @@ export const calculatorRegistry = {
         }
         if (kVal > 0.00001) {
           return {
-            tipe: 'Lanau',
-            labelEn: 'Silt',
+            tipe: 'Lambat',
+            labelEn: 'Slow',
             sifat: 'Rembesan rendah / permeabilitas rendah',
             drainase: 'Buruk',
             categoryKey: 'silt',
           }
         }
         return {
-          tipe: 'Lempung',
-          labelEn: 'Clay',
+          tipe: 'Sangat lambat',
+          labelEn: 'Very slow',
           sifat: 'Rembesan sangat lambat / praktis kedap air (impervious)',
           drainase: 'Praktis kedap air',
           categoryKey: 'clay',
@@ -7813,47 +5656,24 @@ export const calculatorRegistry = {
       }
 
       if (isFalling) {
-        let d = 1.04
-        let a = (Math.PI / 4) * d * d
-        if (inputs.diameterPipaD !== undefined && inputs.diameterPipaD !== '') {
-          d = Number(inputs.diameterPipaD)
-          a = (Math.PI / 4) * d * d
-        } else if (inputs.pipaA !== undefined && inputs.pipaA !== '') {
-          a = Number(inputs.pipaA)
-          d = a > 0 ? Math.sqrt((4 * a) / Math.PI) : 0
-        } else if (inputs.a !== undefined && inputs.a !== '') {
-          a = Number(inputs.a)
-          d = a > 0 ? Math.sqrt((4 * a) / Math.PI) : 0
-        }
-
-        let D = 7.5
-        let A = (Math.PI / 4) * D * D
-        if (inputs.diameterSampelD !== undefined && inputs.diameterSampelD !== '') {
-          D = Number(inputs.diameterSampelD)
-          A = (Math.PI / 4) * D * D
-        } else if (inputs.luasSampelA !== undefined && inputs.luasSampelA !== '') {
-          A = Number(inputs.luasSampelA)
-          D = A > 0 ? Math.sqrt((4 * A) / Math.PI) : 0
-        } else if (inputs.diameterD !== undefined && inputs.diameterD !== '') {
-          D = Number(inputs.diameterD)
-          A = (Math.PI / 4) * D * D
-        } else if (inputs.A !== undefined && inputs.A !== '') {
-          A = Number(inputs.A)
-          D = A > 0 ? Math.sqrt((4 * A) / Math.PI) : 0
-        }
-
-        const l = Number(inputs.panjangL !== undefined ? inputs.panjangL : (inputs.L !== undefined ? inputs.L : 12.0))
-        const h0 = Number(inputs.headH0 !== undefined ? inputs.headH0 : (inputs.h0 !== undefined ? inputs.h0 : 50.0))
-        const h1 = Number(inputs.headH1 !== undefined ? inputs.headH1 : (inputs.h1 !== undefined ? inputs.h1 : 20.0))
-        const t = Number(inputs.waktuT !== undefined ? inputs.waktuT : (inputs.t !== undefined ? inputs.t : 120.0))
-
-        if (d <= 0 || a <= 0 || l <= 0 || D <= 0 || A <= 0 || h0 <= 0 || h1 <= 0 || t <= 0) {
+        const tubeArea = numeric(inputs.pipaA ?? inputs.a)
+        const specimenArea = numeric(inputs.luasSampelA ?? inputs.A)
+        const d = Object.hasOwn(inputs, 'diameterPipaD') ? numeric(inputs.diameterPipaD)
+          : tubeArea > 0 ? Math.sqrt(4 * tubeArea / Math.PI) : null
+        const D = numeric(inputs.diameterSampelD ?? inputs.diameterD) ?? (specimenArea > 0 ? Math.sqrt(4 * specimenArea / Math.PI) : null)
+        const a = Math.PI * d ** 2 / 4
+        const A = Math.PI * D ** 2 / 4
+        const l = numeric(inputs.panjangL ?? inputs.L)
+        const h0 = numeric(inputs.headH0 ?? inputs.h0)
+        const h1 = numeric(inputs.headH1 ?? inputs.h1)
+        const t = numeric(inputs.waktuT ?? inputs.t)
+        if (![d, D, l, h0, h1, t].every((value) => value > 0)) {
           return {
             results: [
               { label: 'Koefisien Permeabilitas (k)', value: '-', unit: 'cm/s', highlight: true },
               { label: 'Luas Penampang Sampel (A)', value: '-', unit: 'cm²', highlight: true },
               { label: 'Metode Pengujian Aktif', value: 'Metode Falling Head' },
-              { label: 'Klasifikasi Jenis Tanah', value: 'Nilai Input Harus > 0', unit: '', highlight: true },
+              { label: 'Laju Rembesan (Indikatif)', value: 'Nilai Input Harus > 0', unit: '', highlight: true },
             ],
             formulaSteps: [
               'Semua parameter pengujian Falling Head (d, L, D, h0, h1, t) harus bernilai lebih besar dari 0 (min. 0.01) untuk mencegah error pembagian dengan nol.',
@@ -7872,7 +5692,7 @@ export const calculatorRegistry = {
               { label: 'Koefisien Permeabilitas (k)', value: '-', unit: 'cm/s', highlight: true },
               { label: 'Luas Penampang Sampel (A)', value: `${A.toFixed(2)}`, unit: 'cm²', highlight: true },
               { label: 'Metode Pengujian Aktif', value: 'Metode Falling Head' },
-              { label: 'Klasifikasi Jenis Tanah', value: 'Data Tidak Valid (h0 ≤ h1)', unit: '', highlight: true },
+              { label: 'Laju Rembesan (Indikatif)', value: 'Data Tidak Valid (h0 ≤ h1)', unit: '', highlight: true },
             ],
             formulaSteps: [
               `Validasi relasional gagal: Tinggi awal h0 (${h0} cm) ≤ tinggi akhir h1 (${h1} cm).`,
@@ -7890,22 +5710,14 @@ export const calculatorRegistry = {
         const k = ((a * l) / (A * t)) * lnRatio
         const { tipe, labelEn, sifat, drainase, categoryKey } = classifyPermeability(k)
 
-        const isTooPermeableForFalling = k > 0.01
-        const status = isTooPermeableForFalling ? 'Perlu Evaluasi' : 'Valid'
-        const warningMessage = isTooPermeableForFalling
-          ? 'Nilai k relatif besar. Metode Falling Head umumnya diperuntukkan bagi tanah butir halus (lanau & lempung). Untuk pasir/kerikil, disarankan metode Constant Head.'
-          : undefined
-
-        const conclusion = isTooPermeableForFalling
-          ? `Peringatan: Nilai k terukur (${formatScientific(k, 3)} cm/s) cukup tinggi untuk metode Falling Head. Metode ini direkomendasikan untuk tanah butir halus (${tipe}). Karakteristik: ${sifat}.`
-          : `Koefisien permeabilitas terukur k = ${formatScientific(k, 3)} cm/s (${tipe} / ${labelEn}). Karakteristik rembesan: ${sifat}. Hasil pengujian memenuhi kaidah permeabilitas falling head (SNI 2435:2008 / ASTM D2434).`
+        const conclusion = `Koefisien rembesan Falling Head pada kondisi uji k = ${formatScientific(k, 3)} cm/s. Untuk rumus ini, muka air hilir dijaga tetap. Jenis tanah ditentukan dari uji klasifikasi.`
 
         return {
           results: [
             { label: 'Koefisien Permeabilitas (k)', value: formatScientific(k, 3), unit: 'cm/s', highlight: true, numericValue: k },
             { label: 'Luas Penampang Sampel (A)', value: A.toFixed(2), unit: 'cm²', highlight: true },
             { label: 'Metode Pengujian Aktif', value: 'Metode Falling Head' },
-            { label: 'Klasifikasi Jenis Tanah', value: tipe, unit: '', highlight: true },
+            { label: 'Laju Rembesan (Indikatif)', value: tipe, unit: '', highlight: true },
           ],
           formulaSteps: [
             'Metode: Falling Head (Beda Tinggi Muka Air Berubah / Menurun)',
@@ -7915,10 +5727,10 @@ export const calculatorRegistry = {
             `4. Logaritma Natural Rasio: ln(h₀ / h₁) = ln(${ratio.toFixed(4)}) = ${lnRatio.toFixed(4)}`,
             '5. Rumus Koefisien Permeabilitas: k = (a × L) / (A × t) × ln(h₀ / h₁)',
             `6. Substitusi Perhitungan: k = ((${a.toFixed(3)} × ${l}) / (${A.toFixed(2)} × ${t})) × ${lnRatio.toFixed(4)} = ${formatScientific(k, 3)} cm/s`,
-            `7. Klasifikasi Jenis Tanah: ${tipe} (${labelEn}) — ${sifat} [Drainase: ${drainase}]`,
+            `7. Indikator laju rembesan: ${tipe} (${labelEn}) — ${sifat} [Drainase: ${drainase}]`,
           ],
-          status,
-          ...(warningMessage ? { warningMessage } : {}),
+          status: 'Data terhitung',
+          verdictClass: 'valid',
           conclusion,
           summaryString: `k = ${formatScientific(k, 2)} cm/s (${tipe})`,
           permeabilityTable: {
@@ -7936,19 +5748,19 @@ export const calculatorRegistry = {
       }
 
       // METODE CONSTANT HEAD
-      const d = Number(inputs.diameterD !== undefined ? inputs.diameterD : (inputs.D !== undefined ? inputs.D : 7.5))
-      const l = Number(inputs.panjangL !== undefined ? inputs.panjangL : (inputs.L !== undefined ? inputs.L : 12.0))
-      const q = Number(inputs.volumeQ !== undefined ? inputs.volumeQ : (inputs.Q !== undefined ? inputs.Q : 240.0))
-      const h = Number(inputs.headH !== undefined ? inputs.headH : (inputs.h !== undefined ? inputs.h : 45.0))
-      const t = Number(inputs.waktuT !== undefined ? inputs.waktuT : (inputs.t !== undefined ? inputs.t : 120.0))
+      const d = numeric(inputs.diameterD ?? inputs.D)
+      const l = numeric(inputs.panjangL ?? inputs.L)
+      const q = numeric(inputs.volumeQ ?? inputs.Q)
+      const h = numeric(inputs.headH ?? inputs.h)
+      const t = numeric(inputs.waktuT ?? inputs.t)
 
-      if (d <= 0 || l <= 0 || q <= 0 || h <= 0 || t <= 0) {
+      if (![d, l, q, h, t].every((value) => value > 0)) {
         return {
           results: [
             { label: 'Koefisien Permeabilitas (k)', value: '-', unit: 'cm/s', highlight: true },
             { label: 'Luas Penampang Sampel (A)', value: '-', unit: 'cm²', highlight: true },
             { label: 'Metode Pengujian Aktif', value: 'Metode Constant Head' },
-            { label: 'Klasifikasi Jenis Tanah', value: 'Nilai Input Harus > 0', unit: '', highlight: true },
+            { label: 'Laju Rembesan (Indikatif)', value: 'Nilai Input Harus > 0', unit: '', highlight: true },
           ],
           formulaSteps: [
             'Semua parameter pengujian Constant Head (D, L, Q, h, t) harus bernilai lebih besar dari 0 (min. 0.01) untuk mencegah error pembagian dengan nol.',
@@ -7965,24 +5777,14 @@ export const calculatorRegistry = {
       const k = (q * l) / denom
       const { tipe, labelEn, sifat, drainase, categoryKey } = classifyPermeability(k)
 
-      // Validasi Kesesuaian Metode Constant Head:
-      // Jika k < 0.001 cm/s, berikan peringatan KUNING (Perlu Evaluasi)
-      const isTooFineForConstantHead = k < 0.001
-      const status = isTooFineForConstantHead ? 'Perlu Evaluasi' : 'Valid'
-      const warningMessage = isTooFineForConstantHead
-        ? 'Nilai k terlalu kecil. Metode Constant Head kurang akurat untuk tanah halus. Disarankan menggunakan metode Falling Head.'
-        : undefined
-
-      const conclusion = isTooFineForConstantHead
-        ? `Peringatan: Nilai k terukur (${formatScientific(k, 3)} cm/s) terlalu kecil untuk metode Constant Head. Metode Constant Head kurang akurat untuk tanah halus (${tipe}). Disarankan menggunakan metode Falling Head sesuai standar SNI 2435:2008.`
-        : `Koefisien permeabilitas terukur k = ${formatScientific(k, 3)} cm/s (${tipe} / ${labelEn}). Karakteristik: ${sifat}. Hasil memenuhi standar pengujian Constant Head untuk tanah butir kasar.`
+      const conclusion = `Koefisien rembesan Constant Head pada kondisi uji k = ${formatScientific(k, 3)} cm/s. Gunakan pembacaan saat aliran sudah mantap. Jenis tanah ditentukan dari uji klasifikasi.`
 
       return {
         results: [
           { label: 'Koefisien Permeabilitas (k)', value: formatScientific(k, 3), unit: 'cm/s', highlight: true, numericValue: k },
           { label: 'Luas Penampang Sampel (A)', value: area.toFixed(2), unit: 'cm²', highlight: true },
           { label: 'Metode Pengujian Aktif', value: 'Metode Constant Head' },
-          { label: 'Klasifikasi Jenis Tanah', value: tipe, unit: '', highlight: true },
+          { label: 'Laju Rembesan (Indikatif)', value: tipe, unit: '', highlight: true },
         ],
         formulaSteps: [
           'Metode: Constant Head (Beda Tinggi Tekanan Hidrolik Konstan)',
@@ -7991,10 +5793,10 @@ export const calculatorRegistry = {
           `3. Debit Rembesan Aliran (Q/t): q = ${q} / ${t} = ${(q / t).toFixed(3)} cm³/s`,
           '4. Hukum Darcy Koefisien Permeabilitas: k = (Q × L) / (A × h × t)',
           `5. Substitusi Perhitungan: k = (${q} × ${l}) / (${area.toFixed(2)} × ${h} × ${t}) = ${formatScientific(k, 3)} cm/s`,
-          `6. Klasifikasi Jenis Tanah: ${tipe} (${labelEn}) — ${sifat} [Drainase: ${drainase}]`,
+          `6. Indikator laju rembesan: ${tipe} (${labelEn}) — ${sifat} [Drainase: ${drainase}]`,
         ],
-        status,
-        ...(warningMessage ? { warningMessage } : {}),
+        status: 'Data terhitung',
+        verdictClass: 'valid',
         conclusion,
         summaryString: `k = ${formatScientific(k, 2)} cm/s (${tipe})`,
         permeabilityTable: {
@@ -8021,6 +5823,7 @@ export const calculatorRegistry = {
   // -----------------------------------------------------------------------
   'mf-1-1': {
     id: 'mf-1-1',
+    hasIndependentSamples: true,
     code: 'FLU-01',
     codePrefix: 'FL',
     name: 'Pengujian Sifat Fluida (Densitas, Viskositas, Archimedes, SG)',
@@ -8535,15 +6338,19 @@ export const calculatorRegistry = {
     calculate: (inputs) => {
       let rawRows = inputs?.reynoldsRows
       if (!Array.isArray(rawRows) || rawRows.length === 0) {
-        if (inputs?.kecepatanV !== undefined && inputs?.diameterD !== undefined) {
-          const d = Number(inputs.diameterD || 0.011)
-          const v = Number(inputs.kecepatanV || 0.065)
-          const nu = Number(inputs.viskositasNu || 0.000000893)
-          const a = 0.25 * Math.PI * d * d
-          const q = v * a
-          rawRows = [
-            { id: 1, label: 'Uji 1', t: +(0.5 / (q * 1000)).toFixed(1), volume: 0.5, diameter: +(d * 1000).toFixed(1), viskositas: +(nu * 1e6).toFixed(3), visualNote: 'Aliran fluida stabil' }
-          ]
+        if (inputs.kecepatanV !== undefined && inputs.diameterD !== undefined) {
+          const d = Number(inputs.diameterD)
+          const v = Number(inputs.kecepatanV)
+          const nu = Number(inputs.viskositasNu)
+          const valid = Number.isFinite(d) && Number.isFinite(v) && Number.isFinite(nu) && d > 0 && v >= 0 && nu > 0
+          const re = valid ? v * d / nu : null
+          const status = !valid ? 'Input Tidak Valid' : re < 2000 ? 'Laminer' : re <= 4000 ? 'Transisi' : 'Turbulen'
+          return {
+            results: [{ label: 'Bilangan Reynolds (Re)', value: valid ? re.toFixed(0) : '—', unit: '', numericValue: re }],
+            formulaSteps: ['Re = v × D / ν menggunakan kecepatan, diameter dan viskositas tersimpan dalam satuan SI.'],
+            isError: !valid, status, conclusion: 'Rekaman kecepatan langsung. Data debit, volume dan waktu tidak tersedia.',
+            summaryString: valid ? 'Re = ' + re.toFixed(0) + ' (' + status + ')' : 'Input Tidak Valid',
+          }
         } else {
           rawRows = [
             { id: 1, label: 'Uji 1 (Laminer Rendah)', t: 70.0, volume: 0.5, diameter: 11, viskositas: 0.893, visualNote: 'Filamen zat warna lurus stabil' },
@@ -8559,19 +6366,13 @@ export const calculatorRegistry = {
       const processedRows = rawRows.map((row, idx) => {
         if (!row) return null
         const t = row.t !== undefined && row.t !== '' ? Number(row.t) : NaN
-        const volInput = row.volume !== undefined && row.volume !== '' ? Number(row.volume) : (row.v !== undefined && row.v !== '' ? Number(row.v) : NaN)
-        const dInput = row.diameter !== undefined && row.diameter !== '' ? Number(row.diameter) : (row.d !== undefined && row.d !== '' ? Number(row.d) : 11)
-        const nuInput = row.viskositas !== undefined && row.viskositas !== '' ? Number(row.viskositas) : (row.nu !== undefined && row.nu !== '' ? Number(row.nu) : 0.893)
-
-        // Konversi satuan ke SI (m, s, m³, m²/s)
-        const volM3 = !isNaN(volInput) && volInput > 0 ? (volInput >= 0.01 ? volInput / 1000 : volInput) : NaN
-        const volLiter = !isNaN(volInput) && volInput > 0 ? (volInput >= 0.01 ? volInput : volInput * 1000) : NaN
-
-        const dM = !isNaN(dInput) && dInput > 0 ? (dInput >= 0.5 ? dInput / 1000 : dInput) : NaN
-        const dMm = !isNaN(dInput) && dInput > 0 ? (dInput >= 0.5 ? dInput : dInput * 1000) : NaN
-
-        const nuM2s = !isNaN(nuInput) && nuInput > 0 ? (nuInput >= 0.001 ? nuInput * 1e-6 : nuInput) : NaN
-        const nuDisplay = !isNaN(nuInput) && nuInput > 0 ? (nuInput >= 0.001 ? nuInput : nuInput * 1e6) : NaN
+        const explicit = (value) => value === '' || value == null ? NaN : Number(value)
+        const volLiter = row.volume === undefined ? explicit(row.v) * 1000 : explicit(row.volume)
+        const dMm = row.diameter === undefined ? explicit(row.d) * 1000 : explicit(row.diameter)
+        const nuDisplay = row.viskositas === undefined ? explicit(row.nu) * 1e6 : explicit(row.viskositas)
+        const volM3 = volLiter / 1000
+        const dM = dMm / 1000
+        const nuM2s = nuDisplay / 1e6
 
         const isValid = !isNaN(t) && t > 0 && !isNaN(volM3) && volM3 > 0 && !isNaN(dM) && dM > 0 && !isNaN(nuM2s) && nuM2s > 0
 
@@ -8625,18 +6426,9 @@ export const calculatorRegistry = {
           rezimClass = 'turbulen'
         }
 
-        // 6. Koefisien Gesekan Pipa (f):
-        // Aliran Laminer: f = 64 / Re
-        // Aliran Transisi & Turbulen: Persamaan Blasius f = 0.3164 / Re^0.25
-        let f = 0
-        if (re < 2000) {
-          f = 64 / re
-        } else {
-          f = 0.3164 / Math.pow(re, 0.25)
-        }
-
-        // 7. Nilai Logaritma: Log(f) dan Log(Re)
-        const logF = f > 0 ? Math.log10(f) : 0
+        // Darcy: laminer atau estimasi Blasius untuk pipa licin dalam rentang penerapan.
+        const f = re < 2000 ? 64 / re : re > 4000 && re <= 100000 ? 0.3164 / re ** 0.25 : null
+        const logF = f === null ? null : Math.log10(f)
         const logRe = re > 0 ? Math.log10(re) : 0
 
         return {
@@ -8699,8 +6491,6 @@ export const calculatorRegistry = {
       const minQ = Math.min(...validRows.map(r => r.qLs))
       const maxQ = Math.max(...validRows.map(r => r.qLs))
       const avgV = validRows.reduce((acc, r) => acc + r.v, 0) / validRows.length
-      const minF = Math.min(...validRows.map(r => r.f))
-      const maxF = Math.max(...validRows.map(r => r.f))
 
       const refD = validRows[0].dM
       const refNu = validRows[0].nuM2s
@@ -8715,8 +6505,8 @@ export const calculatorRegistry = {
         pointNum: r.pointNum,
         label: r.label,
         rezim: r.rezim,
-        f: Number(r.f.toFixed(4)),
-        logF: Number(r.logF.toFixed(4)),
+        f: r.f == null ? null : Number(r.f.toFixed(4)),
+        logF: r.logF == null ? null : Number(r.logF.toFixed(4)),
         logRe: Number(r.logRe.toFixed(4)),
         v: Number(r.v.toFixed(3)),
       }))
@@ -8775,13 +6565,13 @@ export const calculatorRegistry = {
           `   • Analisis Logaritma: Log(f) dan Log(Re) untuk karakteristik kurva logaritmik Moody`,
           `4. Rekapitulasi ${validRows.length} Titik Pengujian Laboratorium:`,
           ...validRows.map(r => 
-            `   • Titik #${r.pointNum} (${r.rezim}): t = ${r.t} s, V = ${r.volume} L ➔ Q = ${r.qLs.toFixed(4)} L/s (${formatScientific(r.qM3s, 3)} m³/s), v = ${r.v.toFixed(3)} m/s ➔ Re = ${r.re.toFixed(0)}, f = ${r.f.toFixed(4)}, Log(f) = ${r.logF.toFixed(3)}, Log(Re) = ${r.logRe.toFixed(3)}`
+            `   • Titik #${r.pointNum} (${r.rezim}): t = ${r.t} s, V = ${r.volume} L ➔ Q = ${r.qLs.toFixed(4)} L/s (${formatScientific(r.qM3s, 3)} m³/s), v = ${r.v.toFixed(3)} m/s ➔ Re = ${r.re.toFixed(0)}, f = ${r.f?.toFixed(4) ?? '?'}, Log(f) = ${r.logF?.toFixed(3) ?? '?'}, Log(Re) = ${r.logRe.toFixed(3)}`
           ),
         ],
         isError: false,
         status: rezimSummary,
         verdictClass: countTurbulen > 0 ? 'valid' : 'valid',
-        conclusion: `Pengujian Bilangan Osborne Reynolds pada ${validRows.length} variasi debit menghasilkan rentang Bilangan Reynolds Re = ${minRe.toFixed(0)} hingga ${maxRe.toFixed(0)} dengan sebaran: ${countLaminer} titik Laminer (Re < 2000), ${countTransisi} titik Transisi (2000 ≤ Re ≤ 4000), dan ${countTurbulen} titik Turbulen (Re > 4000). Koefisien gesekan pipa terhitung berkisar antara f = ${minF.toFixed(4)} hingga ${maxF.toFixed(4)}. Karakteristik aliran terbukti linier terhadap pertambahan debit sesuai hukum dinamika fluida.`,
+        conclusion: `Pengujian Bilangan Osborne Reynolds pada ${validRows.length} variasi debit menghasilkan rentang Bilangan Reynolds Re = ${minRe.toFixed(0)} hingga ${maxRe.toFixed(0)} dengan sebaran: ${countLaminer} titik Laminer (Re < 2000), ${countTransisi} titik Transisi (2000 ≤ Re ≤ 4000), dan ${countTurbulen} titik Turbulen (Re > 4000). Nilai f Darcy ditampilkan hanya dalam rentang penerapan rumus.`,
         summaryString: `Re = ${minRe.toFixed(0)} - ${maxRe.toFixed(0)} (${validRows.length} Titik Uji)`,
         // Metadata kaya untuk tabel rekapitulasi & grafik Recharts
         recapRows: processedRows,
@@ -8811,6 +6601,7 @@ export const calculatorRegistry = {
   // -----------------------------------------------------------------------
   'bp-1-1': {
     id: 'bp-1-1',
+    hasIndependentSamples: true,
     code: 'LA-01',
     codePrefix: 'LA',
     name: 'Uji Keausan Agregat dengan Mesin Abrasi Los Angeles',
@@ -8820,6 +6611,7 @@ export const calculatorRegistry = {
     desc: 'Pengujian durabilitas dan ketahanan agregat kasar terhadap degradasi mekanis (abrasi, benturan, dan penggerusan) menggunakan mesin Los Angeles dengan bola baja abrasi.',
     initialInputs: {
       gradasiTipe: 'B',
+      jumlahBola: 11,
       jenisCampuran: 'umum',
       beratAwalA: 5000.0,
       beratTertahanB: 3850.0,
@@ -8837,6 +6629,15 @@ export const calculatorRegistry = {
           { value: 'D', label: 'Gradasi D (6 Bola Baja - 500 Putaran)' },
         ],
         isParameterBesar: true,
+      },
+      {
+        key: 'jumlahBola',
+        label: 'Jumlah Bola Baja Terpakai',
+        desc: 'Masukkan jumlah bola yang benar-benar dipakai dalam 500 putaran.',
+        unit: 'bola',
+        min: 1,
+        step: 1,
+        optional: true,
       },
       {
         key: 'jenisCampuran',
@@ -8907,12 +6708,20 @@ export const calculatorRegistry = {
       const wAus = a - b
       const keausan500 = ((a - b) / a) * 100
       const is500Lolos = keausan500 <= batasMaks500
+      const grade = inputs.gradasiTipe || 'B'
+      const expectedBalls = LA_BALLS[grade]
+      const balls = Number(inputs.jumlahBola)
+      const standardSetup = Number.isInteger(balls) && balls === expectedBalls && Math.abs(a - 5000) <= 10
 
       let status = 'Memenuhi Standar'
       let verdictClass = 'valid'
       let conclusion = ''
 
-      if (!is500Lolos) {
+      if (!standardSetup) {
+        status = 'Perlu Evaluasi'
+        verdictClass = 'warning'
+        conclusion = `Keausan konfigurasi yang dicatat: ${keausan500.toFixed(2)}%. SNI 2417:2008 untuk Gradasi ${grade} memakai 5.000 ± 10 g dan ${expectedBalls} bola. Periksa konfigurasi sebelum menilai batas spesifikasi.`
+      } else if (!is500Lolos) {
         status = 'Tidak Layak'
         verdictClass = 'error'
         conclusion = `Tidak Layak untuk Perkerasan Jalan. Nilai keausan agregat (${keausan500.toFixed(2)}%) melebihi batas maksimum spesifikasi (${batasMaks500.toFixed(0)}%).`
@@ -8940,6 +6749,7 @@ export const calculatorRegistry = {
         formulaSteps: [
           `1. PARAMETER PENGUJIAN ABRASI LOS ANGELES:`,
           `   Tipe Gradasi: ${gradasiLabel}`,
+          `   Bola aktual: ${balls > 0 ? balls : 'belum dicatat'}; acuan Gradasi ${grade}: ${expectedBalls} bola.`,
           `   Jenis Campuran: ${jenisLabel} (Batas Maksimum 500 Putaran: ${batasMaks500.toFixed(1)}%)`,
           `   Berat Benda Uji Semula (A) = ${a.toFixed(1)} gram`,
           `   Berat Tertahan No. 12 setelah 500 putaran (B) = ${b.toFixed(1)} gram`,
@@ -8949,7 +6759,7 @@ export const calculatorRegistry = {
           `   Nilai Keausan 500 Putaran (%) = ((A - B) / A) × 100%`,
           `   Nilai Keausan 500 Putaran (%) = ((${a.toFixed(1)} - ${b.toFixed(1)}) / ${a.toFixed(1)}) × 100% = ${keausan500.toFixed(2)}%`,
           `4. BATASAN VERIFIKASI SNI 2417:2008 & BINA MARGA 2018:`,
-          `   Batas Maksimum 500 Putaran = ${batasMaks500.toFixed(1)}% ➔ Hasil = ${keausan500.toFixed(2)}% (${is500Lolos ? 'Lolos Standar' : 'Melebihi Batas Maksimum'})`,
+          `   Batas Maksimum 500 Putaran = ${batasMaks500.toFixed(1)}% ➔ Hasil = ${keausan500.toFixed(2)}% (${!standardSetup ? 'Periksa konfigurasi uji' : is500Lolos ? 'Dalam batas' : 'Melebihi batas'})`,
           `   Status Kelayakan: ${status}`,
         ],
         isError: false,
@@ -8968,11 +6778,11 @@ export const calculatorRegistry = {
     id: 'bp-2-1',
     code: 'PEN-01',
     codePrefix: 'PN',
-    name: 'Uji Penetrasi Aspal Keras (Penetration Test & Outlier Filter)',
+    name: 'Uji Penetrasi Aspal Keras',
     lab: 'Bahan Perkerasan',
     category: 'Bahan Perkerasan • Bab 2: Penetrasi Aspal',
-    standard: 'SNI 2456:2011 / Spesifikasi Umum Bina Marga 2018',
-    desc: 'Pengukuran konsistensi dan kekerasan aspal keras dengan jarum penetrasi beban 100 g selama 5 detik pada suhu standar 25°C, dilengkapi kartu kelompok sampel dinamis, eliminasi outlier statistik otomatis rentang [P̄ ± S], evaluasi presisi SNI 2456:2011, dan verifikasi kelas spesifikasi Bina Marga 2018.',
+    standard: 'SNI 2456:2011 / SNI 8135:2015',
+    desc: 'Mengukur penetrasi jarum pada kondisi nominal 25 °C, 100 g, dan 5 detik. Presisi dan kelas penetrasi dievaluasi per kelompok.',
     hasDynamicTable: true,
     hasDynamicPenetrationGroups: true,
     initialInputs: {
@@ -8987,12 +6797,10 @@ export const calculatorRegistry = {
         key: 'kelasAspal',
         label: 'Kelas Spesifikasi Aspal',
         type: 'select',
-        desc: 'Kelas penetrasi aspal keras acuan spesifikasi Bina Marga 2018',
-        options: [
-          { value: 'pen6070', label: 'Aspal Pen 60/70 (Syarat: 60 - 70 dmm)' },
-          { value: 'pen4050', label: 'Aspal Pen 40/50 (Syarat: 40 - 50 dmm)' },
-          { value: 'pen80100', label: 'Aspal Pen 80/100 (Syarat: 80 - 100 dmm)' },
-        ],
+        desc: 'Kelas penetrasi aspal keras berdasarkan SNI 8135:2015',
+        options: Object.entries(PENETRATION_GRADES).map(([value, [min, max]]) => ({
+          value, label: `Aspal Pen ${min}/${max} (${min}–${max} dmm)`,
+        })),
         isParameterBesar: true,
       },
       {
@@ -9020,334 +6828,7 @@ export const calculatorRegistry = {
         step: 0.5,
       },
     ],
-    calculate: (inputs) => {
-      let groups = inputs.groups
-      if (!Array.isArray(groups) || groups.length === 0) {
-        if (
-          inputs.x1 !== undefined ||
-          inputs.x2 !== undefined ||
-          inputs.x3 !== undefined ||
-          inputs.x4 !== undefined ||
-          inputs.x5 !== undefined
-        ) {
-          const rawLegacy = [inputs.x1, inputs.x2, inputs.x3, inputs.x4, inputs.x5]
-            .map((v) => Number(v))
-            .filter((v) => !isNaN(v) && v > 0)
-          groups = [
-            {
-              id: 1,
-              name: 'Kelompok 1',
-              points: rawLegacy.map((val, idx) => ({ id: idx + 1, value: val })),
-            },
-          ]
-        } else {
-          groups = DEFAULT_PENETRATION_GROUPS
-        }
-      }
-
-      const kelas = inputs.kelasAspal || 'pen6070'
-      const suhuUji = inputs.suhuUji !== undefined && inputs.suhuUji !== '' ? Number(inputs.suhuUji) : 25.0
-      const bebanJarum = inputs.bebanJarum !== undefined && inputs.bebanJarum !== '' ? Number(inputs.bebanJarum) : 100
-      const waktuPenetrasi = inputs.waktuPenetrasi !== undefined && inputs.waktuPenetrasi !== '' ? Number(inputs.waktuPenetrasi) : 5
-
-      // Spesifikasi kelas aspal (Bina Marga 2018)
-      let minSpec = 60.0
-      let maxSpec = 70.0
-      let kelasLabel = 'Aspal Pen 60/70'
-      if (kelas === 'pen4050') {
-        minSpec = 40.0
-        maxSpec = 50.0
-        kelasLabel = 'Aspal Pen 40/50'
-      } else if (kelas === 'pen80100') {
-        minSpec = 80.0
-        maxSpec = 100.0
-        kelasLabel = 'Aspal Pen 80/100'
-      }
-
-      let totalRawPointsCount = 0
-      const allValidPoints = []
-      const allOutlierPoints = []
-
-      const groupResults = groups.map((grp, gIdx) => {
-        const gName = grp.name || `Kelompok ${gIdx + 1}`
-        const rawPoints = Array.isArray(grp.points) ? grp.points : []
-
-        const parsedPoints = rawPoints.map((pt, pIdx) => {
-          const pVal = typeof pt === 'object' && pt !== null ? pt.value : pt
-          const num = Number(pVal)
-          const isValid = pVal !== '' && pVal !== null && pVal !== undefined && !isNaN(num) && num > 0
-          return {
-            id: (pt && pt.id) || pIdx + 1,
-            value: isValid ? num : null,
-            rawValue: pVal,
-            isValidNumber: isValid,
-          }
-        })
-
-        const validNumList = parsedPoints.filter((p) => p.isValidNumber).map((p) => p.value)
-        const n = validNumList.length
-        totalRawPointsCount += n
-
-        if (n === 0) {
-          return {
-            groupId: grp.id || gIdx + 1,
-            groupName: gName,
-            n: 0,
-            meanInitial: 0,
-            sd: 0,
-            cv: 0,
-            lowerBound: 0,
-            upperBound: 0,
-            cleanPoints: [],
-            outlierPoints: [],
-            cleanMean: 0,
-            pointsAnalysis: parsedPoints.map((p) => ({ ...p, isOutlier: false })),
-          }
-        }
-
-        // 1. Rata-rata awal
-        const sumVal = validNumList.reduce((acc, v) => acc + v, 0)
-        const meanInitial = sumVal / n
-
-        // 2. Standar deviasi sampel: S = sqrt( sum((Pi - mean)^2) / (n - 1) )
-        let sd = 0
-        if (n > 1) {
-          const sumSq = validNumList.reduce((acc, v) => acc + Math.pow(v - meanInitial, 2), 0)
-          sd = Math.sqrt(sumSq / (n - 1))
-        }
-
-        // 3. Koefisien Variasi
-        const cv = meanInitial > 0 ? (sd / meanInitial) * 100 : 0
-
-        // 4. Batas rentang outlier: [mean - sd, mean + sd]
-        const lowerBound = meanInitial - sd
-        const upperBound = meanInitial + sd
-
-        // 5. Evaluasi setiap titik (outlier elimination)
-        const pointsAnalysis = parsedPoints.map((p) => {
-          if (!p.isValidNumber) {
-            return { ...p, isOutlier: false }
-          }
-          // Outlier jika di luar [lowerBound, upperBound] (toleransi floating point 1e-6)
-          const isOutlier = n > 1 && (p.value < lowerBound - 1e-6 || p.value > upperBound + 1e-6)
-          return {
-            ...p,
-            isOutlier,
-          }
-        })
-
-        const cleanPoints = pointsAnalysis.filter((p) => p.isValidNumber && !p.isOutlier)
-        const outlierPoints = pointsAnalysis.filter((p) => p.isValidNumber && p.isOutlier)
-
-        // Fallback jika anomali (semua titik terdeteksi outlier): pakai seluruh titik valid
-        const effectiveClean = cleanPoints.length > 0 ? cleanPoints : pointsAnalysis.filter((p) => p.isValidNumber)
-        const cleanSum = effectiveClean.reduce((acc, p) => acc + p.value, 0)
-        const cleanMean = effectiveClean.length > 0 ? cleanSum / effectiveClean.length : meanInitial
-
-        // Masukkan ke array global
-        effectiveClean.forEach((p) => {
-          allValidPoints.push({
-            groupId: grp.id || gIdx + 1,
-            groupName: gName,
-            pointId: p.id,
-            value: p.value,
-          })
-        })
-
-        outlierPoints.forEach((p) => {
-          allOutlierPoints.push({
-            groupId: grp.id || gIdx + 1,
-            groupName: gName,
-            pointId: p.id,
-            value: p.value,
-          })
-        })
-
-        return {
-          groupId: grp.id || gIdx + 1,
-          groupName: gName,
-          n,
-          meanInitial,
-          sd,
-          cv,
-          lowerBound,
-          upperBound,
-          cleanPoints: effectiveClean,
-          outlierPoints,
-          cleanMean,
-          pointsAnalysis,
-        }
-      })
-
-      const totalValidCount = allValidPoints.length
-      const totalOutlierCount = allOutlierPoints.length
-
-      if (totalValidCount === 0) {
-        return {
-          results: [
-            { label: 'Penetrasi Akhir (Terkoreksi)', value: '-', unit: '0.1 mm', highlight: true },
-            { label: 'Total Titik Valid / Outlier', value: '0 / 0', unit: 'titik' },
-            { label: 'Batas Toleransi Presisi SNI', value: 'Maks 4', unit: '0.1 mm' },
-            { label: 'Selisih Bacaan Maks-Min (Presisi)', value: '-', unit: 'dmm', highlight: true },
-          ],
-          groupResults,
-          formulaSteps: ['Belum ada data pembacaan jarum penetrasi yang valid. Masukkan angka positif > 0.'],
-          isError: true,
-          status: 'Input Belum Lengkap',
-          verdictClass: 'warning',
-          conclusion: 'Masukkan minimal satu data pembacaan jarum penetrasi yang valid (> 0 dmm).',
-          summaryString: 'Input Belum Lengkap',
-          penAkhir: '-',
-          selisih: '-',
-          batasToleransi: 4,
-          isPresisiLolos: false,
-          isSpecLolos: false,
-          pMax: 0,
-          pMin: 0,
-          totalValidCount: 0,
-          totalOutlierCount: 0,
-          totalRawPointsCount,
-          allValidPoints: [],
-          allOutlierPoints: [],
-          minSpec,
-          maxSpec,
-          kelasLabel,
-        }
-      }
-
-      // 6. Rata-rata Penetrasi Akhir Global (P_akhir)
-      const sumAllValid = allValidPoints.reduce((acc, p) => acc + p.value, 0)
-      const penAkhir = sumAllValid / totalValidCount
-
-      // 7. Maksimum, Minimum, dan Selisih dari SELURUH titik valid
-      const validVals = allValidPoints.map((p) => p.value)
-      const pMax = Math.max(...validVals)
-      const pMin = Math.min(...validVals)
-      const selisih = pMax - pMin
-
-      // 8. Toleransi presisi SNI 2456:2011 Tabel 1
-      let batasToleransi = 4
-      let rentangLabel = '50 - 149'
-      if (penAkhir < 50.0) {
-        batasToleransi = 2
-        rentangLabel = '0 - 49'
-      } else if (penAkhir < 150.0) {
-        batasToleransi = 4
-        rentangLabel = '50 - 149'
-      } else if (penAkhir < 250.0) {
-        batasToleransi = 12
-        rentangLabel = '150 - 249'
-      } else {
-        batasToleransi = 20
-        rentangLabel = '250 - 500'
-      }
-
-      const isPresisiLolos = selisih <= batasToleransi
-      const isSpecLolos = penAkhir >= minSpec && penAkhir <= maxSpec
-
-      let status = 'Memenuhi Standar'
-      let verdictClass = 'valid'
-      let conclusion = ''
-
-      if (!isSpecLolos) {
-        status = 'Tidak Memenuhi Standar'
-        verdictClass = 'error'
-        conclusion = `Nilai penetrasi akhir (${penAkhir.toFixed(1)} dmm) berada di luar rentang spesifikasi ${kelasLabel} (${minSpec.toFixed(0)} s/d ${maxSpec.toFixed(0)} dmm). Aspal ${penAkhir < minSpec ? 'terlalu keras/getas (rawan retak lelah pada permukaan jalan)' : 'terlalu lunak/lembek (rawan alur ruts/bleeding pada cuaca panas)'}.`
-      } else if (!isPresisiLolos) {
-        status = 'Perlu Evaluasi (Presisi Rendah)'
-        verdictClass = 'warning'
-        conclusion = `Nilai penetrasi rata-rata (${penAkhir.toFixed(1)} dmm) memenuhi spesifikasi ${kelasLabel}, namun variasi/selisih pembacaan (ΔP = ${selisih.toFixed(1)} dmm) melebihi batas toleransi presisi SNI 2456:2011 (maksimal ${batasToleransi} dmm). Disarankan mengulang pengujian dengan kontrol temperatur bak perendam yang lebih stabil.`
-      } else {
-        status = 'Memenuhi Standar'
-        verdictClass = 'valid'
-        conclusion = `Nilai penetrasi akhir terkoreksi sebesar ${penAkhir.toFixed(1)} dmm memenuhi spesifikasi Bina Marga untuk ${kelasLabel} (${minSpec.toFixed(0)} - ${maxSpec.toFixed(0)} dmm) dan memenuhi toleransi presisi pembacaan SNI 2456:2011 (ΔP = ${selisih.toFixed(1)} dmm ≤ toleransi ${batasToleransi} dmm). Konsistensi aspal sangat baik untuk perkerasan jalan.`
-      }
-
-      // Ringkasan 4 kartu
-      const results = [
-        { label: 'Penetrasi Akhir (Terkoreksi)', value: penAkhir.toFixed(1), unit: '0.1 mm', highlight: true },
-        { label: 'Total Titik Valid / Outlier', value: `${totalValidCount} / ${totalOutlierCount}`, unit: `titik (${groupResults.length} kelompok)` },
-        { label: 'Batas Toleransi Presisi SNI', value: `Maks ${batasToleransi}`, unit: `0.1 mm (Rentang ${rentangLabel})` },
-        { label: 'Selisih Bacaan Maks-Min (Presisi)', value: selisih.toFixed(1), unit: `dmm (Batas SNI ≤ ${batasToleransi})`, highlight: true },
-      ]
-
-      const formulaSteps = [
-        `1. STANDAR PENGUJIAN & KONDISI EKSPERIMEN:`,
-        `   - Standar Acuan: SNI 2456:2011 / ASTM D5 / Spesifikasi Umum Bina Marga 2018`,
-        `   - Spesifikasi Kelas Aspal: ${kelasLabel} (Persyaratan Penetrasi: ${minSpec.toFixed(0)} - ${maxSpec.toFixed(0)} dmm)`,
-        `   - Kondisi Uji: Suhu Bak Air = ${suhuUji.toFixed(1)}°C, Beban Jarum = ${bebanJarum} gram, Waktu = ${waktuPenetrasi} detik`,
-        `   - Total Kelompok Uji: ${groupResults.length} kelompok | Total Pembacaan: ${totalRawPointsCount} titik`,
-        ``,
-        `2. ANALISIS STATISTIK & ELIMINASI OUTLIER PER KELOMPOK:`,
-        ...groupResults.map((g) => {
-          const rawStr = g.pointsAnalysis.map((p) => `${p.value !== null ? p.value.toFixed(1) : '-'}${p.isOutlier ? ' [OUTLIER]' : ''}`).join(', ')
-          const outlierStr = g.outlierPoints.length > 0
-            ? g.outlierPoints.map((p) => `${p.value.toFixed(1)} dmm`).join(', ')
-            : 'Tidak ada outlier (semua titik masuk rentang toleransi)'
-          const cleanStr = g.cleanPoints.length > 0
-            ? g.cleanPoints.map((p) => `${p.value.toFixed(1)} dmm`).join(', ')
-            : '-'
-
-          return [
-            `   [${g.groupName}]`,
-            `   - Nilai Pembacaan (P_i): [${rawStr}] (n = ${g.n} titik)`,
-            `   - Rata-rata Awal (P̄) = ΣP_i / n = ${g.meanInitial.toFixed(2)} dmm`,
-            `   - Simpangan Baku Sampel (S) = √[Σ(P_i - P̄)² / (n - 1)] = ${g.sd.toFixed(2)} dmm`,
-            `   - Koefisien Variasi (K) = (S / P̄) × 100% = ${g.cv.toFixed(2)}%`,
-            `   - Rentang Valid Outlier [P̄ - S, P̄ + S]: [${g.lowerBound.toFixed(2)} dmm s/d ${g.upperBound.toFixed(2)} dmm]`,
-            `   - Data Outlier Tereliminasi: ${outlierStr}`,
-            `   - Data Bersih Lolos Seleksi: ${cleanStr}`,
-            `   - Rata-rata Bersih Kelompok = ${g.cleanMean.toFixed(2)} dmm`,
-          ].join('\n')
-        }),
-        ``,
-        `3. PENGGABUNGAN DATA GLOBAL & PERHITUNGAN PENETRASI AKHIR:`,
-        `   - Total Titik Valid Terkumpul: ${totalValidCount} titik (dari ${totalRawPointsCount} titik)`,
-        `   - Data Valid Gabungan: [${allValidPoints.map((p) => `${p.value.toFixed(1)} dmm`).join(', ')}]`,
-        `   - Penetrasi Akhir (P_akhir) = Σ(P_valid) / N_valid`,
-        `   - P_akhir = (${allValidPoints.map((p) => p.value.toFixed(1)).join(' + ')}) / ${totalValidCount} = ${penAkhir.toFixed(2)} dmm ≈ ${penAkhir.toFixed(1)} dmm`,
-        ``,
-        `4. EVALUASI PRESISI PEMBACAAN SNI 2456:2011:`,
-        `   - Titik Pembacaan Valid Tertinggi (P_maks) = ${pMax.toFixed(1)} dmm`,
-        `   - Titik Pembacaan Valid Terendah (P_min) = ${pMin.toFixed(1)} dmm`,
-        `   - Selisih Pembacaan (ΔP) = P_maks - P_min = ${pMax.toFixed(1)} - ${pMin.toFixed(1)} = ${selisih.toFixed(1)} dmm`,
-        `   - Batas Toleransi Maksimal SNI 2456:2011 (Tabel 1 untuk rentang ${rentangLabel} dmm) = ${batasToleransi} dmm`,
-        `   - Evaluasi Presisi: ΔP = ${selisih.toFixed(1)} dmm ${isPresisiLolos ? '≤' : '>'} ${batasToleransi} dmm ➔ ${isPresisiLolos ? 'MEMENUHI PERSYARATAN PRESISI (Valid)' : 'MELEBIHI BATAS TOLERANSI PRESISI'}`,
-        ``,
-        `5. EVALUASI KESESUAIAN SPESIFIKASI BINA MARGA 2018:`,
-        `   - Spesifikasi ${kelasLabel}: Syarat Penetrasi = ${minSpec.toFixed(0)} - ${maxSpec.toFixed(0)} dmm`,
-        `   - Nilai Penetrasi Akhir Terkoreksi = ${penAkhir.toFixed(1)} dmm ➔ ${isSpecLolos ? 'MEMENUHI SPESIFIKASI' : 'DI LUAR PERSYARATAN'}`,
-        `   - KESIMPULAN AKHIR: ${conclusion}`,
-      ]
-
-      return {
-        results,
-        formulaSteps,
-        isError: false,
-        status,
-        verdictClass,
-        conclusion,
-        summaryString: `P_akhir = ${penAkhir.toFixed(1)} dmm | ΔP = ${selisih.toFixed(1)} dmm | ${status}`,
-        penAkhir: penAkhir.toFixed(1),
-        penAkhirNum: penAkhir,
-        selisih: selisih.toFixed(1),
-        selisihNum: selisih,
-        batasToleransi,
-        isPresisiLolos,
-        isSpecLolos,
-        pMax,
-        pMin,
-        totalValidCount,
-        totalOutlierCount,
-        totalRawPointsCount,
-        groupResults,
-        allValidPoints,
-        allOutlierPoints,
-        minSpec,
-        maxSpec,
-        kelasLabel,
-      }
-    },
+    calculate: calculateAsphaltPenetration,
   },
 
   // -----------------------------------------------------------------------
@@ -9355,12 +6836,13 @@ export const calculatorRegistry = {
   // -----------------------------------------------------------------------
   'bp-3-1': {
     id: 'bp-3-1',
+    hasIndependentSamples: true,
     code: 'TL-01',
     codePrefix: 'TL',
     name: 'Uji Titik Lembek (Ring and Ball) & Indeks Penetrasi (PI)',
     lab: 'Bahan Perkerasan',
     category: 'Bahan Perkerasan • Bab 3: Titik Lembek & PI',
-    standard: 'SNI 2434:2011 / Spesifikasi Umum Bina Marga 2018',
+    standard: 'SNI 2434:2011 / SNI 8135:2015',
     desc: 'Pengukuran suhu titik lembek aspal dengan metode cincin dan bola (Ring and Ball) serta penentuan Indeks Penetrasi (PI) model Pfeiffer & Van Doormaal untuk mengevaluasi kepekaan termal aspal.',
     initialInputs: {
       t1: 50.2,
@@ -9389,9 +6871,10 @@ export const calculatorRegistry = {
       },
       {
         key: 'pen25',
+        optional: true,
         label: 'Nilai Penetrasi pada 25°C (Pen_25)',
         unit: '0.1 mm',
-        desc: 'Nilai penetrasi jarum terukur pada suhu standar 25°C (satuan dmm)',
+        desc: 'Isi dari uji penetrasi yang sah. Kosongkan untuk menghitung titik lembek saja.',
         min: 0.01,
         step: 0.1,
         isParameterBesar: true,
@@ -9400,10 +6883,11 @@ export const calculatorRegistry = {
         key: 'kelasAspal',
         label: 'Kelas Aspal Acuan',
         type: 'select',
-        desc: 'Ambang batas spesifikasi titik lembek sesuai Bina Marga 2018',
+        desc: 'Pilih kelas berdasarkan identitas aspal yang diuji.',
         options: [
           { value: 'pen6070', label: 'Aspal Pen 60/70 (Syarat Titik Lembek >= 48°C)' },
-          { value: 'modifikasi', label: 'Aspal Modifikasi / PG 70 (Syarat Titik Lembek >= 54°C)' },
+          { value: 'pen85100', label: 'Aspal Pen 85/100 (Minimum 46 °C)' },
+          { value: 'modifikasi', label: 'Aspal Modifikasi (Laporkan Titik Lembek)' },
         ],
         isParameterBesar: true,
       },
@@ -9412,113 +6896,42 @@ export const calculatorRegistry = {
       const t1 = Number(inputs.t1)
       const t2 = Number(inputs.t2)
       const pen = Number(inputs.pen25)
-      const kelas = inputs.kelasAspal || 'pen6070'
-      const minTL = kelas === 'modifikasi' ? 54.0 : 48.0
+      const minTL = ASPHALT_SOFTENING_MIN[inputs.kelasAspal || 'pen6070'] ?? null
 
-      if (isNaN(t1) || isNaN(t2) || isNaN(pen) || t1 <= 0 || t2 <= 0 || pen <= 0) {
-        return {
-          results: [
-            { label: 'Titik Lembek Rata-rata (T_RB)', value: '-', unit: '°C', highlight: true },
-            { label: 'Indeks Penetrasi (PI)', value: '-', unit: '', highlight: true },
-            { label: 'Kepekaan Suhu (Nilai A)', value: '-', unit: '' },
-            { label: 'Selisih 2 Cincin (|T1 - T2|)', value: '-', unit: '°C' },
-          ],
-          formulaSteps: ['Suhu titik lembek cincin (T1, T2) dan penetrasi 25°C harus berupa angka positif > 0.'],
-          isError: true,
-          status: 'Input Tidak Valid',
-          conclusion: 'Nilai input temperatur cincin dan penetrasi harus bernilai positif > 0.',
-          summaryString: 'Input Parameter Tidak Valid',
-        }
+      if (![t1, t2].every((value) => Number.isFinite(value) && value > 0)) {
+        return { results: [], isError: true, status: 'Input belum lengkap', conclusion: 'Isi suhu kedua cincin.' }
       }
 
       const trb = (t1 + t2) / 2
       const deltaT = Math.abs(t1 - t2)
-
-      if (trb <= 25.0) {
-        return {
-          results: [
-            { label: 'Titik Lembek Rata-rata (T_RB)', value: '-', unit: '°C', highlight: true },
-            { label: 'Indeks Penetrasi (PI)', value: '-', unit: '', highlight: true },
-            { label: 'Kepekaan Suhu (Nilai A)', value: '-', unit: '' },
-            { label: 'Selisih 2 Cincin (|T1 - T2|)', value: '-', unit: '°C' },
-          ],
-          formulaSteps: [`Suhu titik lembek rata-rata (${trb.toFixed(1)}°C) harus lebih besar dari 25.0°C agar penyebut (T_RB - 25) bernilai positif.`],
-          isError: true,
-          status: 'Data Tidak Logis',
-          conclusion: 'Suhu titik lembek aspal padat harus lebih tinggi dari suhu standar penetrasi 25.0°C.',
-          summaryString: 'T_RB <= 25 Tidak Valid',
-        }
-      }
-
-      // Rumus Pfeiffer & Van Doormaal:
-      // A = [log10(800) - log10(Pen_25)] / (T_RB - 25)
-      // PI = (20 - (500 * A)) / (1 + (50 * A))
-      const log800 = Math.log10(800)
-      const logPen = Math.log10(pen)
-      const deltaTemp = trb - 25.0
-      const aKoef = (log800 - logPen) / deltaTemp
-      const pi = (20.0 - 500.0 * aKoef) / (1.0 + 50.0 * aKoef)
-
-      const isTLMemenuhi = trb >= minTL
-      const isDuplikatLolos = deltaT <= 1.0
-      const isPiIdeal = pi >= -1.0 && pi <= 1.0
-
-      let status = 'Memenuhi Standar'
-      let verdictClass = 'valid'
-      let conclusion = ''
-
-      if (!isTLMemenuhi) {
-        status = 'Tidak Memenuhi Standar'
-        verdictClass = 'error'
-        conclusion = `Titik lembek tidak memenuhi syarat minimal Bina Marga >= 48°C, aspal mudah meleleh pada suhu permukaan jalan (T_RB = ${trb.toFixed(1)}°C < ${minTL.toFixed(1)}°C).`
-      } else if (!isDuplikatLolos) {
-        status = 'Perlu Evaluasi'
-        verdictClass = 'warning'
-        conclusion = `Selisih suhu kedua cincin melebihi batas SNI 1.0°C (|T1 - T2| = ${deltaT.toFixed(1)}°C > 1.0°C), pengujian harus diulang.`
-      } else if (!isPiIdeal) {
-        status = 'Perlu Evaluasi'
-        verdictClass = 'warning'
-        if (pi < -1.0) {
-          conclusion = 'Aspal sangat sensitif terhadap suhu, rawan bleeding di suhu tinggi & retak di suhu rendah.'
-        } else {
-          conclusion = 'Aspal kurang peka suhu / bersifat blown bitumen.'
-        }
-      } else {
-        status = 'Memenuhi Standar'
-        verdictClass = 'valid'
-        conclusion = `Titik lembek rata-rata ${trb.toFixed(1)}°C memenuhi syarat minimal Bina Marga (≥ ${minTL.toFixed(1)}°C), presisi duplikat cincin memenuhi syarat SNI (ΔT = ${deltaT.toFixed(1)}°C ≤ 1.0°C), dan Indeks Penetrasi PI = ${pi.toFixed(2)} berada dalam rentang ideal (-1.0 s/d +1.0).`
-      }
-
+      const precisionOk = deltaT <= 1 + 1e-9
+      const hasPenetration = Number.isFinite(pen) && pen > 0 && pen <= 500
+      const aKoef = precisionOk && hasPenetration && trb > 25 ? Math.log10(800 / pen) / (trb - 25) : null
+      const pi = aKoef === null ? null : (20 - 500 * aKoef) / (1 + 50 * aKoef)
+      const status = !precisionOk ? 'Ulangi uji' : minTL === null ? 'Titik lembek dilaporkan'
+        : trb >= minTL ? 'Mencapai batas titik lembek' : 'Di bawah batas titik lembek'
+      const conclusion = !precisionOk ? 'Selisih kedua cincin melebihi 1 °C. Ulangi pengujian sebelum melaporkan titik lembek dan PI.'
+        : [
+            minTL === null ? 'Titik lembek dilaporkan sesuai kelas aspal yang dipilih.'
+              : `Titik lembek ${trb.toFixed(1)} °C. Batas minimum kelas yang dipilih ${minTL} °C.`,
+            pi === null ? 'PI memerlukan nilai penetrasi 25 °C yang sah.' : 'PI dilaporkan sebagai indikator kepekaan suhu.',
+          ].join(' ')
       return {
         results: [
-          { label: 'Titik Lembek Rata-rata (T_RB)', value: trb.toFixed(1), unit: '°C', highlight: true },
-          { label: 'Indeks Penetrasi (PI)', value: pi.toFixed(2), unit: '', highlight: true },
-          { label: 'Kepekaan Suhu (Nilai A)', value: aKoef.toFixed(4), unit: '' },
-          { label: 'Selisih 2 Cincin (|T1 - T2|)', value: deltaT.toFixed(1), unit: '°C (Syarat SNI ≤ 1.0°C)' },
+          { label: 'Titik Lembek Rata-rata (T_RB)', value: precisionOk ? trb.toFixed(1) : '—', unit: '°C', highlight: true },
+          { label: 'Indeks Penetrasi (PI)', value: pi?.toFixed(2) ?? '—', unit: '', highlight: true },
+          { label: 'Kepekaan Suhu (Nilai A)', value: aKoef?.toFixed(4) ?? '—', unit: '' },
+          { label: 'Selisih 2 Cincin', value: deltaT.toFixed(1), unit: '°C' },
         ],
         formulaSteps: [
-          `1. SUHU TITIK LEMBEK DUA CINCIN:`,
-          `   Suhu Cincin 1 (T1) = ${t1.toFixed(1)} °C, Suhu Cincin 2 (T2) = ${t2.toFixed(1)} °C`,
-          `   Nilai Penetrasi pada 25°C (Pen_25) = ${pen.toFixed(1)} (0.1 mm)`,
-          `2. SUHU TITIK LEMBEK RATA-RATA & SELISIH DUPLIKAT CINCIN:`,
-          `   T_RB = (T1 + T2) / 2 = (${t1.toFixed(1)} + ${t2.toFixed(1)}) / 2 = ${trb.toFixed(1)} °C`,
-          `   Selisih Duplikat Cincin (Delta_T) = |T1 - T2| = |${t1.toFixed(1)} - ${t2.toFixed(1)}| = ${deltaT.toFixed(1)} °C (Syarat SNI ≤ 1.0°C: ${isDuplikatLolos ? 'Lolos' : 'Melebihi Toleransi'})`,
-          `3. FAKTOR KEPEKAAN SUHU / TEMPERATURE SUSCEPTIBILITY (A):`,
-          `   A = (log₁₀(800) - log₁₀(Pen_25)) / (T_RB - 25)`,
-          `   A = (${log800.toFixed(4)} - ${logPen.toFixed(4)}) / (${trb.toFixed(1)} - 25) = ${aKoef.toFixed(4)}`,
-          `4. INDEKS PENETRASI / PENETRATION INDEX (PI):`,
-          `   PI = (20 - (500 × A)) / (1 + (50 × A))`,
-          `   PI = (20 - (500 × ${aKoef.toFixed(4)})) / (1 + (50 × ${aKoef.toFixed(4)})) = ${pi.toFixed(2)}`,
-          `5. BATASAN VERIFIKASI SNI 2434:2011 & BINA MARGA 2018:`,
-          `   Syarat Titik Lembek (T_RB) = Minimal ≥ ${minTL.toFixed(1)} °C ➔ Hasil = ${trb.toFixed(1)} °C (${isTLMemenuhi ? 'Memenuhi Standar' : 'Tidak Memenuhi'})`,
-          `   Syarat Indeks Penetrasi (PI) Perkerasan Jalan = -1.0 ≤ PI ≤ +1.0 ➔ Hasil = ${pi.toFixed(2)} (${isPiIdeal ? 'Ideal' : 'Di Luar Batas'})`,
-          `   Status Evaluasi: ${status}`,
+          `Selisih cincin = |T1 − T2| = ${deltaT.toFixed(1)} °C. Batas 1 °C.`,
+          precisionOk ? `Titik lembek = (T1 + T2) / 2 = ${trb.toFixed(1)} °C.` : 'Ulangi uji untuk melaporkan titik lembek.',
+          aKoef === null ? conclusion : `A = log₁₀(800 / Pen25) / (T_RB − 25) = ${aKoef.toFixed(4)}. PI = (20 − 500A) / (1 + 50A) = ${pi.toFixed(2)}.`,
         ],
-        isError: false,
         status,
-        verdictClass,
+        verdictClass: !precisionOk || minTL === null ? 'warning' : trb >= minTL ? 'valid' : 'error',
         conclusion,
-        summaryString: `T_RB = ${trb.toFixed(1)}°C | PI = ${pi.toFixed(2)} | ${status}`,
+        summaryString: precisionOk ? `Titik lembek ${trb.toFixed(1)} °C | ${status}` : status,
       }
     },
   },
@@ -9528,6 +6941,7 @@ export const calculatorRegistry = {
   // -----------------------------------------------------------------------
   'bp-4-1': {
     id: 'bp-4-1',
+    hasIndependentSamples: true,
     code: 'BJA-01',
     codePrefix: 'BJ',
     name: 'Uji Berat Jenis Aspal Keras dengan Piknometer',
@@ -9594,7 +7008,7 @@ export const calculatorRegistry = {
       const b = Number(inputs.massaB)
       const c = Number(inputs.massaC)
       const d = Number(inputs.massaD)
-      const rhoW = Number(inputs.rhoW) || 0.9970
+      const rhoW = Number(inputs.rhoW ?? 0.9970)
 
       if (isNaN(a) || isNaN(b) || isNaN(c) || isNaN(d) || isNaN(rhoW) || a <= 0 || b <= 0 || c <= 0 || d <= 0 || rhoW <= 0) {
         return {
@@ -9634,7 +7048,7 @@ export const calculatorRegistry = {
       const wAirSisa = d - c
       const wAirPindah = wAirPenuh - wAirSisa
 
-      if (wAirPindah <= 0) {
+      if (wAirPindah <= 0 || wAirSisa < 0) {
         return {
           results: [
             { label: 'Berat Jenis Aspal Keras (BJ)', value: '-', unit: '', highlight: true },
@@ -9655,15 +7069,13 @@ export const calculatorRegistry = {
 
       const bj = wAspal / wAirPindah
       const rhoAspal = bj * rhoW
-      const wt = Math.round(rhoW * 1000) // W_T air suling pada 25°C = 997 kg/m³
-      const beratIsi = bj * wt // Berat Isi dalam kg/m³
+      const volumeAspal = wAirPindah / rhoW
+      const beratIsi = 1000 * rhoAspal
       const isMemenuhi = bj >= 1.000
 
-      const status = isMemenuhi ? 'Memenuhi Standar' : 'Tidak Memenuhi Standar'
+      const status = isMemenuhi ? 'Mencapai batas Pen 60/70' : 'Di bawah batas Pen 60/70'
       const verdictClass = isMemenuhi ? 'valid' : 'error'
-      const conclusion = isMemenuhi
-        ? 'Berat jenis aspal memenuhi syarat SNI 2441:2011 & Bina Marga (BJ >= 1.00), bebas dari kontaminasi fraksi ringan berlebih.'
-        : 'Berat jenis aspal di bawah syarat minimum 1.000, tidak memenuhi spesifikasi perkerasan jalan.'
+      const conclusion = `Berat jenis relatif ${bj.toFixed(3)}. Pembanding minimum untuk Pen 60/70 adalah 1,000 menurut Bina Marga 2018 Revisi 2.`
 
       return {
         results: [
@@ -9675,7 +7087,7 @@ export const calculatorRegistry = {
             sub: `Berat Isi: ${Math.round(beratIsi)} kg/m³ (${beratIsi.toFixed(1)} kg/m³)`
           },
           { label: 'Berat Sampel Aspal (C - A)', value: wAspal.toFixed(2), unit: 'gram' },
-          { label: 'Volume Air Dipindahkan', value: wAirPindah.toFixed(2), unit: 'cm³' },
+          { label: 'Volume Air Dipindahkan', value: volumeAspal.toFixed(2), unit: 'cm³' },
         ],
         formulaSteps: [
           `1. DATA PENIMBANGAN PIKNOMETER PADA 25°C:`,
@@ -9688,17 +7100,17 @@ export const calculatorRegistry = {
           `   Berat Sampel Aspal Kering (W_aspal) = C - A = ${c.toFixed(2)} - ${a.toFixed(2)} = ${wAspal.toFixed(2)} gram`,
           `   Berat Air Suling Penuh (W_air_penuh) = B - A = ${b.toFixed(2)} - ${a.toFixed(2)} = ${wAirPenuh.toFixed(2)} gram`,
           `   Berat Air Sisa di Atas Aspal (W_air_sisa) = D - C = ${d.toFixed(2)} - ${c.toFixed(2)} = ${wAirSisa.toFixed(2)} gram`,
-          `   Berat Air yang Dipindahkan oleh Aspal (W_air_pindah) = (B - A) - (D - C) = ${wAirPenuh.toFixed(2)} - ${wAirSisa.toFixed(2)} = ${wAirPindah.toFixed(2)} gram (Volume = ${wAirPindah.toFixed(2)} cm³)`,
+          `   Massa air terdesak = (B − A) − (D − C) = ${wAirPindah.toFixed(2)} g. Volume = massa / ρ air = ${volumeAspal.toFixed(2)} cm³.`,
           `3. RUMUS BERAT JENIS RELATIF ASPAL (BULK SPECIFIC GRAVITY / BJ):`,
           `   BJ = (C - A) / [(B - A) - (D - C)]`,
           `   BJ = ${wAspal.toFixed(2)} / ${wAirPindah.toFixed(2)} = ${bj.toFixed(3)}`,
           `4. RUMUS KERAPATAN / DENSITAS ASPAL PADA 25°C (rho_aspal):`,
           `   rho_aspal = BJ × rho_w = ${bj.toFixed(3)} × ${rhoW.toFixed(4)} = ${rhoAspal.toFixed(3)} gr/cm³`,
-          `5. BATASAN VERIFIKASI SNI 2441:2011 & BINA MARGA 2018:`,
-          `   Syarat Minimum BJ Aspal Keras = 1.000 ➔ Hasil = ${bj.toFixed(3)} (${isMemenuhi ? 'Memenuhi Standar' : 'Tidak Memenuhi Standar'})`,
+          `5. BATAS BJ PEN 60/70 • BINA MARGA 2018 REVISI 2:`,
+          `   BJ minimum = 1,000. Hasil = ${bj.toFixed(3)} (${status}).`,
           `   Status Kelayakan: ${status}`,
           `6. KONVERSI KE BERAT ISI (kg/m³):`,
-          `   Berat Isi (kg/m³) = BJ × W_T (997 kg/m³) = ${bj.toFixed(3)} × ${wt} kg/m³ = ${beratIsi.toFixed(1)} kg/m³ (≈ ${Math.round(beratIsi)} kg/m³)`,
+          `   Massa jenis aspal (kg/m³) = 1000 × ${rhoAspal.toFixed(3)} = ${beratIsi.toFixed(1)} kg/m³.`,
         ],
         isError: false,
         status,
@@ -9881,7 +7293,8 @@ export const calculatorRegistry = {
         }
       }
 
-      const syaratMin = Number(inputs.syaratNyalaMin) || 232.0
+      const customLimit = Number(inputs.syaratNyalaMin)
+      const syaratMin = Number.isFinite(customLimit) && customLimit > 0 ? customLimit : 232
 
       if (
         isNaN(cNyala) || isNaN(cBakar) || isNaN(k) ||
@@ -9914,11 +7327,15 @@ export const calculatorRegistry = {
       const tBakarSni = Math.round(tBakarKor)
       const selisihBakarNyala = tBakarKor - tNyalaKor
 
-      const isRangeValid = cNyala >= 79.0 && cNyala <= 400.0 && cBakar >= 79.0 && cBakar <= 400.0
-      const isUrutanLogis = tBakarKor > tNyalaKor
+      const isRangeValid = [...nyalaVals, ...bakarVals].every((reading) => reading >= 79 && reading <= 400)
+      const flashSpread = Math.max(...nyalaVals) - Math.min(...nyalaVals)
+      const fireSpread = Math.max(...bakarVals) - Math.min(...bakarVals)
+      const needsRepeatReview = flashSpread > 8 || fireSpread > 8
+      const isUrutanLogis = bakarVals.every((reading, i) => reading > nyalaVals[i])
       const isNyalaAman = tNyalaKor >= syaratMin
+      const roundedLabel = isUrutanLogis && isRangeValid && !needsRepeatReview ? 'Hasil bulat' : 'Rerata sementara dibulatkan'
 
-      let status = 'Memenuhi Standar (Aman)'
+      let status = 'Mencapai batas titik nyala'
       let verdictClass = 'valid'
       let conclusion = ''
 
@@ -9930,14 +7347,18 @@ export const calculatorRegistry = {
         status = 'Perlu Evaluasi'
         verdictClass = 'warning'
         conclusion = 'Suhu berada di luar rentang pengukuran standar Cleveland Open Cup (79°C - 400°C).'
+      } else if (needsRepeatReview) {
+        status = 'Perlu Evaluasi'
+        verdictClass = 'warning'
+        conclusion = `Rentang bacaan nyala ${flashSpread.toFixed(1)} °C dan bakar ${fireSpread.toFixed(1)} °C. Periksa kondisi pengulangan. Untuk pengulangan pada kondisi yang sama, acuan ketelitian SNI 2433:2011 adalah 8 °C.`
       } else if (!isNyalaAman) {
         status = 'Tidak Memenuhi Standar'
         verdictClass = 'error'
-        conclusion = `Titik nyala terkoreksi (${tNyalaKor.toFixed(2)}°C) berada di bawah batas minimum Bina Marga (${syaratMin}°C). Aspal mengandung fraksi mudah menguap dan berisiko kebakaran saat dipanaskan.`
+        conclusion = `Titik nyala terkoreksi (${tNyalaKor.toFixed(2)} °C) berada di bawah batas minimum yang digunakan (${syaratMin} °C).`
       } else {
-        status = 'Memenuhi Standar (Aman)'
+        status = 'Mencapai batas titik nyala'
         verdictClass = 'valid'
-        conclusion = `Memenuhi syarat keamanan suhu pemanasan aspal Bina Marga (≥ ${syaratMin}°C), aman terhadap risiko kilatan api saat pencampuran di AMP.`
+        conclusion = `Titik nyala terkoreksi mencapai batas minimum kelas yang digunakan (≥ ${syaratMin} °C).`
       }
 
       const formatTemp = (val) => {
@@ -9957,16 +7378,16 @@ export const calculatorRegistry = {
         results: [
           {
             label: 'Titik Nyala Terkoreksi',
-            value: `${formatTemp(tNyalaKor)} °C (Pelaporan SNI: ${tNyalaSni} °C)`,
+            value: `${formatTemp(tNyalaKor)} °C`,
             unit: '',
             highlight: true,
-            sub: nSamples > 1 ? `Rata-rata Terbaca (C_nyala): ${cNyala.toFixed(2)} °C` : `Suhu Terbaca: ${cNyala.toFixed(1)} °C`,
+            sub: `${roundedLabel} ${tNyalaSni} °C`,
           },
           {
             label: 'Titik Bakar Terkoreksi',
-            value: `${formatTemp(tBakarKor)} °C (Pelaporan SNI: ${tBakarSni} °C)`,
+            value: `${formatTemp(tBakarKor)} °C`,
             unit: '',
-            sub: nSamples > 1 ? `Rata-rata Terbaca (C_bakar): ${cBakar.toFixed(2)} °C` : `Suhu Terbaca: ${cBakar.toFixed(1)} °C`,
+            sub: `${roundedLabel} ${tBakarSni} °C`,
           },
           {
             label: 'Koreksi Barometrik',
@@ -9999,12 +7420,12 @@ export const calculatorRegistry = {
           `3. SUHU TITIK NYALA & TITIK BAKAR TERKOREKSI:`,
           `   T_nyala_kor = C_nyala + 0.25 × (101.3 - K) = ${cNyala.toFixed(2)} + (${deltaTBar >= 0 ? '+' : ''}${deltaTBar.toFixed(4)}) = ${tNyalaKor.toFixed(2)} °C`,
           `   T_bakar_kor = C_bakar + 0.25 × (101.3 - K) = ${cBakar.toFixed(2)} + (${deltaTBar >= 0 ? '+' : ''}${deltaTBar.toFixed(4)}) = ${tBakarKor.toFixed(2)} °C`,
-          `4. PEMBULATAN PELAPORAN SNI 2433:2011 (DIBULATKAN KE 1°C TERDEKAT):`,
-          `   T_nyala_SNI = Math.round(${tNyalaKor.toFixed(2)}) = ${tNyalaSni} °C (Nilai Desimal Presisi: ${tNyalaKor.toFixed(2)} °C)`,
-          `   T_bakar_SNI = Math.round(${tBakarKor.toFixed(2)}) = ${tBakarSni} °C (Nilai Desimal Presisi: ${tBakarKor.toFixed(2)} °C)`,
+          `4. PEMBULATAN KE 1 °C TERDEKAT`,
+          `   ${roundedLabel} titik nyala = ${tNyalaSni} °C.`,
+          `   ${roundedLabel} titik bakar = ${tBakarSni} °C.`,
           `   Selisih Suhu Bakar - Nyala = T_bakar_kor - T_nyala_kor = ${tBakarKor.toFixed(2)} - ${tNyalaKor.toFixed(2)} = ${selisihBakarNyala.toFixed(2)} °C`,
           `5. EVALUASI SPESIFIKASI BINA MARGA 2018 (DIVISI 6):`,
-          `   Syarat Titik Nyala Aspal Pen 60/70 = T_nyala_kor ≥ ${syaratMin.toFixed(1)} °C ➔ Hasil = ${tNyalaKor.toFixed(2)} °C (${isNyalaAman ? 'Memenuhi Standar' : 'Tidak Memenuhi'})`,
+          `   Batas titik nyala yang digunakan = ${syaratMin.toFixed(1)} °C.`,
           `   Syarat Logika Fisik = T_bakar_kor > T_nyala_kor (${isUrutanLogis ? 'Logis' : 'Tidak Logis'}), Rentang Alat 79°C - 400°C (${isRangeValid ? 'Valid' : 'Di Luar Rentang'})`,
           `   Status Evaluasi: ${status}`,
         ],
@@ -10012,7 +7433,7 @@ export const calculatorRegistry = {
         status,
         verdictClass,
         conclusion,
-        summaryString: `Nyala = ${tNyalaKor.toFixed(2)}°C (SNI: ${tNyalaSni}°C) | Bakar = ${tBakarKor.toFixed(2)}°C (SNI: ${tBakarSni}°C) | ${status}`,
+        summaryString: `Nyala ${tNyalaKor.toFixed(2)} °C | Bakar ${tBakarKor.toFixed(2)} °C | ${status}`,
       }
     },
   },
@@ -10094,7 +7515,7 @@ export const calculatorRegistry = {
     ],
     calculate: (inputs) => {
       const kelas = inputs.kelasAspal || 'pen6070'
-      const minDaktilitas = kelas === 'modifikasi' ? 50.0 : 100.0
+      const minDaktilitas = kelas === 'pen6070' ? 100 : null
       const unit = inputs.satuanInput || 'cm'
       const isMm = unit === 'mm'
 
@@ -10118,7 +7539,7 @@ export const calculatorRegistry = {
         const rawVal = s.value !== undefined && s.value !== null && s.value !== '' ? Number(s.value) : NaN
         const isValid = s.isValid !== undefined ? Boolean(s.isValid) : true
         const valCm = !isNaN(rawVal) ? (isMm ? rawVal / 10 : rawVal) : NaN
-        const isLolos = !isNaN(valCm) && valCm >= minDaktilitas
+        const isLolos = minDaktilitas === null ? null : Number.isFinite(valCm) && valCm >= minDaktilitas
 
         return {
           id: s.id || idx + 1,
@@ -10185,27 +7606,14 @@ export const calculatorRegistry = {
       const dMaks = Math.max(...validValsCm)
       const deltaD = dMaks - dMin
 
-      const isRataLolos = dRata >= minDaktilitas
-      const isSemuaLolos = validSamples.every((s) => s.valCm >= minDaktilitas)
       const isSeragam = cv <= 15.0
-
-      let status = 'Memenuhi Standar'
-      let verdictClass = 'valid'
-      let conclusion = ''
-
-      if (!isRataLolos) {
-        status = 'Tidak Layak'
-        verdictClass = 'error'
-        conclusion = `Daktilitas rata-rata (${dRata.toFixed(1)} cm) tidak memenuhi syarat (< ${minDaktilitas.toFixed(0)} cm). Aspal kurang kohesif, bersifat getas (brittle), dan rawan mengalami keretakan dini pada perkerasan jalan.`
-      } else if (!isSemuaLolos || (nValid >= 2 && !isSeragam)) {
-        status = 'Perlu Evaluasi'
-        verdictClass = 'warning'
-        conclusion = `Rata-rata daktilitas memenuhi syarat (${dRata.toFixed(1)} cm ≥ ${minDaktilitas.toFixed(0)} cm), namun terdapat variasi regangan antar cetakan yang cukup besar (CV = ${cv.toFixed(2)}% > 15%).`
-      } else {
-        status = 'Memenuhi Standar'
-        verdictClass = 'valid'
-        conclusion = `Daktilitas memenuhi syarat SNI 2432:2011 & Bina Marga 2018 (≥ ${minDaktilitas.toFixed(0)} cm). Aspal memiliki sifat kohesivitas dan elastisitas yang baik sehingga tahan terhadap retak akibat regangan beban lalu lintas.`
-      }
+      const isRataLolos = nValid === 3 && isSeragam && minDaktilitas !== null ? dRata >= minDaktilitas : null
+      const status = isRataLolos === null ? 'Perlu Evaluasi' : isRataLolos ? 'Mencapai batas Pen 60/70' : 'Di bawah batas Pen 60/70'
+      const verdictClass = isRataLolos === null ? 'warning' : isRataLolos ? 'valid' : 'error'
+      const conclusion = nValid !== 3 ? 'Pelaporan SNI 2432:2011 memakai tiga benda uji yang sah.'
+        : !isSeragam ? `Variasi tinggi (CV ${cv.toFixed(2)}%, pembanding praktikum 15%). Periksa kondisi pengujian dan apakah setiap bacaan dicatat saat benda uji putus.`
+        : minDaktilitas === null ? 'Laporkan daktilitas aspal modifikasi segar. Tabel 6.3.2.5 tidak menetapkan batas untuk kondisi ini.'
+          : `Rata-rata tiga benda uji ${dRata.toFixed(1)} cm. Pembanding Pen 60/70 adalah minimum 100 cm pada 25 °C.`
 
       const formulaSteps = [
         `1. KONVERSI SATUAN & STATUS KELAYAKAN BENDA UJI (25°C, 5 cm/menit):`,
@@ -10213,9 +7621,7 @@ export const calculatorRegistry = {
           const rawText = !isNaN(s.rawVal) ? `${s.rawVal.toFixed(1)} ${unit}` : '-'
           const cmText = !isNaN(s.valCm) ? `${s.valCm.toFixed(1)} cm` : '-'
           const convText = isMm ? `${rawText} ➔ ${cmText}` : `${cmText}`
-          const statusText = s.isValid
-            ? (s.isLolos ? `[Aktif - Memenuhi Syarat ≥ ${minDaktilitas.toFixed(0)} cm]` : `[Aktif - Di Bawah Syarat < ${minDaktilitas.toFixed(0)} cm]`)
-            : `[Dieliminasi / Benda Uji Gagal / Putus Dini - Tidak Dihitung]`
+          const statusText = s.isValid ? '[Disertakan]' : '[Benda uji tidak sah]'
           return `   ${s.name}: Pembacaan = ${convText} | Status: ${statusText}`
         }),
         `2. PANJANG DAKTILITAS RATA-RATA DARI BENDA UJI VALID (${nValid} Sampel):`,
@@ -10229,8 +7635,8 @@ export const calculatorRegistry = {
    SD = 0.00 cm (Hanya 1 sampel valid diikutsertakan)
    CV = 0.00%`,
         `4. BATASAN VERIFIKASI SNI 2432:2011 & BINA MARGA 2018:`,
-        `   Syarat Minimum Daktilitas (${kelas === 'modifikasi' ? 'Aspal Modifikasi' : 'Aspal Pen 60/70'}) = ≥ ${minDaktilitas.toFixed(0)} cm ➔ Hasil Rata-rata = ${dRata.toFixed(1)} cm (${isRataLolos ? 'Lolos Standar' : 'Tidak Memenuhi'})`,
-        `   Keseragaman Cetakan: CV ≤ 15.0% (${isSeragam ? 'Seragam' : 'Variasi Tinggi'}), Cetakan Valid Terendah = ${dMin.toFixed(1)} cm`,
+        `   ${conclusion}`,
+        `   Pembanding CV praktikum ≤ 15% (${isSeragam ? 'Dalam batas pembanding' : 'Variasi tinggi'}).`,
         `   Status Evaluasi: ${status}`,
       ]
 
@@ -10258,6 +7664,7 @@ export const calculatorRegistry = {
         cv,
         dMin,
         dMaks,
+        isRataLolos,
         formulaSteps,
         isError: false,
         status,
@@ -10305,7 +7712,7 @@ export const calculatorRegistry = {
         type: 'select',
         desc: 'Formula konversi waktu alir 60 mL fluida ke viskositas kinematik (Centistokes)',
         options: [
-          { value: 'astm', label: 'Rumus Eksak ASTM D2161 / SNI (v = 2.16*t - 60/t untuk t > 40 dtk; v = 2.24*t - 184/t untuk 25 < t <= 40 dtk)' },
+          { value: 'astm', label: 'Korelasi SFS per rentang waktu (estimasi praktikum)' },
           { value: 'modul', label: 'Faktor Konversi Praktis Modul Kampus (v = 2.0 * t)' },
           { value: 'pendekatan', label: 'Faktor Konversi Pendekatan (v = 2.16 * t)' },
         ],
@@ -10469,7 +7876,8 @@ export const calculatorRegistry = {
       }
 
       // Cek apakah ada nilai NaN atau <= 0
-      const hasInvalid = rawPoints.some((p) => isNaN(p.temp) || isNaN(p.time) || p.temp <= 0 || p.time <= 0)
+      const hasInvalid = rawPoints.some((p) => !Number.isFinite(p.temp) || !Number.isFinite(p.time) || p.temp <= 0 || p.time <= 0) ||
+        ![vMixMin, vMixMax, vCompMin, vCompMax].every((value) => Number.isFinite(value) && value > 0)
       if (hasInvalid) {
         return {
           results: [
@@ -10545,57 +7953,47 @@ export const calculatorRegistry = {
       const rVal = denomR !== 0 ? (n * sumXY - sumX * sumY) / denomR : 0
       const r2 = Math.pow(rVal, 2)
 
-      // Karena b < 0, viskositas tinggi dicapai pada temperatur lebih rendah
-      const tMixMin = (Math.log10(vMixMax) - a) / b
-      const tMixMax = (Math.log10(vMixMin) - a) / b
-      const tMixAvg = (tMixMin + tMixMax) / 2
-
-      const tCompMin = (Math.log10(vCompMax) - a) / b
-      const tCompMax = (Math.log10(vCompMin) - a) / b
-      const tCompAvg = (tCompMin + tCompMax) / 2
-
-      // Estimasi Viskositas pada 135°C
-      const v135 = Math.pow(10, a + b * 135.0)
-
-      const isSlopeNegatif = b < 0
+      const minT = Math.min(...points.map((point) => point.t))
+      const maxT = Math.max(...points.map((point) => point.t))
+      const risingPoints = points.filter((point) => points.some((other) => other.t < point.t && other.v < point.v))
       const isR2Kuat = r2 >= 0.95
-      const isV135Lolos = v135 >= 300.0
-
-      let status = 'Memenuhi Standar'
-      let verdictClass = 'valid'
-      let conclusion = ''
-
-      if (!isSlopeNegatif) {
-        status = 'Tidak Valid'
-        verdictClass = 'error'
-        conclusion = 'Data tidak valid: waktu alir/viskositas seharusnya menurun seiring kenaikan suhu pengujian.'
-      } else if (!isV135Lolos || !isR2Kuat) {
-        status = 'Perlu Evaluasi'
-        verdictClass = 'warning'
-        conclusion = 'Perhatian: Viskositas pada 135°C di bawah 300 cSt atau kelinieran data kurva kurang presisi.'
-      } else {
-        status = 'Memenuhi Standar'
-        verdictClass = 'valid'
-        conclusion = 'Memenuhi spesifikasi viskositas Bina Marga (v pada 135°C ≥ 300 cSt) dengan korelasi regresi sangat kuat.'
+      const usableModel = Number.isFinite(b) && b < -1e-9 && !risingPoints.length && isR2Kuat && minT >= 120 && maxT <= 240
+      const temperatureAt = (target) => (Math.log10(target) - a) / b
+      const workRange = (low, high) => {
+        if (!usableModel) return [null, null, null]
+        const start = temperatureAt(high)
+        const end = temperatureAt(low)
+        return start >= minT - 1e-9 && end <= maxT + 1e-9 ? [start, end, (start + end) / 2] : [null, null, null]
       }
+      const [tMixMin, tMixMax, tMixAvg] = workRange(vMixMin, vMixMax)
+      const [tCompMin, tCompMax, tCompAvg] = workRange(vCompMin, vCompMax)
+      const v135 = usableModel && minT <= 135 && maxT >= 135 ? 10 ** (a + b * 135) : null
+      const status = tMixMin === null || tCompMin === null ? 'Perlu Evaluasi' : 'Estimasi praktikum'
+      const verdictClass = 'warning'
+      const conclusion = [
+        risingPoints.length ? `Viskositas meningkat pada suhu ${risingPoints.map((point) => point.t + ' °C').join(', ')} dibandingkan suhu yang lebih rendah. Cocokkan suhu dan waktu alir dengan lembar uji.` : '',
+        minT < 120 || maxT > 240 ? 'Suhu pengamatan di luar rentang uji Saybolt Furol 120–240 °C.' : '',
+        !isR2Kuat ? 'R² di bawah pembanding praktikum 0,95.' : '',
+        b >= -1e-9 ? 'Model tidak menunjukkan penurunan viskositas terhadap kenaikan suhu.' : '',
+        usableModel && (tMixMin === null || tCompMin === null) ? 'Sebagian target memerlukan pengamatan tambahan untuk menghindari ekstrapolasi.' : '',
+        'Konversi waktu alir ke cSt bersifat estimasi. Evaluasi batas 300 cSt pada 135 °C untuk Pen 60/70 memakai uji ASTM D2170.',
+      ].filter(Boolean).join(' ')
 
-      // Siapkan data grafik untuk Recharts
-      const tempsList = points.map((p) => p.t)
-      const minT = Math.min(...tempsList, tCompMin, tMixMin)
-      const maxT = Math.max(...tempsList, tCompMax, tMixMax)
       // Skala bulat kelipatan 5°C
       const minTempChart = Math.floor((minT - 3) / 5) * 5
       const maxTempChart = Math.ceil((maxT + 3) / 5) * 5
 
       // Interval tick konsisten kelipatan 5°C
       const xTicks = []
-      for (let t = minTempChart; t <= maxTempChart; t += 5) {
+      const tickStep = Math.max(5, 5 * Math.ceil((maxTempChart - minTempChart) / 60))
+      for (let t = minTempChart; t <= maxTempChart; t += tickStep) {
         xTicks.push(t)
       }
 
       // Kumpulkan semua titik koordinat temperatur: per 1°C untuk kehalusan kurva + koordinat suhu uji
       const tempSet = new Set()
-      for (let t = minTempChart; t <= maxTempChart; t += 1) {
+      const graphStep = Math.max(1, Math.ceil((maxTempChart - minTempChart) / 150))
+      for (let t = minTempChart; t <= maxTempChart; t += graphStep) {
         tempSet.add(t)
       }
       points.forEach((p) => tempSet.add(p.t))
@@ -10618,6 +8016,7 @@ export const calculatorRegistry = {
 
       const viscosityChart = {
         chartPoints,
+        usableModel,
         xTicks,
         minTempChart,
         maxTempChart,
@@ -10652,20 +8051,20 @@ export const calculatorRegistry = {
         results: [
           {
             label: 'Rentang Suhu Pencampuran (Mixing)',
-            value: `${tMixMin.toFixed(1)} - ${tMixMax.toFixed(1)} °C`,
-            unit: `(Rata-rata: ${tMixAvg.toFixed(1)} °C)`,
+            value: tMixMin === null ? 'Belum dapat ditentukan' : `${tMixMin.toFixed(1)} - ${tMixMax.toFixed(1)} °C`,
+            unit: tMixAvg === null ? '' : `(Rata-rata: ${tMixAvg.toFixed(1)} °C)`,
             highlight: true,
           },
           {
             label: 'Rentang Suhu Pemadatan (Compaction)',
-            value: `${tCompMin.toFixed(1)} - ${tCompMax.toFixed(1)} °C`,
-            unit: `(Rata-rata: ${tCompAvg.toFixed(1)} °C)`,
+            value: tCompMin === null ? 'Belum dapat ditentukan' : `${tCompMin.toFixed(1)} - ${tCompMax.toFixed(1)} °C`,
+            unit: tCompAvg === null ? '' : `(Rata-rata: ${tCompAvg.toFixed(1)} °C)`,
             highlight: true,
           },
           {
-            label: 'Viskositas Kinematik pada 135°C',
-            value: `${v135.toFixed(1)} cSt`,
-            unit: '(Syarat ≥ 300 cSt)',
+            label: 'Estimasi Viskositas Kinematik pada 135°C',
+            value: v135 === null ? '—' : `${v135.toFixed(1)} cSt`,
+            unit: '(model SFS)',
           },
           {
             label: 'Persamaan Regresi & Akurasi',
@@ -10683,12 +8082,8 @@ export const calculatorRegistry = {
           `   Jumlah Titik Data (n) = ${n}`,
           `   Kemiringan (b) = ${b.toFixed(5)}, Intersep (a) = ${a.toFixed(4)}`,
           `   Koefisien Korelasi (R) = ${rVal.toFixed(4)}, Determinasi (R²) = ${r2.toFixed(4)} (${isR2Kuat ? 'Korelasi Sangat Kuat ≥ 0.95' : 'Kurang Presisi'})`,
-          `3. PERHITUNGAN SUHU PENCAMPURAN (TARGET: ${vMixMin.toFixed(0)} - ${vMixMax.toFixed(0)} cSt):`,
-          `   T_mix = [log₁₀(target) - a] / b ➔ ${tMixMin.toFixed(1)} °C s.d. ${tMixMax.toFixed(1)} °C (Rata-rata: ${tMixAvg.toFixed(1)} °C)`,
-          `4. PERHITUNGAN SUHU PEMADATAN (TARGET: ${vCompMin.toFixed(0)} - ${vCompMax.toFixed(0)} cSt):`,
-          `   T_comp = [log₁₀(target) - a] / b ➔ ${tCompMin.toFixed(1)} °C s.d. ${tCompMax.toFixed(1)} °C (Rata-rata: ${tCompAvg.toFixed(1)} °C)`,
-          `5. VERIFIKASI VISKOSITAS PADA 135°C & SPESIFIKASI BINA MARGA 2018:`,
-          `   v_135 = 10^[${a.toFixed(4)} + (${b.toFixed(5)} × 135)] = ${v135.toFixed(1)} cSt (Syarat Bina Marga ≥ 300 cSt: ${isV135Lolos ? 'Lolos' : 'Kurang'})`,
+          tMixMin === null ? 'Suhu pencampuran belum dapat ditentukan.' : `Suhu pencampuran estimasi ${tMixMin.toFixed(1)}–${tMixMax.toFixed(1)} °C.`,
+          tCompMin === null ? 'Suhu pemadatan belum dapat ditentukan.' : `Suhu pemadatan estimasi ${tCompMin.toFixed(1)}–${tCompMax.toFixed(1)} °C.`,
           `   Status Evaluasi: ${status}`,
         ],
         viscosityChart,
@@ -10696,7 +8091,7 @@ export const calculatorRegistry = {
         status,
         verdictClass,
         conclusion,
-        summaryString: `Mix: ${tMixMin.toFixed(0)}-${tMixMax.toFixed(0)}°C | Padat: ${tCompMin.toFixed(0)}-${tCompMax.toFixed(0)}°C | v135: ${v135.toFixed(0)} cSt`,
+        summaryString: status === 'Perlu Evaluasi' ? 'Saybolt Furol | Perlu Evaluasi suhu kerja' : `Mix: ${tMixMin.toFixed(0)}-${tMixMax.toFixed(0)}°C | Padat: ${tCompMin.toFixed(0)}-${tCompMax.toFixed(0)}°C (estimasi)`,
         tMixMin,
         tMixMax,
         tMixAvg,
@@ -10781,8 +8176,13 @@ export const calculatorRegistry = {
       },
     ],
     calculate: (inputs) => {
-      const wTotal = Number(inputs.wTotal) || 1200.0
+      const wTotal = Number(inputs.wTotal ?? 1200)
       const pbRencana = Number(inputs.pbRencana !== undefined && inputs.pbRencana !== '' ? inputs.pbRencana : (inputs.pb0 || 6.5))
+      const kind = inputs.jenisCampuran || 'ac-wc'
+      const envelope = LASTON_GRADATION[kind] || {}
+      let massMismatch = false
+      let validWeights = true
+      let recovered = 0
       const k = Number(inputs.k !== undefined && inputs.k !== '' ? inputs.k : 0.75)
 
       // Perhitungan Berat Aspal & Total Massa Agregat Rencana
@@ -10796,27 +8196,34 @@ export const calculatorRegistry = {
       let wFA = 0
       let wFiller = 0
       let computedSieves = []
-      let allSpecOk = true
+      let allSpecOk = false
       const hasSieves = Array.isArray(inputs.sieves) && inputs.sieves.length > 0
       const isDirectCaFa = !hasSieves && (inputs.ca !== undefined || inputs.fa !== undefined || inputs.filler !== undefined)
 
       if (hasSieves || !isDirectCaFa) {
-        const sievesToUse = hasSieves ? inputs.sieves : DEFAULT_JMF_SIEVES
+        const sievesToUse = [...(hasSieves ? inputs.sieves : DEFAULT_JMF_SIEVES)].sort((a, b) => Number(b.size) - Number(a.size))
+        recovered = sievesToUse.reduce((sum, row) => sum + Number(row.retWeight), 0)
+        const sizes = sievesToUse.map((row) => Number(row.size))
+        validWeights = sizes.every((size) => Number.isFinite(size) && size >= 0) && new Set(sizes).size === sizes.length &&
+          sievesToUse.every((row) => row.retWeight !== '' && row.retWeight != null && Number.isFinite(Number(row.retWeight)) && Number(row.retWeight) >= 0)
+        massMismatch = !validWeights || !(recovered > 0) || Math.abs(recovered - wAgregatRencana) > 0.001 * wAgregatRencana
+        allSpecOk = validWeights && sizes.includes(0) && Object.keys(envelope).length > 0 && Object.keys(envelope).every((size) => sizes.includes(Number(size)))
         // Alur analisis gradasi rencana (Tabel 11.1, 11.2, 11.3)
         let runningRet = 0
         computedSieves = sievesToUse.map((s) => {
           const ret = s.retWeight !== undefined && s.retWeight !== '' ? Number(s.retWeight) : 0
           runningRet += ret
           const cumRetWeight = runningRet
-          const cumRetPct = wAgregatRencana > 0 ? (cumRetWeight / wAgregatRencana) * 100 : 0
+          const cumRetPct = recovered > 0 ? (cumRetWeight / recovered) * 100 : 0
           const cumPassPct = Math.max(0, 100 - cumRetPct)
-          const isOk = s.specMin !== null && s.specMax !== null
-            ? (cumPassPct >= s.specMin - 0.05 && cumPassPct <= s.specMax + 0.05)
-            : true
+          const [specMin, specMax] = envelope[Number(s.size)] || [null, null]
+          const isOk = specMin == null || (cumPassPct >= specMin - 1e-9 && cumPassPct <= specMax + 1e-9)
           if (!isOk) allSpecOk = false
           return {
             ...s,
             retWeight: ret,
+            specMin,
+            specMax,
             cumRetWeight: +(cumRetWeight.toFixed(2)),
             cumRetPct: +(cumRetPct.toFixed(2)),
             cumPassPct: +(cumPassPct.toFixed(2)),
@@ -10825,29 +8232,31 @@ export const calculatorRegistry = {
         })
 
         // Agregat Kasar (CA): Tertahan Saringan No. 4 (4.75 mm) -> Ayakan 1" s/d No. 4 (index 0..4)
-        wCA = computedSieves.slice(0, 5).reduce((sum, s) => sum + s.retWeight, 0)
-        ca = wAgregatRencana > 0 ? +( (wCA / wAgregatRencana * 100).toFixed(2) ) : 0
+        wCA = computedSieves.filter((row) => Number(row.size) >= 4.75).reduce((sum, s) => sum + s.retWeight, 0)
+        ca = recovered > 0 ? wCA / recovered * 100 : 0
 
         // Agregat Halus (FA): Lolos Saringan No. 4 & Tertahan No. 200 -> Ayakan No. 8 s/d No. 200 (index 5..10)
-        wFA = computedSieves.slice(5, 11).reduce((sum, s) => sum + s.retWeight, 0)
-        fa = wAgregatRencana > 0 ? +( (wFA / wAgregatRencana * 100).toFixed(2) ) : 0
+        wFA = computedSieves.filter((row) => Number(row.size) < 4.75 && Number(row.size) >= 0.075).reduce((sum, s) => sum + s.retWeight, 0)
+        fa = recovered > 0 ? wFA / recovered * 100 : 0
 
         // Bahan Pengisi (Filler): Lolos Saringan No. 200 -> Pan (index 11)
-        wFiller = computedSieves.length > 11 ? (Number(computedSieves[11].retWeight) || 0) : 0
-        filler = wAgregatRencana > 0 ? +( (wFiller / wAgregatRencana * 100).toFixed(2) ) : 0
+        wFiller = computedSieves.filter((row) => Number(row.size) < 0.075).reduce((sum, row) => sum + row.retWeight, 0)
+        filler = recovered > 0 ? wFiller / recovered * 100 : 0
       } else {
         // Fallback jika input berupa ca, fa, filler langsung
-        ca = Number(inputs.ca) || 39.0
-        fa = Number(inputs.fa) || 54.5
-        filler = Number(inputs.filler) || 6.5
+        ca = Number(inputs.ca ?? 39)
+        fa = Number(inputs.fa ?? 54.5)
+        filler = Number(inputs.filler ?? 6.5)
+        recovered = wAgregatRencana
         wCA = (ca / 100.0) * wAgregatRencana
         wFA = (fa / 100.0) * wAgregatRencana
         wFiller = (filler / 100.0) * wAgregatRencana
       }
 
       if (
-        isNaN(wTotal) || isNaN(pbRencana) || isNaN(k) ||
-        wTotal <= 0 || pbRencana <= 0 || k < 0.5 || k > 1.0
+        ![wTotal, pbRencana, k, ca, fa, filler].every(Number.isFinite) || !validWeights ||
+        [ca, fa, filler].some((value) => value < 0 || value > 100) ||
+        wTotal <= 0 || pbRencana <= 0 || pbRencana >= 100 || k < 0.5 || k > 1.0
       ) {
         return {
           results: [
@@ -10856,11 +8265,11 @@ export const calculatorRegistry = {
             { label: 'Rentang 5 Variasi Benda Uji', value: '-', unit: '' },
             { label: 'Berat Aspal pada KAA (Briket 1200g)', value: '-', unit: 'gram', highlight: true },
           ],
-          formulaSteps: ['Konstanta K Laston harus berada dalam rentang 0.5 - 1.0 dan seluruh parameter berat harus bernilai positif > 0.'],
+          formulaSteps: ['Isi massa ayakan dengan angka nonnegatif dan gunakan ukuran unik. Fraksi harus 0–100%, massa campuran positif, dan K empiris 0,5–1,0.'],
           isError: true,
           status: 'Input Tidak Valid',
           verdictClass: 'error',
-          conclusion: 'Nilai parameter input berada di luar rentang standar (Konstanta K: 0.5 - 1.0).',
+          conclusion: 'Periksa massa, fraksi, dan parameter rancangan campuran.',
           summaryString: 'Input Parameter Tidak Valid',
         }
       }
@@ -10915,17 +8324,20 @@ export const calculatorRegistry = {
       const wAg3 = jmfTable[2].beratAgTotal
 
       // Tabel 11.4: Hasil Analisis Perhitungan Mix Design (Untuk Pb_rencana)
-      const caMixPct = wTotal > 0 ? (wCA / wTotal) * 100 : 0
-      const faMixPct = wTotal > 0 ? (wFA / wTotal) * 100 : 0
-      const fillerMixPct = wTotal > 0 ? (wFiller / wTotal) * 100 : 0
+      const planCA = ca * wAgregatRencana / 100
+      const planFA = fa * wAgregatRencana / 100
+      const planFiller = filler * wAgregatRencana / 100
+      const caMixPct = 100 * planCA / wTotal
+      const faMixPct = 100 * planFA / wTotal
+      const fillerMixPct = 100 * planFiller / wTotal
       const aspalMixPct = pbRencana
 
       const mixDesignTable = [
         {
           fraksi: 'Agregat Kasar (CA)',
           komposisi: 'Agregat Kasar (CA)',
-          berat: +(wCA.toFixed(2)),
-          beratGram: +(wCA.toFixed(2)),
+          berat: +(planCA.toFixed(2)),
+          beratGram: +(planCA.toFixed(2)),
           persenAgregat: +(ca.toFixed(2)),
           pctAgregat: +(ca.toFixed(2)),
           persenCampuran: +(caMixPct.toFixed(3)),
@@ -10935,8 +8347,8 @@ export const calculatorRegistry = {
         {
           fraksi: 'Agregat Halus (FA)',
           komposisi: 'Agregat Halus (FA)',
-          berat: +(wFA.toFixed(2)),
-          beratGram: +(wFA.toFixed(2)),
+          berat: +(planFA.toFixed(2)),
+          beratGram: +(planFA.toFixed(2)),
           persenAgregat: +(fa.toFixed(2)),
           pctAgregat: +(fa.toFixed(2)),
           persenCampuran: +(faMixPct.toFixed(3)),
@@ -10946,8 +8358,8 @@ export const calculatorRegistry = {
         {
           fraksi: 'Bahan Pengisi (Filler)',
           komposisi: 'Bahan Pengisi (Filler)',
-          berat: +(wFiller.toFixed(2)),
-          beratGram: +(wFiller.toFixed(2)),
+          berat: +(planFiller.toFixed(2)),
+          beratGram: +(planFiller.toFixed(2)),
           persenAgregat: +(filler.toFixed(2)),
           pctAgregat: +(filler.toFixed(2)),
           persenCampuran: +(fillerMixPct.toFixed(3)),
@@ -10959,8 +8371,8 @@ export const calculatorRegistry = {
           komposisi: 'Aspal (Pb Rencana)',
           berat: +(wAspalRencana.toFixed(2)),
           beratGram: +(wAspalRencana.toFixed(2)),
-          persenAgregat: +(pbRencana.toFixed(2)),
-          pctAgregat: +(pbRencana.toFixed(2)),
+          persenAgregat: 0,
+          pctAgregat: 0,
           persenCampuran: +(aspalMixPct.toFixed(3)),
           pctCampuran: +(aspalMixPct.toFixed(3)),
           keterangan: 'Kadar Aspal Rencana terhadap Total Campuran',
@@ -10988,25 +8400,27 @@ export const calculatorRegistry = {
       }))
 
       // Persentase Kumulatif Lolos No. 4 dan No. 200 untuk metode grafik
-      const passNo4 = computedSieves.length > 4 ? computedSieves[4].cumPassPct : 61.0
-      const passNo200 = computedSieves.length > 10 ? computedSieves[10].cumPassPct : 6.5
+      const passNo4 = computedSieves.find((row) => Number(row.size) === 4.75)?.cumPassPct ?? null
+      const passNo200 = computedSieves.find((row) => Number(row.size) === 0.075)?.cumPassPct ?? null
 
-      let status = 'Memenuhi Standar'
-      let verdictClass = 'valid'
-      let conclusion = ''
+      let status
+      let verdictClass
+      let conclusion
 
       if (!isTotalValid) {
         status = 'Tidak Valid'
         verdictClass = 'error'
         conclusion = `Kesalahan Proporsi: Jumlah %CA + %FA + %FF saat ini adalah ${totalAgPct.toFixed(1)}%, wajib tepat 100.0%.`
-      } else if (!allSpecOk) {
+      } else if (massMismatch || !allSpecOk) {
         status = 'Perlu Evaluasi'
         verdictClass = 'warning'
-        conclusion = 'Perhatian: Terdapat ayakan dengan % lolos kumulatif yang keluar dari amplop batas spesifikasi Laston AC-WC Bina Marga 2018.'
+        conclusion = massMismatch ? 'Neraca massa agregat terhadap rencana perlu ditinjau dengan pembanding praktikum 0,1%.'
+          : isDirectCaFa ? 'Fraksi dimasukkan langsung. Data ayakan diperlukan untuk mengevaluasi amplop gradasi.'
+            : 'Periksa kelengkapan dan persen lolos ayakan terhadap amplop Laston ' + kind.toUpperCase() + '.'
       } else {
-        status = 'Memenuhi Standar'
+        status = 'Masuk amplop gradasi'
         verdictClass = 'valid'
-        conclusion = `Gradasi rencana 100% memenuhi amplop spesifikasi Laston AC-WC Bina Marga 2018. Kadar Aspal Acuan KAA = ${kaaMurni.toFixed(2)}% (Pb₀ = ${pb0.toFixed(1)}%) dengan komposisi briket seberat ${wTotal.toFixed(0)} gram siap diuji.`
+        conclusion = `Gradasi berada dalam amplop Laston ${kind.toUpperCase()} Bina Marga 2018 Revisi 2. Pb₀ = ${pb0.toFixed(1)}% merupakan titik awal uji variasi Marshall.`
       }
 
       return {
@@ -11039,7 +8453,7 @@ export const calculatorRegistry = {
           },
         ],
         formulaSteps: [
-          `1. PARAMETER AWAL BENDA UJI (CAMPURAN LASTON AC-WC BINA MARGA 2018):`,
+          `1. PARAMETER AWAL BENDA UJI (LASTON ${kind.toUpperCase()}):`,
           `   Total Berat 1 Briket (W_total) = ${wTotal.toFixed(0)} gram`,
           `   Kadar Aspal Rencana (Pb_rencana) = ${pbRencana.toFixed(1)}%`,
           `   Berat Aspal Rencana (W_aspal) = (${pbRencana.toFixed(1)} / 100) × ${wTotal.toFixed(0)} = ${wAspalRencana.toFixed(1)} gram`,
@@ -11047,29 +8461,23 @@ export const calculatorRegistry = {
           `   Konstanta Penyerapan Agregat Laston (K) = ${k.toFixed(2)}`,
           `2. ANALISIS FRAKSI GABUNGAN AGREGAT (BATAS SARINGAN NO. 4 & NO. 200):`,
           `   a. Metode Analitis (Berdasarkan Berat Tertahan):`,
-          `      - Berat CA (Tertahan No. 4) = ${wCA.toFixed(2)} gram ➔ %CA = (${wCA.toFixed(2)} / ${wAgregatRencana.toFixed(1)}) × 100% = ${ca.toFixed(2)}%`,
-          `      - Berat FA (Lolos No. 4 & Tertahan No. 200) = ${wFA.toFixed(2)} gram ➔ %FA = (${wFA.toFixed(2)} / ${wAgregatRencana.toFixed(1)}) × 100% = ${fa.toFixed(2)}%`,
-          `      - Berat Filler (Lolos No. 200 / Pan) = ${wFiller.toFixed(2)} gram ➔ %Filler = (${wFiller.toFixed(2)} / ${wAgregatRencana.toFixed(1)}) × 100% = ${filler.toFixed(2)}%`,
+          `      - Massa dasar fraksi = ${recovered.toFixed(1)} g. CA = ${wCA.toFixed(2)} g (${ca.toFixed(2)}%), FA = ${wFA.toFixed(2)} g (${fa.toFixed(2)}%), FF = ${wFiller.toFixed(2)} g (${filler.toFixed(2)}%).`,
           `      - Total Agregat = ${ca.toFixed(2)}% + ${fa.toFixed(2)}% + ${filler.toFixed(2)}% = ${totalAgPct.toFixed(2)}%`,
           `   b. Metode Grafik (Berdasarkan Kurva Kumulatif Lolos Gambar 11.19):`,
-          `      - Kumulatif Lolos Saringan No. 4 = ${passNo4.toFixed(1)}%`,
-          `      - Kumulatif Lolos Saringan No. 200 = ${passNo200.toFixed(1)}%`,
-          `      - %CA = 100% - %Lolos No. 4 = 100% - ${passNo4.toFixed(1)}% = ${(100 - passNo4).toFixed(1)}%`,
-          `      - %FA = %Lolos No. 4 - %Lolos No. 200 = ${passNo4.toFixed(1)}% - ${passNo200.toFixed(1)}% = ${(passNo4 - passNo200).toFixed(1)}%`,
-          `      - %Filler = %Lolos No. 200 = ${passNo200.toFixed(1)}%`,
+          `      - Lolos No. 4: ${passNo4?.toFixed(1) ?? '—'}%. Lolos No. 200: ${passNo200?.toFixed(1) ?? '—'}%.`,
           `3. PERHITUNGAN KADAR ASPAL ACUAN (KAA / Pb_awal):`,
           `   Rumus: KAA = 0.035 × (%CA) + 0.045 × (%FA) + 0.18 × (%Filler) + K`,
           `   KAA = (0.035 × ${ca.toFixed(1)}) + (0.045 × ${fa.toFixed(1)}) + (0.18 × ${filler.toFixed(1)}) + ${k.toFixed(2)}`,
           `   KAA = ${(0.035 * ca).toFixed(3)}% + ${(0.045 * fa).toFixed(3)}% + ${(0.18 * filler).toFixed(3)}% + ${k.toFixed(2)}% = ${kaaMurni.toFixed(4)}% ≈ ${kaaMurni.toFixed(1)}%`,
           `   Pembulatan Kelipatan 0.5% (Pb_0) = ${pb0.toFixed(1)}%`,
           `4. KOMPOSISI MIX DESIGN KADAR ASPAL RENCANA (${pbRencana.toFixed(1)}% - TABEL 11.4):`,
-          `   - CA : Berat = ${wCA.toFixed(2)} g | % Agregat = ${ca.toFixed(1)}% | % Campuran = ${caMixPct.toFixed(3)}%`,
-          `   - FA : Berat = ${wFA.toFixed(2)} g | % Agregat = ${fa.toFixed(1)}% | % Campuran = ${faMixPct.toFixed(3)}%`,
-          `   - FF : Berat = ${wFiller.toFixed(2)} g | % Agregat = ${filler.toFixed(1)}% | % Campuran = ${fillerMixPct.toFixed(3)}%`,
-          `   - Aspal: Berat = ${wAspalRencana.toFixed(2)} g | % Agregat = ${pbRencana.toFixed(1)}% | % Campuran = ${aspalMixPct.toFixed(3)}%`,
+          `   - CA : Berat = ${planCA.toFixed(2)} g | % Agregat = ${ca.toFixed(1)}% | % Campuran = ${caMixPct.toFixed(3)}%`,
+          `   - FA : Berat = ${planFA.toFixed(2)} g | % Agregat = ${fa.toFixed(1)}% | % Campuran = ${faMixPct.toFixed(3)}%`,
+          `   - FF : Berat = ${planFiller.toFixed(2)} g | % Agregat = ${filler.toFixed(1)}% | % Campuran = ${fillerMixPct.toFixed(3)}%`,
+          `   - Aspal: Berat = ${wAspalRencana.toFixed(2)} g | % Campuran = ${aspalMixPct.toFixed(3)}%`,
           `   - Total: Berat = ${wTotal.toFixed(2)} g | % Campuran = 100.000%`,
           `5. EVALUASI SPESIFIKASI BINA MARGA 2018 (DIVISI 6):`,
-          `   Status Gradasi Campuran: ${allSpecOk ? 'Semua Ayakan Memenuhi Amplop Spesifikasi AC-WC' : 'Terdapat Ayakan Keluar Amplop Spesifikasi'}`,
+          `   Evaluasi amplop: ${allSpecOk ? 'Ayakan acuan masuk amplop' : 'Periksa data ayakan'}`,
           `   Status Evaluasi: ${status}`,
         ],
         computedSieves,
@@ -11088,6 +8496,7 @@ export const calculatorRegistry = {
         kaaMurni,
         pb0,
         allSpecOk,
+        massMismatch,
         jmfTable: {
           wTotal,
           ca,
@@ -11358,6 +8767,9 @@ export const calculatorRegistry = {
     ],
     calculate: (inputs) => {
       const jenis = inputs.jenisCampuran || 'ac-wc'
+      const limits = LASTON_MARSHALL[jenis]
+      const within = (key, value) => Boolean(limits?.[key] && value >= limits[key][0] && (limits[key][1] == null || value <= limits[key][1]))
+      const limitLabel = (key) => !limits?.[key] ? 'Dilaporkan' : limits[key][1] == null ? '≥ ' + limits[key][0] : limits[key].join('–')
 
       // =======================================================================
       // MODE A: MULTI-BENDA UJI MARSHALL (LAPORAN PRAKTIKUM UNIVERSITAS TIDAR)
@@ -11371,7 +8783,7 @@ export const calculatorRegistry = {
         const kKor = inputs.angkaKorelasiBeban !== undefined && inputs.angkaKorelasiBeban !== ''
           ? Number(inputs.angkaKorelasiBeban)
           : kKorAuto
-        const cKal = Number(inputs.kalibrasiAlat) || 12.9961
+        const cKal = Number(inputs.kalibrasiAlat ?? 12.9961)
 
         const gsb1 = Number(inputs.gsb1) || 2.09495
         const gsb2 = Number(inputs.gsb2) || 2.64648
@@ -11416,61 +8828,65 @@ export const calculatorRegistry = {
         // Kalkulasi Masing-Masing Benda Uji (Tabel 12.3 & 12.4)
         const formulaStepsBySpecimen = {}
 
+        const display = (value, decimals = 2, suffix = '') =>
+          Number.isFinite(value) ? value.toFixed(decimals) + suffix : '—'
         const computedSpecimens = inputs.specimens.map((s, idx) => {
-          const pa = Number(s.pa) || 5.0
-          const bSsd = Number(s.beratSsd) || 0
-          const bAir = Number(s.beratAir) || 0
-          const bKering = Number(s.beratKering) || 0
-          const rStab = Number(s.bacaanStab) || 0
-          const flow = Number(s.flow) || 0
+          const pa = numeric(s.pa)
+          const bSsd = numeric(s.beratSsd)
+          const bAir = numeric(s.beratAir)
+          const bKering = numeric(s.beratKering)
+          const rStab = numeric(s.bacaanStab)
+          const flow = numeric(s.flow)
           const kSpec = s.angkaKorelasi !== undefined && s.angkaKorelasi !== '' ? Number(s.angkaKorelasi) : kKor
 
-          const v = Number((bSsd - bAir).toFixed(1))
-          const gmb = v > 0 ? Number((bKering / v).toFixed(3)) : 0
-          const ps = Number((100 - pa).toFixed(3))
-          const denomGmm = (ps / gse) + (pa / ga)
-          const gmm = denomGmm > 0 ? Number((100 / denomGmm).toFixed(3)) : 0
-          const pab = Number((100 * ((gse - gsb) / (gsb * gse)) * ga).toFixed(2))
-          const pae = Number((pa - ((pab / 100) * ps)).toFixed(3))
-          const vma = gsb > 0 ? Number((100 - ((gmb * ps) / gsb)).toFixed(2)) : 0
-          const vim = gmm > 0 ? Number((100 * ((gmm - gmb) / gmm)).toFixed(2)) : 0
-          const vfa = vma > 0 ? Number((100 * ((vma - vim) / vma)).toFixed(2)) : 0
+          const paValid = Number.isFinite(pa) && pa > 0 && pa < 100
+          const massValid = bKering > 0 && bAir > 0 && bSsd > bAir && bSsd >= bKering
+          const v = massValid ? bSsd - bAir : null
+          const gmb = massValid ? bKering / v : null
+          const ps = paValid ? 100 - pa : null
+          const measuredGmm = s.gmmMeasured == null || s.gmmMeasured === '' ? null : Number(s.gmmMeasured)
+          const gmmEstimated = paValid ? 100 / (ps / gse + pa / ga) : null
+          const hasMeasuredGmm = measuredGmm !== null && Number.isFinite(measuredGmm) && measuredGmm > 0
+          const gmm = paValid && massValid
+            ? measuredGmm === null ? gmmEstimated : hasMeasuredGmm && measuredGmm >= gmb ? measuredGmm : null
+            : null
+          const pab = 100 * (gse - gsb) * ga / (gsb * gse)
+          const pae = paValid ? pa - pab * ps / 100 : null
+          const vma = massValid && paValid && gsb > 0 ? 100 - gmb * ps / gsb : null
+          const vim = gmm !== null && gmm >= gmb ? 100 * (1 - gmb / gmm) : null
+          const vfa = vma > 0 && vim !== null && vim <= vma ? 100 * (vma - vim) / vma : null
 
-          const stabilitas = s.stabilitas !== undefined && Number(s.stabilitas) > 0
-            ? Number(Number(s.stabilitas).toFixed(2))
-            : Number((rStab * kSpec * cKal).toFixed(2))
-          const mq = flow > 0 ? Number((stabilitas / flow).toFixed(2)) : 0
-          const density = Number((((pa / 100) * ga) + ((ps / 100) * gse)).toFixed(3))
-          const tebalSelimut = totalLp > 0 && ps > 0 && ga > 0
+          const stabilitas = rStab > 0 && kSpec > 0 && cKal > 0
+            ? Number((rStab * kSpec * cKal).toFixed(2))
+            : null
+          const mq = flow > 0 && stabilitas !== null ? stabilitas / flow : null
+          const density = gmb
+          const tebalSelimut = massValid && totalLp > 0 && ps > 0 && ga > 0 && pae >= 0
             ? Number(((pae / ga) * (1 / (totalLp * ps)) * 1000).toFixed(2))
-            : 0
+            : null
 
-          const isStabOk = stabilitas >= 800
-          const isFlowOk = flow >= 2.0 && flow <= 4.0
-          const isMqOk = mq >= 250
-          const isVmaOk = vma >= 15.0
-          const isVimOk = vim >= 3.0 && vim <= 5.0
-          const isVfaOk = vfa >= 65.0
+          const isStabOk = stabilitas !== null && within('stabilitas', stabilitas)
+          const isFlowOk = within('flow', flow)
+          const isVmaOk = vma !== null && within('vma', vma)
+          const isVimOk = hasMeasuredGmm && vim !== null && within('vim', vim)
+          const isVfaOk = hasMeasuredGmm && vfa !== null && within('vfa', vfa)
+          const volumetricNote = !massValid ? 'Periksa penimbangan'
+            : !paValid ? 'Periksa kadar aspal'
+              : measuredGmm === null ? 'Isi Gmm hasil uji'
+                : gmm === null ? 'Periksa Gmm hasil uji (harus positif dan minimal sebesar Gmb)' : null
 
-          // Rincian 16 Langkah Rumus Perhitungan per Benda Uji (Subbab 12.7)
           const steps = [
-            `1. Volume Benda Uji (V) = B_SSD - B_air = ${bSsd.toFixed(1)} - ${bAir.toFixed(1)} = ${v.toFixed(1)} cm³ (gram)`,
-            `2. Berat Jenis Bulk Aspal Padat (Gmb) = B_kering / V = ${bKering.toFixed(1)} / ${v.toFixed(1)} = ${gmb.toFixed(3)} gr/cm³`,
-            `3. Berat Jenis Bulk Agregat Gabungan (Gsb) = (P1 + P2 + P3) / [(P1/Gsb1) + (P2/Gsb2) + (P3/Gsb3)]\n   = ${totalP.toFixed(2)} / [(${p1}/${gsb1}) + (${p2}/${gsb2}) + (${p3}/${gsb3})] = ${gsb.toFixed(3)} ≈ ${gsb.toFixed(2)}`,
-            `4. Berat Jenis Semu Agregat Gabungan (Gsa) = (P1 + P2 + P3) / [(P1/Gsa1) + (P2/Gsa2) + (P3/Gsa3)]\n   = ${totalP.toFixed(2)} / [(${p1}/${gsa1}) + (${p2}/${gsa2}) + (${p3}/${gsa3})] = ${gsa.toFixed(3)} ≈ ${gsa.toFixed(2)}`,
-            `5. Berat Jenis Efektif Agregat Gabungan (Gse) = (P1 + P2 + P3) / [(P1 / ((Gsb1+Gsa1)/2)) + (P2 / ((Gsb2+Gsa2)/2)) + (P3 / ((Gsb3+Gsa3)/2))]\n   = ${totalP.toFixed(2)} / [(${p1}/${((gsb1 + gsa1) / 2).toFixed(3)}) + (${p2}/${((gsb2 + gsa2) / 2).toFixed(3)}) + (${p3}/${((gsb3 + gsa3) / 2).toFixed(3)})] = ${gse.toFixed(3)}`,
-            `6. Berat Jenis Maksimum Campuran Teoretis (Gmm) = 100 / [(Ps / Gse) + (Pa / Ga)]\n   = 100 / [(${ps.toFixed(2)} / ${gse.toFixed(3)}) + (${pa.toFixed(1)} / ${ga.toFixed(5)})] = ${gmm.toFixed(3)} ≈ ${gmm.toFixed(2)} gr/cm³`,
-            `7. Kadar Aspal Terabsorbsi Agregat (Pab) = 100 × [(Gse - Gsb) / (Gsb × Gse)] × Ga\n   = 100 × [(${gse.toFixed(3)} - ${gsb.toFixed(3)}) / (${gsb.toFixed(3)} × ${gse.toFixed(3)})] × ${ga.toFixed(5)} = ${pab.toFixed(2)}%`,
-            `8. Kadar Aspal Efektif Campuran (Pae) = Pa - [(Pab / 100) × Ps]\n   = ${pa.toFixed(1)} - [(${pab.toFixed(2)} / 100) × ${ps.toFixed(2)}] = ${pae.toFixed(3)}% ≈ ${pae.toFixed(2)}%`,
-            `9. Rongga dalam Agregat Campuran (VMA) = 100 - [(Gmb × Ps) / Gsb]\n   = 100 - [(${gmb.toFixed(3)} × ${ps.toFixed(2)}) / ${gsb.toFixed(3)}] = ${vma.toFixed(2)}% (Bina Marga: ≥ 15.0% - Status: ${isVmaOk ? 'MEMENUHI' : 'BELUM MEMENUHI'})`,
-            `10. Rongga dalam Campuran Aspal (VIM) = 100 × [(Gmm - Gmb) / Gmm]\n    = 100 × [(${gmm.toFixed(3)} - ${gmb.toFixed(3)}) / ${gmm.toFixed(3)}] = ${vim.toFixed(2)}% (Bina Marga: 3.0% - 5.0% - Status: ${isVimOk ? 'MEMENUHI' : 'BELUM MEMENUHI'})`,
-            `11. Rongga Terisi Aspal Efektif (VFA) = 100 × [(VMA - VIM) / VMA]\n    = 100 × [(${vma.toFixed(2)} - ${vim.toFixed(2)}) / ${vma.toFixed(2)}] = ${vfa.toFixed(2)}% (Bina Marga: ≥ 65.0% - Status: ${isVfaOk ? 'MEMENUHI' : 'BELUM MEMENUHI'})`,
-            `12. Nilai Stabilitas Marshall Terkoreksi (S') = Bacaan Alat × Angka Korelasi Beban × Kalibrasi Alat\n    = ${rStab.toFixed(0)} × ${kSpec.toFixed(3)} × ${cKal.toFixed(4)} = ${stabilitas.toFixed(2)} kg (Bina Marga: ≥ 800 kg - Status: ${isStabOk ? 'MEMENUHI' : 'BELUM MEMENUHI'})`,
-            `13. Nilai Kelelehan Plastis (Flow) = ${flow.toFixed(2)} mm (Bina Marga: 2.0 - 4.0 mm - Status: ${isFlowOk ? 'MEMENUHI' : 'BELUM MEMENUHI'})`,
-            `14. Nilai Marshall Quotient (MQ) = Stabilitas / Flow = ${stabilitas.toFixed(2)} / ${flow.toFixed(2)} = ${mq.toFixed(2)} kg/mm (Bina Marga: ≥ 250 kg/mm - Status: ${isMqOk ? 'MEMENUHI' : 'BELUM MEMENUHI'})`,
-            `15. Kerapatan / Density Campuran = [(Pa / 100) × Ga] + [((100 - Pa) / 100) × Gse]\n    = [(${pa.toFixed(1)} / 100) × ${ga.toFixed(5)}] + [(${ps.toFixed(2)} / 100) × ${gse.toFixed(3)}] = ${density.toFixed(3)} gr/cm³`,
-            `16. Tebal Selimut Aspal (Film Thickness) = (Pae / Ga) × [1 / (LP × Ps)] × 1000\n    = (${pae.toFixed(3)} / ${ga.toFixed(5)}) × [1 / (${totalLp.toFixed(2)} × ${ps.toFixed(2)})] × 1000 = ${tebalSelimut.toFixed(2)} µm`,
-          ]
+            'Kadar aspal menggunakan persen terhadap massa total campuran.',
+            volumetricNote,
+            massValid ? `Volume = SSD − massa dalam air = ${display(v, 1, ' cm³')}. Gmb = massa kering / volume = ${display(gmb, 3)}.` : null,
+            gmm !== null ? `Gmm ${hasMeasuredGmm ? 'hasil uji' : 'estimasi'} = ${display(gmm, 3)}.` : null,
+            vma !== null ? `VMA = 100 − Gmb × Ps / Gsb = ${display(vma, 2, '%')}.` : null,
+            vim !== null ? `VIM ${hasMeasuredGmm ? '' : '(estimasi) '}= 100 × (1 − Gmb / Gmm) = ${display(vim, 2, '%')}.` : null,
+            vfa !== null ? `VFA ${hasMeasuredGmm ? '' : '(estimasi) '}= 100 × (VMA − VIM) / VMA = ${display(vfa, 2, '%')}.` : null,
+            `Stabilitas = bacaan × koreksi tebal × kalibrasi = ${rStab} × ${kSpec} × ${cKal} = ${display(stabilitas, 2, ' kgf')}.`,
+            `MQ = stabilitas / flow = ${display(mq, 2, ' kgf/mm')}.`,
+            `Tebal selimut estimasi = 1000 × (Pae / Ga) / (LP × Ps) = ${display(tebalSelimut, 2, ' µm')}.`,
+          ].filter(Boolean)
 
           formulaStepsBySpecimen[s.id || idx + 1] = steps
 
@@ -11495,7 +8911,14 @@ export const calculatorRegistry = {
             tebalSelimut,
             isStabOk,
             isFlowOk,
-            isMqOk,
+            massValid,
+            hasMeasuredGmm,
+            volumetricNote,
+            beratSsd: bSsd,
+            beratAir: bAir,
+            beratKering: bKering,
+            bacaanStab: rStab,
+            angkaKorelasi: kSpec,
             isVmaOk,
             isVimOk,
             isVfaOk,
@@ -11503,23 +8926,26 @@ export const calculatorRegistry = {
         })
 
         // Urutkan Benda Uji Berdasarkan Kadar Aspal Naik (untuk Tabel 12.5 dan Grafik)
-        const sortedSpecs = [...computedSpecimens].sort((a, b) => a.pa - b.pa)
+        const sortedSpecs = [...computedSpecimens].sort((a, b) => (a.pa ?? Infinity) - (b.pa ?? Infinity))
 
         // Benda Uji Target / Acuan Evaluasi (Default Specimen 3 / Pa = 6.5% atau Pa tertinggi)
-        const spec65 = sortedSpecs.find((s) => Math.abs(s.pa - 6.5) < 0.1) || sortedSpecs[sortedSpecs.length - 1]
+        const plottedSpecs = sortedSpecs.filter(({ pa }) => pa > 0 && pa < 100)
+        const spec65 = plottedSpecs.find((s) => Math.abs(s.pa - 6.5) < 0.1) ?? plottedSpecs.at(-1)
         const repSpec = spec65 || sortedSpecs[0]
 
         // Fitting Regresi untuk Grafik
-        const stabFit = fitLinear(sortedSpecs.map((s) => ({ x: s.pa, y: s.stabilitas })))
-        const flowFit = fitLinear(sortedSpecs.map((s) => ({ x: s.pa, y: s.flow })))
-        const mqFit = fitLinear(sortedSpecs.map((s) => ({ x: s.pa, y: s.mq })))
-        const vmaFit = fitLinear(sortedSpecs.map((s) => ({ x: s.pa, y: s.vma })))
-        const vimFit = fitQuadratic(sortedSpecs.map((s) => ({ x: s.pa, y: s.vim })))
-        const vfaFit = fitLinear(sortedSpecs.map((s) => ({ x: s.pa, y: s.vfa })))
-        const densityFit = fitQuadratic(sortedSpecs.map((s) => ({ x: s.pa, y: s.density })))
+        const fitPoints = (key) => plottedSpecs.filter((sample) => Number.isFinite(sample[key]))
+          .map((sample) => ({ x: sample.pa, y: sample[key] }))
+        const stabFit = fitLinear(fitPoints('stabilitas'))
+        const flowFit = fitLinear(fitPoints('flow'))
+        const mqFit = fitLinear(fitPoints('mq'))
+        const vmaFit = fitLinear(fitPoints('vma'))
+        const vimFit = fitQuadratic(fitPoints('vim'))
+        const vfaFit = fitLinear(fitPoints('vfa'))
+        const densityFit = fitQuadratic(fitPoints('density'))
 
         // Data Chart Points
-        const chartPoints = sortedSpecs.map((s) => ({
+        const chartPoints = plottedSpecs.map((s) => ({
           pa: `${s.pa.toFixed(1)}%`,
           paNum: s.pa,
           stabilitas: s.stabilitas,
@@ -11530,167 +8956,66 @@ export const calculatorRegistry = {
           vfa: s.vfa,
           density: s.density,
           tebalSelimut: s.tebalSelimut,
-          specStabMin: 800,
-          specFlowMin: 2.0,
-          specFlowMax: 4.0,
-          specMqMin: 250,
-          specVmaMin: 15.0,
+          specStabMin: limits?.stabilitas[0],
+          specFlowMin: limits?.flow[0],
+          specFlowMax: limits?.flow[1],
+
+          specVmaMin: limits?.vma[0],
           specVimMin: 3.0,
           specVimMax: 5.0,
           specVfaMin: 65.0,
         }))
 
         // Tabel 12.5 Penentuan KAO
-        const kaoTable = [
-          {
-            param: 'Stabilitas Marshall (kg)',
-            syarat: '≥ 800 kg',
-            values: sortedSpecs.map((s) => ({
-              pa: s.pa,
-              val: `${s.stabilitas.toFixed(1)} kg`,
-              passed: s.isStabOk,
-            })),
-            evaluasi: 'Memenuhi spesifikasi pada seluruh kadar aspal (5.0%, 5.5%, 6.5%).',
-          },
-          {
-            param: 'Kelelehan Plastis / Flow (mm)',
-            syarat: '2.0 - 4.0 mm',
-            values: sortedSpecs.map((s) => ({
-              pa: s.pa,
-              val: `${s.flow.toFixed(2)} mm`,
-              passed: s.isFlowOk,
-            })),
-            evaluasi: 'Hanya kadar aspal 5.0% (2.04 mm) yang memenuhi rentang standar 2.0 - 4.0 mm.',
-          },
-          {
-            param: 'Marshall Quotient / MQ (kg/mm)',
-            syarat: '≥ 250 kg/mm',
-            values: sortedSpecs.map((s) => ({
-              pa: s.pa,
-              val: `${s.mq.toFixed(1)} kg/mm`,
-              passed: s.isMqOk,
-            })),
-            evaluasi: 'Memenuhi spesifikasi pada seluruh kadar aspal (> 250 kg/mm).',
-          },
-          {
-            param: 'Rongga dalam Agregat / VMA (%)',
-            syarat: '≥ 15.0%',
-            values: sortedSpecs.map((s) => ({
-              pa: s.pa,
-              val: `${s.vma.toFixed(2)}%`,
-              passed: s.isVmaOk,
-            })),
-            evaluasi: 'Memenuhi spesifikasi pada seluruh kadar aspal (VMA > 15.0%).',
-          },
-          {
-            param: 'Rongga dalam Campuran / VIM (%)',
-            syarat: '3.0% - 5.0%',
-            values: sortedSpecs.map((s) => ({
-              pa: s.pa,
-              val: `${s.vim.toFixed(2)}%`,
-              passed: s.isVimOk,
-            })),
-            evaluasi: 'Mendekati rentang optimal pada kadar aspal 6.5% (5.56% ≈ 5.63%).',
-          },
-          {
-            param: 'Rongga Terisi Aspal / VFA (%)',
-            syarat: '≥ 65.0%',
-            values: sortedSpecs.map((s) => ({
-              pa: s.pa,
-              val: `${s.vfa.toFixed(1)}%`,
-              passed: s.isVfaOk,
-            })),
-            evaluasi: 'Memenuhi spesifikasi pada kadar aspal 6.5% (VFA = 65.8% ≥ 65.0%).',
-          },
-          {
-            param: 'Kerapatan / Density (gr/cm³)',
-            syarat: 'Nilai Maksimum',
-            values: sortedSpecs.map((s) => ({
-              pa: s.pa,
-              val: `${s.density.toFixed(3)} gr/cm³`,
-              passed: true,
-            })),
-            evaluasi: 'Nilai kerapatan berkisar 2.378 s.d. 2.400 gr/cm³ dengan puncak pada 5.0%.',
-          },
+        const metrics = [
+          ['stabilitas', 'Stabilitas Marshall', 'kgf', 'isStabOk'],
+          ['flow', 'Kelelehan Plastis (Flow)', 'mm', 'isFlowOk'],
+          ['mq', 'Marshall Quotient', 'kgf/mm'],
+          ['vma', 'Rongga dalam Agregat (VMA)', '%', 'isVmaOk'],
+          ['vim', 'Rongga dalam Campuran (VIM)', '%', 'isVimOk'],
+          ['vfa', 'Rongga Terisi Aspal (VFA)', '%', 'isVfaOk'],
+          ['gmb', 'Berat Jenis Bulk Briket (Gmb)', ''],
         ]
-
-        // Checklist untuk evaluasi acuan Bina Marga
-        const checklist = [
-          {
-            param: 'VIM (Rongga dlm Campuran)',
-            nilai: `${repSpec.vim.toFixed(2)}%`,
-            syarat: '3.0% - 5.0%',
-            passed: repSpec.isVimOk,
-            diagnosis: repSpec.isVimOk
-              ? 'Optimal: Kedap air dan memiliki ruang ekspansi aspal.'
-              : repSpec.vim < 3.0
-              ? 'VIM < 3.0%: Risiko bleeding dan deformasi plastis alur (rutting).'
-              : 'VIM > 5.0%: Campuran porous, rentan oksidasi dini dan keretakan lelah.',
-          },
-          {
-            param: 'VMA (Rongga dlm Agregat)',
-            nilai: `${repSpec.vma.toFixed(2)}%`,
-            syarat: '≥ 15.0%',
-            passed: repSpec.isVmaOk,
-            diagnosis: repSpec.isVmaOk
-              ? 'Optimal: Ruang pori antar agregat cukup untuk menampung film aspal.'
-              : 'VMA < 15.0%: Selimut film aspal terlalu tipis, durabilitas rendah.',
-          },
-          {
-            param: 'VFA (Rongga Terisi Aspal)',
-            nilai: `${repSpec.vfa.toFixed(1)}%`,
-            syarat: '≥ 65.0%',
-            passed: repSpec.isVfaOk,
-            diagnosis: repSpec.isVfaOk
-              ? 'Optimal: Proporsi rongga terisi aspal efektif menjamin kekedapan air.'
-              : 'VFA < 65.0%: Campuran kurang kedap air, rentan mengalami pelepasan butir agregat.',
-          },
-          {
-            param: 'Stabilitas Marshall',
-            nilai: `${repSpec.stabilitas.toFixed(1)} kg`,
-            syarat: '≥ 800 kg',
-            passed: repSpec.isStabOk,
-            diagnosis: repSpec.isStabOk
-              ? 'Optimal: Mampu menahan beban lalu lintas berat tanpa mengalami keruntuhan geser.'
-              : 'Stabilitas < 800 kg: Kekuatan menahan beban roda kendaraan kurang.',
-          },
-          {
-            param: 'Kelelehan Plastis (Flow)',
-            nilai: `${repSpec.flow.toFixed(2)} mm`,
-            syarat: '2.0 - 4.0 mm',
-            passed: repSpec.isFlowOk,
-            diagnosis: repSpec.isFlowOk
-              ? 'Optimal: Fleksibilitas campuran elastis dan tahan terhadap deformasi.'
-              : repSpec.flow < 2.0
-              ? 'Flow < 2.0 mm: Campuran terlalu kaku/getas, rentan retak retak permukaan.'
-              : 'Flow > 4.0 mm: Campuran terlalu plastis dan lembek, rawan gelombang jalan.',
-          },
-          {
-            param: 'Marshall Quotient (MQ)',
-            nilai: `${repSpec.mq.toFixed(1)} kg/mm`,
-            syarat: '≥ 250 kg/mm',
-            passed: repSpec.isMqOk,
-            diagnosis: repSpec.isMqOk
-              ? 'Optimal: Kekakuan semu (pseudo-stiffness) campuran sangat baik.'
-              : 'MQ < 250 kg/mm: Indeks kekakuan rendah, campuran kurang stabil terhadap gaya geser.',
-          },
-        ]
-
-        const allPassed = repSpec.isStabOk && repSpec.isMqOk && repSpec.isVmaOk && repSpec.isVfaOk
-        const status = allPassed ? 'Memenuhi Spesifikasi Bina Marga' : 'Perlu Penyesuaian Volumetrik'
+        const usesGmm = (key) => key === 'vim' || key === 'vfa'
+        const valueFor = (sample, key, unit) => {
+          if (['vma', 'vim', 'vfa', 'gmb'].includes(key) && !sample.massValid) return 'Periksa penimbangan'
+          if (usesGmm(key) && sample[key] === null) return sample.volumetricNote || '—'
+          const estimate = usesGmm(key) && !sample.hasMeasuredGmm ? ' (estimasi)' : ''
+          return display(sample[key], key === 'gmb' ? 3 : 2, (unit ? ' ' + unit : '') + estimate)
+        }
+        const kaoTable = metrics.map(([key, param, unit, statusKey]) => {
+          const values = sortedSpecs.map((sample) => ({
+            pa: sample.pa, val: valueFor(sample, key, unit),
+            passed: statusKey ? sample[statusKey] : null,
+            pending: statusKey && (!Number.isFinite(sample[key]) || (usesGmm(key) && !sample.hasMeasuredGmm)),
+          }))
+          return { param, syarat: limitLabel(key), values, evaluasi: statusKey ? values.filter((item) => item.passed).length + ' dari ' + values.length + ' titik memenuhi batas' : 'Parameter dilaporkan' }
+        })
+        const checklist = metrics.filter((metric) => metric[3]).map(([key, param, unit, statusKey]) => ({
+          param, nilai: valueFor(repSpec, key, unit), syarat: limitLabel(key),
+          passed: repSpec[statusKey],
+          diagnosis: repSpec[statusKey] ? 'Mencapai batas parameter'
+            : usesGmm(key) && repSpec.volumetricNote ? repSpec.volumetricNote : 'Periksa input dan batas parameter',
+        }))
+        const allPassed = checklist.every((item) => item.passed)
+        const status = allPassed ? 'Parameter terukur mencapai batas' : 'Perlu Evaluasi'
         const verdictClass = allPassed ? 'valid' : 'warning'
         const defaultSteps = formulaStepsBySpecimen[repSpec.id] || formulaStepsBySpecimen[1] || []
 
-        const conclusion = `Berdasarkan analisis volumetrik dan mekanik Marshall untuk campuran Laston AC-WC (Bina Marga 2018), Kadar Aspal Optimum (KAO) yang direkomendasikan adalah 6.5%. Pada kadar aspal 6.5%, campuran menghasilkan Stabilitas = ${repSpec.stabilitas.toFixed(1)} kg (≥ 800 kg), MQ = ${repSpec.mq.toFixed(1)} kg/mm (≥ 250 kg/mm), VMA = ${repSpec.vma.toFixed(2)}% (≥ 15.0%), VFA = ${repSpec.vfa.toFixed(1)}% (≥ 65.0%), dan tebal selimut aspal = ${repSpec.tebalSelimut.toFixed(2)} µm.`
+        const conclusion = [
+          'KAO belum dapat ditetapkan dari data ini.',
+          sortedSpecs.some((sample) => !sample.massValid) ? 'Periksa briket yang bertanda massa belum sah. Massa SSD harus minimal sama dengan massa kering.' : '',
+          sortedSpecs.some((sample) => !sample.hasMeasuredGmm) ? 'Isi Gmm hasil uji pada setiap kadar aspal untuk menilai VIM dan VFA terhadap spesifikasi.' : '',
+        ].filter(Boolean).join(' ')
 
         return {
           results: [
-            { label: 'Rongga dlm Campuran (VIM)', value: `${repSpec.vim.toFixed(2)}%`, unit: '(Syarat: 3.0% - 5.0%)', highlight: true },
-            { label: 'Rongga dlm Agregat (VMA)', value: `${repSpec.vma.toFixed(2)}%`, unit: '(Syarat: ≥ 15.0%)', highlight: true },
-            { label: 'Rongga Terisi Aspal (VFA)', value: `${repSpec.vfa.toFixed(1)}%`, unit: '(Syarat: ≥ 65.0%)', highlight: true },
-            { label: 'Stabilitas Terkoreksi (S)', value: `${repSpec.stabilitas.toFixed(1)} kg`, unit: '(Syarat: ≥ 800 kg)', highlight: true },
-            { label: 'Kelelehan Plastis (Flow)', value: `${repSpec.flow.toFixed(2)} mm`, unit: '(Syarat: 2.0 - 4.0 mm)', highlight: true },
-            { label: 'Marshall Quotient (MQ)', value: `${repSpec.mq.toFixed(1)} kg/mm`, unit: `(Gmb: ${repSpec.gmb.toFixed(3)} | Gmm: ${repSpec.gmm.toFixed(3)})`, highlight: true },
+            { label: 'Rongga dlm Campuran (VIM)', value: valueFor(repSpec, 'vim', '%'), unit: '', highlight: true },
+            { label: 'Rongga dlm Agregat (VMA)', value: valueFor(repSpec, 'vma', '%'), unit: '', highlight: true },
+            { label: 'Rongga Terisi Aspal (VFA)', value: valueFor(repSpec, 'vfa', '%'), unit: '', highlight: true },
+            { label: 'Stabilitas Terkoreksi (S)', value: valueFor(repSpec, 'stabilitas', 'kgf'), unit: '', highlight: true },
+            { label: 'Kelelehan Plastis (Flow)', value: valueFor(repSpec, 'flow', 'mm'), unit: '', highlight: true },
+            { label: 'Marshall Quotient (MQ)', value: valueFor(repSpec, 'mq', 'kgf/mm'), unit: '', highlight: true },
           ],
           formulaSteps: defaultSteps,
           formulaStepsBySpecimen,
@@ -11720,12 +9045,12 @@ export const calculatorRegistry = {
           densityFit,
           chartPoints,
           kaoTable,
-          kaoRecommended: 6.5,
+          kaoRecommended: null,
           isError: false,
           status,
           verdictClass,
           conclusion,
-          summaryString: `KAO = 6.5% | Stabilitas = ${repSpec.stabilitas.toFixed(0)} kg | VIM = ${repSpec.vim.toFixed(2)}% | VMA = ${repSpec.vma.toFixed(1)}% | VFA = ${repSpec.vfa.toFixed(1)}%`,
+          summaryString: `Pa acuan = ${repSpec.pa}% | ${status} | KAO belum ditetapkan`,
         }
       }
 
@@ -11752,7 +9077,11 @@ export const calculatorRegistry = {
       const cKal = Number(inputs.kalibrasiAlat) || 14.85
       const flow = Number(inputs.flow)
 
-      const rawVals = [pb, p1, p2, p3, gsb1, gsa1, gsb2, gsa2, gsb3, gsa3, gb, wKering, wSsd, wAir, rStab, flow]
+      const knownGsb = Number(inputs.gsb)
+      const knownGse = Number(inputs.gse)
+      const hasCombined = knownGsb > 0 && knownGse >= knownGsb
+      const materialInputs = hasCombined ? [] : [p1, p2, p3, gsb1, gsa1, gsb2, gsa2, gsb3, gsa3]
+      const rawVals = [pb, ...materialInputs, gb, wKering, wSsd, wAir, rStab, flow]
       if (rawVals.some((v) => isNaN(v) || v <= 0)) {
         return {
           results: [
@@ -11772,7 +9101,7 @@ export const calculatorRegistry = {
       }
 
       const volume = wSsd - wAir
-      if (volume <= 0 || wKering <= 0) {
+      if (volume <= 0 || wKering <= 0 || wSsd < wKering || pb >= 100) {
         return {
           results: [
             { label: 'Rongga dlm Campuran (VIM)', value: '-', unit: '%' },
@@ -11796,14 +9125,14 @@ export const calculatorRegistry = {
       // 2. Gsb (Bulk SG Agregat Gabungan)
       const totalP = p1 + p2 + p3
       const denomGsb = p1 / gsb1 + p2 / gsb2 + p3 / gsb3
-      const gsb = denomGsb > 0 ? totalP / denomGsb : 2.62
+      const gsb = hasCombined ? knownGsb : totalP / denomGsb
 
       // 3. Gsa (Apparent SG Agregat Gabungan)
       const denomGsa = p1 / gsa1 + p2 / gsa2 + p3 / gsa3
       const gsa = denomGsa > 0 ? totalP / denomGsa : 2.70
 
       // 4. Gse (Effective SG Agregat Gabungan)
-      const gse = (gsb + gsa) / 2
+      const gse = hasCombined ? knownGse : (gsb + gsa) / 2
 
       // 5. Gmb (Bulk SG Briket)
       const gmb = wKering / volume
@@ -11852,7 +9181,6 @@ export const calculatorRegistry = {
       const isVfaOk = vfa >= 65.0
       const isStabOk = stabilitas >= minStab
       const isFlowOk = flow >= minFlow && flow <= maxFlow
-      const isMqOk = mq >= 250.0
 
       const checklist = [
         {
@@ -11907,21 +9235,19 @@ export const calculatorRegistry = {
         {
           param: 'Marshall Quotient (MQ)',
           nilai: `${mq.toFixed(1)} kg/mm`,
-          syarat: '≥ 250 kg/mm',
-          passed: isMqOk,
-          diagnosis: isMqOk
-            ? 'Optimal: Kekakuan semu (pseudo-stiffness) campuran sangat baik.'
-            : 'MQ < 250 kg/mm: Indeks kekakuan rendah, campuran kurang stabil terhadap gaya geser.',
+          syarat: 'Dilaporkan',
+          passed: null,
+          diagnosis: 'Indikator kekakuan. Tabel 6.3.3.1c tidak menetapkan batas MQ untuk Laston.',
         },
       ]
 
-      const allPassed = isVimOk && isVmaOk && isVfaOk && isStabOk && isFlowOk && isMqOk
-      const status = allPassed ? 'Memenuhi Spesifikasi Bina Marga' : 'Perlu Penyesuaian Volumetrik'
+      const allPassed = isVimOk && isVmaOk && isVfaOk && isStabOk && isFlowOk
+      const status = allPassed ? 'Parameter terukur mencapai batas' : 'Perlu Evaluasi'
       const verdictClass = allPassed ? 'valid' : isStabOk && isFlowOk ? 'warning' : 'error'
 
-      const failedParams = checklist.filter((c) => !c.passed).map((c) => c.param)
+      const failedParams = checklist.filter((c) => c.passed === false).map((c) => c.param)
       const conclusion = allPassed
-        ? `Seluruh parameter Marshall (VIM = ${vim.toFixed(2)}%, VMA = ${vma.toFixed(2)}%, VFA = ${vfa.toFixed(1)}%, Stabilitas = ${stabilitas.toFixed(1)} kg, Flow = ${flow.toFixed(2)} mm, MQ = ${mq.toFixed(1)} kg/mm) MEMENUHI PERSYARATAN Spesifikasi Umum Bina Marga 2018 untuk campuran ${jenis.toUpperCase()}.`
+        ? `VIM, VMA, VFA, stabilitas, dan flow berada dalam batas untuk ${jenis.toUpperCase()}. Penentuan KAO memerlukan variasi benda uji dan kriteria lain pada spesifikasi.`
         : `Terdapat parameter yang belum memenuhi spesifikasi Bina Marga: ${failedParams.join(', ')}. Disarankan melakukan evaluasi kadar aspal atau penyesuaian gradasi agregat.`
 
       return {
@@ -11952,10 +9278,11 @@ export const calculatorRegistry = {
           `   VFA = [(VMA - VIM) / VMA] × 100% = [(${vma.toFixed(2)} - ${vim.toFixed(2)}) / ${vma.toFixed(2)}] × 100% = ${vfa.toFixed(1)}% (Syarat ≥ 65%: ${isVfaOk ? 'OK' : 'FAIL'})`,
           `4. KEKUATAN MEKANIK MARSHALL (TAB 3):`,
           `   Stabilitas Terkoreksi = R_stab × C_kal × k_vol = ${rStab.toFixed(1)} × ${cKal.toFixed(2)} × ${kVol.toFixed(2)} = ${stabilitas.toFixed(1)} kg (Syarat ≥ ${minStab.toFixed(0)} kg: ${isStabOk ? 'OK' : 'FAIL'})`,
-          `   Marshall Quotient (MQ) = Stabilitas / Flow = ${stabilitas.toFixed(1)} / ${flow.toFixed(2)} = ${mq.toFixed(1)} kg/mm (Syarat ≥ 250: ${isMqOk ? 'OK' : 'FAIL'})`,
+          `   Marshall Quotient (MQ) = Stabilitas / Flow = ${stabilitas.toFixed(1)} / ${flow.toFixed(2)} = ${mq.toFixed(1)} kgf/mm.`,
           `5. EVALUASI KESELURUHAN BINA MARGA 2018 (${jenis.toUpperCase()}):`,
           `   Status: ${status}`,
         ],
+        marshallValues: { pa: pb, beratKering: wKering, beratSsd: wSsd, beratAir: wAir, bacaanStab: rStab, angkaKorelasi: kVol, v: volume, gmb, ps, gmm, vim, vma, vfa, stabilitas, flow, mq, pab: pba, pae: pbe },
         marshallChecklist: {
           jenis,
           items: checklist,
@@ -11975,6 +9302,7 @@ export const calculatorRegistry = {
   // -----------------------------------------------------------------------
   'bp-10-1': {
     id: 'bp-10-1',
+    hasIndependentSamples: true,
     code: 'EKS-01',
     codePrefix: 'EK',
     name: 'Uji Ekstraksi Kadar Aspal (Centrifuge Extractor)',
@@ -11987,6 +9315,8 @@ export const calculatorRegistry = {
       beratTalamSampel: 1420.7,
       beratTalamSampelFilter: 1446.7,
       beratFilterW2: 29.3,
+      beratAirDalamContoh: '',
+      beratMineralDalamEkstrak: '',
       beratMineralFilterW4: 1149.1,
       kadarAspalJmf: 5.5,
     },
@@ -12009,7 +9339,7 @@ export const calculatorRegistry = {
         isParameterBesar: true,
       },
       {
-        key: 'beratTalamSampelFilter',
+        key: 'beratTalamSampelFilter', optional: true,
         label: 'Berat Talam + Sampel + Filter Paper',
         unit: 'gram',
         desc: 'Massa talam, sampel campuran, beserta kertas saring / filter paper (gram)',
@@ -12018,7 +9348,7 @@ export const calculatorRegistry = {
       },
       {
         key: 'beratFilterW2',
-        label: 'Berat Filter Paper / Kertas Saring (W2)',
+        label: 'Massa Kertas Saring Kering',
         unit: 'gram',
         desc: 'Massa kertas saring / filter paper sebelum pengujian ekstraksi (gram)',
         min: 0.1,
@@ -12026,15 +9356,17 @@ export const calculatorRegistry = {
       },
       {
         key: 'beratMineralFilterW4',
-        label: 'Berat Mineral + Filter Paper Setelah Ekstraksi (W4)',
+        label: 'Massa Agregat + Kertas Saring Kering Setelah Ekstraksi',
         unit: 'gram',
         desc: 'Massa agregat mineral kering beserta kertas saring setelah ekstraksi (gram)',
         min: 0.1,
         step: 0.1,
         isParameterBesar: true,
       },
+      { key: 'beratAirDalamContoh', optional: true, label: 'Massa Air dalam Contoh (W₂)', unit: 'gram', min: 0, step: 0.01, desc: 'Isi hasil pengukuran massa air. Kosong berarti estimasi.' },
+      { key: 'beratMineralDalamEkstrak', optional: true, label: 'Massa Mineral dalam Larutan Ekstrak (W₄)', unit: 'gram', min: 0, step: 0.01, desc: 'Isi hasil pengabuan atau sentrifus. Kosong berarti estimasi.' },
       {
-        key: 'kadarAspalJmf',
+        key: 'kadarAspalJmf', optional: true,
         label: 'Kadar Aspal Rencana / JMF (Pb_rencana)',
         unit: '%',
         desc: 'Kadar aspal desain target Job Mix Formula yang direncanakan (misal 5.50%)',
@@ -12044,254 +9376,17 @@ export const calculatorRegistry = {
         isParameterBesar: true,
       },
     ],
-    calculate: (inputs) => {
-      // Dukungan backward compatibility jika dipanggil dengan parameter lama
-      const isLegacy = inputs.beratTalam === undefined && inputs.beratSampelW1 !== undefined
-
-      if (isLegacy) {
-        const w1 = Number(inputs.beratSampelW1)
-        const w2 = Number(inputs.beratAgregatW2)
-        const f1 = Number(inputs.beratKertasF1)
-        const f2 = Number(inputs.beratKertasF2)
-        const wAbu = Number(inputs.beratAbu) || 0.0
-        const jmf = Number(inputs.kadarAspalJmf)
-
-        if (isNaN(w1) || isNaN(w2) || isNaN(f1) || isNaN(f2) || isNaN(wAbu) || isNaN(jmf) || w1 <= 0 || w2 <= 0 || f1 <= 0 || f2 <= 0 || jmf <= 0) {
-          return {
-            results: [
-              { label: 'Kadar Aspal Aktual (B)', value: '-', unit: '%', highlight: true },
-              { label: 'Berat Aspal Terekstraksi (W5)', value: '-', unit: 'gram' },
-              { label: 'Berat Sampel (W1)', value: '-', unit: 'gram' },
-              { label: 'Deviasi dari JMF', value: '-', unit: '%' },
-            ],
-            formulaSteps: ['Parameter pengujian ekstraksi aspal harus bernilai angka positif > 0.'],
-            isError: true,
-            status: 'Input Tidak Valid',
-            conclusion: 'Input parameter pengujian ekstraksi aspal harus bernilai positif > 0.',
-            summaryString: 'Input Parameter Tidak Valid',
-          }
-        }
-
-        const w3 = f2 - f1
-        const wAgregat = w2 + w3 + wAbu
-        const wAspal = w1 - wAgregat
-
-        if (wAgregat >= w1 || wAspal <= 0) {
-          return {
-            results: [
-              { label: 'Kadar Aspal Aktual (B)', value: '-', unit: '%', highlight: true },
-              { label: 'Berat Aspal Terekstraksi (W5)', value: '-', unit: 'gram' },
-              { label: 'Berat Sampel (W1)', value: '-', unit: 'gram' },
-              { label: 'Deviasi dari JMF', value: '-', unit: '%' },
-            ],
-            formulaSteps: [`Total berat agregat (${wAgregat.toFixed(1)} g) tidak boleh >= berat sampel awal W1 (${w1.toFixed(1)} g).`],
-            isError: true,
-            status: 'Data Tidak Logis',
-            conclusion: 'Massa agregat bersih setelah ekstraksi harus lebih kecil dari massa sampel semula agar berat aspal positif.',
-            summaryString: 'W_agregat >= W1 Tidak Valid',
-          }
-        }
-
-        const pbAktual = (wAspal / w1) * 100.0
-        const selisihBertanda = pbAktual - jmf
-        const deltaPb = Math.abs(selisihBertanda)
-        const isMemenuhi = deltaPb <= 0.30
-
-        let status = isMemenuhi ? 'Memenuhi Standar' : 'Tidak Memenuhi Standar'
-        let verdictClass = isMemenuhi ? 'valid' : 'error'
-        let conclusion = isMemenuhi
-          ? 'Memenuhi Toleransi JMF Bina Marga (±0.30%). Mutu produksi campuran beraspal (hotmix) di lapangan konsisten dengan rancangan laboratorium.'
-          : selisihBertanda > 0.30
-          ? 'Melebihi Toleransi Atas JMF (+0.30%). Kadar aspal berlebih berisiko menyebabkan bleeding (naiknya aspal ke permukaan) dan penurunan kekesatan jalan.'
-          : 'Kurang dari Toleransi Bawah JMF (-0.30%). Campuran kekurangan pengikat aspal (campuran kurus), berisiko mengalami pelepasan butir (raveling) dan retak dini.'
-
-        return {
-          results: [
-            { label: 'Kadar Aspal Aktual (B)', value: `${pbAktual.toFixed(2)}%`, unit: '', highlight: true },
-            { label: 'Berat Aspal Terekstraksi (W5)', value: wAspal.toFixed(1), unit: 'gram' },
-            { label: 'Berat Sampel (W1)', value: w1.toFixed(1), unit: 'gram' },
-            { label: 'Deviasi dari JMF', value: `${selisihBertanda >= 0 ? '+' : ''}${selisihBertanda.toFixed(2)}%`, unit: '(Batas: ±0.30%)', highlight: !isMemenuhi },
-          ],
-          formulaSteps: [
-            `Massa Sampel (W1) = ${w1.toFixed(1)} gram`,
-            `Total Agregat = ${wAgregat.toFixed(1)} gram`,
-            `Berat Aspal (W_aspal) = ${wAspal.toFixed(1)} gram`,
-            `Kadar Aspal Aktual = ${pbAktual.toFixed(2)}%`,
-          ],
-          isError: false,
-          status,
-          verdictClass,
-          conclusion,
-          summaryString: `Kadar Aspal = ${pbAktual.toFixed(2)}% | Deviasi = ${selisihBertanda >= 0 ? '+' : ''}${selisihBertanda.toFixed(2)}% (${status})`,
-        }
-      }
-
-      // Format W1 s.d. W5 SNI 03-6894-2002 (Laporan Praktikum Manual)
-      const talam = Number(inputs.beratTalam)
-      const talamSampel = Number(inputs.beratTalamSampel)
-      const talamSampelFilter = Number(inputs.beratTalamSampelFilter)
-      const w2 = Number(inputs.beratFilterW2)
-      const w4 = Number(inputs.beratMineralFilterW4)
-      const jmf = Number(inputs.kadarAspalJmf)
-
-      if (
-        isNaN(talam) || isNaN(talamSampel) || isNaN(talamSampelFilter) ||
-        isNaN(w2) || isNaN(w4) || isNaN(jmf) ||
-        talam <= 0 || talamSampel <= 0 || talamSampelFilter <= 0 ||
-        w2 <= 0 || w4 <= 0 || jmf <= 0
-      ) {
-        return {
-          results: [
-            { label: 'Kadar Aspal Aktual (B)', value: '-', unit: '', highlight: true },
-            { label: 'Berat Aspal Terekstraksi (W5)', value: '-', unit: 'gram' },
-            { label: 'Berat Sampel (W1)', value: '-', unit: 'gram' },
-            { label: 'Deviasi dari JMF', value: '-', unit: '' },
-          ],
-          formulaSteps: ['Semua data penimbangan laboratorium dan kadar aspal rencana JMF harus berupa angka positif > 0.'],
-          isError: true,
-          status: 'Input Tidak Valid',
-          conclusion: 'Input parameter pengujian ekstraksi aspal harus bernilai angka positif > 0.',
-          summaryString: 'Input Parameter Tidak Valid',
-        }
-      }
-
-      if (talamSampel <= talam) {
-        return {
-          results: [
-            { label: 'Kadar Aspal Aktual (B)', value: '-', unit: '', highlight: true },
-            { label: 'Berat Aspal Terekstraksi (W5)', value: '-', unit: 'gram' },
-            { label: 'Berat Sampel (W1)', value: '-', unit: 'gram' },
-            { label: 'Deviasi dari JMF', value: '-', unit: '' },
-          ],
-          formulaSteps: [`Berat Talam + Sampel (${talamSampel} g) harus lebih besar dari Berat Talam Kosong (${talam} g) agar berat sampel W1 positif.`],
-          isError: true,
-          status: 'Data Tidak Logis',
-          conclusion: 'Berat talam beserta sampel harus lebih besar daripada berat talam kosong.',
-          summaryString: 'Talam + Sampel <= Talam',
-        }
-      }
-
-      if (talamSampelFilter <= talam) {
-        return {
-          results: [
-            { label: 'Kadar Aspal Aktual (B)', value: '-', unit: '', highlight: true },
-            { label: 'Berat Aspal Terekstraksi (W5)', value: '-', unit: 'gram' },
-            { label: 'Berat Sampel (W1)', value: '-', unit: 'gram' },
-            { label: 'Deviasi dari JMF', value: '-', unit: '' },
-          ],
-          formulaSteps: [`Berat Talam + Sampel + Filter (${talamSampelFilter} g) harus lebih besar dari Berat Talam Kosong (${talam} g).`],
-          isError: true,
-          status: 'Data Tidak Logis',
-          conclusion: 'Berat talam + sampel + filter harus lebih besar dari berat talam kosong.',
-          summaryString: 'Talam + Sampel + Filter Tidak Logis',
-        }
-      }
-
-      // 1. W1: Berat Sampel
-      const w1 = talamSampel - talam
-
-      // 2. W3: Berat Sampel + Filter Paper
-      const w3 = talamSampelFilter - talam
-
-      // 3. W5: Berat Aspal Terekstraksi
-      const w5 = w3 - w4
-
-      if (w5 <= 0) {
-        return {
-          results: [
-            { label: 'Kadar Aspal Aktual (B)', value: '-', unit: '', highlight: true },
-            { label: 'Berat Aspal Terekstraksi (W5)', value: '-', unit: 'gram' },
-            { label: 'Berat Sampel (W1)', value: `${w1.toFixed(1)}`, unit: 'gram' },
-            { label: 'Deviasi dari JMF', value: '-', unit: '' },
-          ],
-          formulaSteps: [`Berat Mineral + Filter Setelah Ekstraksi (W4 = ${w4.toFixed(1)} g) tidak boleh >= Berat Sampel + Filter (W3 = ${w3.toFixed(1)} g) karena menghasilkan berat aspal W5 non-positif (${w5.toFixed(1)} g).`],
-          isError: true,
-          status: 'Data Tidak Logis',
-          conclusion: 'Berat sampel dan filter paper sebelum ekstraksi (W3) harus lebih besar dari berat mineral dan filter setelah ekstraksi (W4) agar berat aspal terekstraksi bernilai positif.',
-          summaryString: 'W4 >= W3 (Aspal Non-Positif)',
-        }
-      }
-
-      // 4. Kadar Aspal Aktual B (%)
-      const bAktual = (w5 / w1) * 100.0
-      const persenMineral = 100.0 - bAktual
-
-      // 5. Deviasi Terhadap JMF
-      const deviasiJmf = bAktual - jmf
-      const absDeviasi = Math.abs(deviasiJmf)
-      const isMemenuhi = absDeviasi <= 0.30
-
-      let status = isMemenuhi ? 'Memenuhi Standar' : 'Tidak Memenuhi Standar'
-      let verdictClass = isMemenuhi ? 'valid' : 'error'
-      let faktorDeviasi = ''
-      let conclusion = ''
-
-      const deviasiSign = deviasiJmf >= 0 ? '+' : ''
-      const deviasiFormatted = `${deviasiSign}${deviasiJmf.toFixed(2)}%`
-
-      if (isMemenuhi) {
-        status = 'Memenuhi Standar'
-        verdictClass = 'valid'
-        conclusion = `Memenuhi Standar Toleransi JMF (SNI 03-6894-2002 & Spesifikasi Umum Bina Marga 2018). Kadar aspal aktual (${bAktual.toFixed(2)}%) berada di dalam rentang toleransi rencana ${(jmf - 0.30).toFixed(2)}% s.d. ${(jmf + 0.30).toFixed(2)}% (deviasi ${deviasiFormatted} ≤ ±0.30%). Kualitas campuran hotmix konsisten dengan Job Mix Formula.`
-        faktorDeviasi = `Kadar aspal aktual berada dalam batas toleransi pelaksanaan pekerjaan jalan (±0.30%). Mutu pengikatan agregat dan aspal sesuai dengan rancangan campuran.`
-      } else if (deviasiJmf < -0.30) {
-        status = 'Tidak Memenuhi Standar'
-        verdictClass = 'error'
-        conclusion = `Tidak Memenuhi Standar SNI 03-6894-2002 (Kadar aspal aktual ${bAktual.toFixed(2)}% < batas bawah toleransi JMF ${(jmf - 0.30).toFixed(2)}%). Selisih deviasi sebesar ${deviasiFormatted} (melebihi toleransi ±0.30%) berisiko membuat campuran terlalu kurus (lean mix) sehingga rentan terjadi retak lelah dan pelepasan butir (raveling).`
-        faktorDeviasi = `Kadar aspal hasil ekstraksi lebih rendah dari rencana (deviasi ${deviasiFormatted}). Faktor penyebab utama umumnya meliputi: sebagian aspal masih tertinggal/melekat pada mangkuk rotor sentrifus atau dinding talam/wajan, pelarut bensin/TCE belum melarutkan aspal secara menyeluruh, atau waktu pemutaran sentrifus belum maksimal.`
-      } else {
-        status = 'Tidak Memenuhi Standar'
-        verdictClass = 'error'
-        conclusion = `Tidak Memenuhi Standar SNI 03-6894-2002 (Kadar aspal aktual ${bAktual.toFixed(2)}% > batas atas toleransi JMF ${(jmf + 0.30).toFixed(2)}%). Selisih deviasi sebesar ${deviasiFormatted} (melebihi toleransi ±0.30%) berisiko menyebabkan kadar aspal berlebih (fat mix) yang memicu kegagalan bleeding dan penurunan stabilitas / ketahanan deformasi plastis.`
-        faktorDeviasi = `Kadar aspal hasil ekstraksi lebih tinggi dari toleransi rencana (deviasi ${deviasiFormatted}). Faktor penyebab utama umumnya adalah lolosnya partikel debu halus / abu mineral (filler) melewati pori-pori kertas saring akibat kertas saring robek atau pori terlalu besar, sehingga mineral halus ikut terbuang bersama filtrat pelarut dan dianggap sebagai aspal cair.`
-      }
-
-      return {
-        results: [
-          { label: 'Kadar Aspal Aktual (B)', value: `${bAktual.toFixed(2)}%`, unit: '', highlight: true, sub: 'SNI 03-6894-2002' },
-          { label: 'Berat Aspal Terekstraksi (W5)', value: w5.toFixed(1), unit: 'gram', sub: 'W3 - W4' },
-          { label: 'Berat Sampel (W1)', value: w1.toFixed(1), unit: 'gram', sub: 'Talam+Sampel - Talam' },
-          { label: 'Deviasi dari JMF', value: deviasiFormatted, unit: '(Batas: ±0.30%)', highlight: !isMemenuhi, sub: `Rencana JMF: ${jmf.toFixed(2)}%` },
-        ],
-        formulaSteps: [
-          `DATA HASIL PENIMBANGAN LABORATORIUM (SNI 03-6894-2002):`,
-          `• Berat Talam Kosong = ${talam.toFixed(1)} gram`,
-          `• Berat Talam + Sampel = ${talamSampel.toFixed(1)} gram`,
-          `• Berat Talam + Sampel + Filter Paper = ${talamSampelFilter.toFixed(1)} gram`,
-          `• Berat Filter Paper / Kertas Saring (W2) = ${w2.toFixed(1)} gram`,
-          `• Berat Mineral + Filter Paper Setelah Ekstraksi (W4) = ${w4.toFixed(1)} gram`,
-          `• Kadar Aspal Rencana / JMF (Pb_rencana) = ${jmf.toFixed(2)}%`,
-          ``,
-          `1. MENGHITUNG BERAT SAMPEL (W1):`,
-          `   W1 = [Berat Talam + Sampel] - [Berat Talam Kosong]`,
-          `   W1 = ${talamSampel.toFixed(1)} - ${talam.toFixed(1)} = ${w1.toFixed(1)} gram`,
-          ``,
-          `2. MENGHITUNG BERAT SAMPEL + FILTER PAPER (W3):`,
-          `   W3 = [Berat Talam + Sampel + Filter Paper] - [Berat Talam Kosong]`,
-          `   W3 = ${talamSampelFilter.toFixed(1)} - ${talam.toFixed(1)} = ${w3.toFixed(1)} gram`,
-          ``,
-          `3. MENGHITUNG BERAT ASPAL TEREKSTRAKSI (W5):`,
-          `   W5 = W3 - W4`,
-          `   W5 = ${w3.toFixed(1)} - ${w4.toFixed(1)} = ${w5.toFixed(1)} gram`,
-          ``,
-          `4. MENGHITUNG KADAR ASPAL AKTUAL (B):`,
-          `   B = (W5 / W1) × 100%`,
-          `   B = (${w5.toFixed(1)} / ${w1.toFixed(1)}) × 100% = ${bAktual.toFixed(2)}%`,
-          `   Massa Agregat / Mineral Kering Bersih = W1 - W5 = ${w1.toFixed(1)} - ${w5.toFixed(1)} = ${(w1 - w5).toFixed(1)} gram (${persenMineral.toFixed(2)}%)`,
-          ``,
-          `5. EVALUASI DEVIASI TERHADAP JMF (SNI 03-6894-2002 & BINA MARGA 2018):`,
-          `   Deviasi Terhadap JMF = B - Pb_rencana = ${bAktual.toFixed(2)}% - ${jmf.toFixed(2)}% = ${deviasiFormatted}`,
-          `   Batas Maksimum Toleransi Pelaksanaan = ±0.30% (Rentang Memenuhi: ${(jmf - 0.30).toFixed(2)}% s.d. ${(jmf + 0.30).toFixed(2)}%)`,
-          `   Status Kesesuaian: ${status}`,
-          `   Rincian Faktor Penyebab: ${faktorDeviasi}`,
-        ],
-        isError: false,
-        status,
-        verdictClass,
-        conclusion,
-        summaryString: `Kadar Aspal Aktual = ${bAktual.toFixed(2)}% | Deviasi JMF = ${deviasiFormatted} (${status})`,
-      }
+    getFields(inputs) {
+      if (inputs.beratTalam !== undefined || inputs.beratSampelW1 === undefined) return this.fields
+      return [
+        { key: 'beratSampelW1', label: 'Massa Contoh Awal', unit: 'gram' },
+        { key: 'beratAgregatW2', label: 'Massa Agregat Kering', unit: 'gram' },
+        { key: 'beratKertasF1', label: 'Massa Kertas Saring Awal', unit: 'gram' },
+        { key: 'beratKertasF2', label: 'Massa Kertas Saring Akhir', unit: 'gram' },
+        ...this.fields.filter((field) => ['beratAirDalamContoh', 'beratMineralDalamEkstrak', 'kadarAspalJmf'].includes(field.key)),
+      ]
     },
+    calculate: calculateBinderExtraction,
   },
 }
 

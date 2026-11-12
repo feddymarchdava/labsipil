@@ -1,3 +1,5 @@
+import { hasProctorTare, PROCTOR_MOLD } from './utils/soilCompaction'
+import { CPT_AREAS, cptDepthScale, CPT_FORMULAS } from './utils/cptProfile'
 import { useState, useMemo, useEffect } from 'react'
 import {
   Plus,
@@ -12,6 +14,11 @@ import {
   TrendingUp,
 } from 'lucide-react'
 import { calculatorRegistry as defaultRegistry } from './testCalculatorsData'
+import { aggregateSpecimens, aggregateWeight, comparePassing } from './utils/aggregateGradation'
+import { DEFAULT_PENETRATION_GROUPS, getPenetrationGroups, PENETRATION_PRECISION } from './utils/asphaltPenetration'
+import { normalizeLegacyLabInputs } from './utils/labInputValues'
+import { calculateIndependentSample, getIndependentSamples, newIndependentSample } from './utils/independentLabSamples'
+import { LASTON_MARSHALL } from './utils/labSpecifications'
 import {
   ResponsiveContainer,
   LineChart,
@@ -30,7 +37,6 @@ import {
 } from 'recharts'
 import {
   formatScientificInText,
-  DEFAULT_PENETRATION_GROUPS,
   DEFAULT_DUCTILITY_SAMPLES,
   DEFAULT_VISCOSITY_POINTS,
   DEFAULT_FLASH_SAMPLES,
@@ -52,6 +58,17 @@ import {
   DEFAULT_MT23_SAMPLES,
   DEFAULT_MT24_SAMPLES,
 } from './testCalculatorsData'
+
+const reynoldsSinglePointFields = [
+  { key: 'diameterD', label: 'Diameter dalam pipa (D)', unit: 'm', min: 0 },
+  { key: 'kecepatanV', label: 'Kecepatan fluida (v)', unit: 'm/s', min: 0 },
+  { key: 'viskositasNu', label: 'Viskositas kinematik (ν)', unit: 'm²/s', min: 0 },
+]
+
+const marshallCombinedAggregateFields = [
+  { key: 'gsb', label: 'Berat jenis bulk agregat gabungan (Gsb)', min: 0 },
+  { key: 'gse', label: 'Berat jenis efektif agregat gabungan (Gse)', min: 0 },
+]
 
 /**
  * Menghitung nilai rata-rata dinamis (average) untuk setiap baris parameter tabel rekapitulasi.
@@ -144,16 +161,43 @@ export function TableNavScrollButtons() {
 export default function TestCalculatorPanel({ 
   testConfig, 
   currentInputs,
-  onInputChange,
+  onInputChange: updateModuleInput,
   onResetInputs,
   onSaveToDashboard, 
   onBackToDashboard,
   calculatorRegistry = defaultRegistry,
   allModuleInputs = {},
 }) {
-  const inputs = currentInputs || testConfig.initialInputs
-  const [savedNotification, setSavedNotification] = useState(false)
-  const [lastSavedId, setLastSavedId] = useState(null)
+  const moduleInputs = useMemo(
+    () => {
+      const source = normalizeLegacyLabInputs(testConfig.id, currentInputs || testConfig.initialInputs)
+      return testConfig.hasDynamicCptTable ? { ...CPT_AREAS, ...source } : source
+    },
+    [currentInputs, testConfig],
+  )
+  const [activeSampleId, setActiveSampleId] = useState(null)
+  const independentSamples = useMemo(() => testConfig.hasIndependentSamples ? getIndependentSamples(moduleInputs) : null, [testConfig, moduleInputs])
+  const activeSample = independentSamples?.find((sample) => sample.id === activeSampleId) ?? independentSamples?.[0]
+  const inputs = activeSample ?? moduleInputs
+  const onInputChange = activeSample ? (field, value) => {
+    updateModuleInput('samples', (previous) => (previous ?? independentSamples).map((sample) =>
+      sample.id === activeSample.id ? { ...sample, [field]: value } : sample,
+    ))
+  } : updateModuleInput
+
+  const addIndependentSample = () => {
+    const id = Math.max(...independentSamples.map((sample) => Number(sample.id) || 0)) + 1
+    updateModuleInput('samples', [...independentSamples, newIndependentSample(testConfig, activeSample, id)])
+    setActiveSampleId(id)
+  }
+
+  const removeIndependentSample = () => {
+    if (independentSamples.length <= 1) return
+    const remaining = independentSamples.filter((sample) => sample.id !== activeSample.id)
+    updateModuleInput('samples', remaining)
+    setActiveSampleId(remaining[Math.max(0, independentSamples.indexOf(activeSample) - 1)].id)
+  }
+  const [saveFeedback, setSaveFeedback] = useState(null)
   const [sieveAlert, setSieveAlert] = useState(null)
   const [activeStepTab, setActiveStepTab] = useState(0)
 
@@ -220,10 +264,27 @@ export default function TestCalculatorPanel({
     setActiveStepTab(0)
   }, [testConfig.id])
 
-  // Daftar seluruh field yang aktif sesuai konfigurasi atau metode yang dipilih
-  const allFields = typeof testConfig.getFields === 'function'
+  const showCptTable = testConfig.hasDynamicCptTable && Array.isArray(inputs.cptRows)
+  const showProctorTable = testConfig.hasDynamicProctorTable && inputs.proctorSamples?.length > 0
+  const showSoilSieveTable = testConfig.hasDynamicSoilSieveTable && inputs.soilSieves?.length > 0
+  const showOedometerTable = testConfig.hasDynamicOedometerTable && inputs.oedometerReadings?.length > 0
+  const singlePointReynolds = testConfig.hasDynamicReynoldsTable && !inputs.reynoldsRows?.length
+    && inputs.diameterD !== undefined && inputs.kecepatanV !== undefined
+  const showReynoldsTable = testConfig.hasDynamicReynoldsTable && !singlePointReynolds
+  const showMarshallTable = testConfig.hasDynamicMarshallTest && inputs.specimens?.length > 0
+  const combinedMarshall = testConfig.hasDynamicMarshallTest && !showMarshallTable
+    && (inputs.gsb !== undefined || inputs.gse !== undefined)
+
+  const configuredFields = typeof testConfig.getFields === 'function'
     ? testConfig.getFields(inputs)
     : (Array.isArray(testConfig.fields) ? testConfig.fields : [])
+  const allFields = singlePointReynolds ? reynoldsSinglePointFields
+    : combinedMarshall ? [...configuredFields, ...marshallCombinedAggregateFields]
+    : configuredFields
+  const fieldTabs = combinedMarshall ? [
+    { ...testConfig.fieldTabs[0], fields: ['jenisCampuran', 'kadarAspalPb', 'gb', 'gsb', 'gse'] },
+    ...testConfig.fieldTabs.slice(1),
+  ] : testConfig.fieldTabs
 
   const handleInputChange = (fieldKey, rawValue) => {
     // Jika field readOnly atau disabled, abaikan perubahan
@@ -248,7 +309,6 @@ export default function TestCalculatorPanel({
     if (onInputChange) {
       onInputChange(fieldKey, sanitized)
     }
-    setSavedNotification(false)
   }
 
   const handleUnitChange = (fieldDef, newUnit) => {
@@ -373,7 +433,6 @@ export default function TestCalculatorPanel({
         }
       }
     }
-    setSavedNotification(false)
   }
 
   const handleKeyDown = (e, fieldKey) => {
@@ -385,24 +444,6 @@ export default function TestCalculatorPanel({
     if (e.key === '-' || e.key === 'Subtract') {
       e.preventDefault()
     }
-  }
-
-  const handleResetInputs = () => {
-    if (onResetInputs) {
-      onResetInputs()
-    }
-    setSavedNotification(false)
-  }
-
-  const handleClearAllInputs = () => {
-    if (allFields && onInputChange) {
-      allFields.forEach((f) => {
-        if (f.type !== 'select') {
-          onInputChange(f.key, '')
-        }
-      })
-    }
-    setSavedNotification(false)
   }
 
   // Deteksi jika user memasukkan angka minus pada input biasa
@@ -605,7 +646,7 @@ export default function TestCalculatorPanel({
     testConfig.hasDynamicMarshallTest &&
     Array.isArray(inputs.specimens) &&
     inputs.specimens.some((s) => {
-      const keys = ['pa', 'beratSsd', 'beratAir', 'beratKering', 'bacaanStab', 'flow', 'angkaKorelasi', 'stabilitas']
+      const keys = ['pa', 'beratSsd', 'beratAir', 'beratKering', 'bacaanStab', 'flow', 'angkaKorelasi', 'gmmMeasured']
       return keys.some((k) => {
         const val = String(s[k] ?? '').trim()
         return val.startsWith('-') || (val !== '' && Number(val) < 0)
@@ -809,20 +850,17 @@ export default function TestCalculatorPanel({
   }
 
   const handleAddProctorSample = () => {
-    const nextIdx = currentProctorSamples.length + 1
-    const lastSample = currentProctorSamples[currentProctorSamples.length - 1]
+    const nextId = Math.max(0, ...currentProctorSamples.map(({ id }) => Number(id) || 0)) + 1
+    const last = currentProctorSamples.at(-1)
     const nextSample = {
-      id: nextIdx,
-      name: `Sampel ${nextIdx} (S${nextIdx})`,
-      massMoldSoil: lastSample ? Number(lastSample.massMoldSoil || 450) : 450,
-      diameterMold: lastSample ? Number(lastSample.diameterMold || 5.5) : 5.5,
-      heightMold: lastSample ? Number(lastSample.heightMold || 10.0) : 10.0,
-      gs: lastSample ? Number(lastSample.gs || 2.65) : 2.65,
-      containers: [
-        { id: 1, label: 'Kontainer 1', m1: 12.0, m2: 40.0, m3: 36.0 },
-        { id: 2, label: 'Kontainer 2', m1: 12.0, m2: 40.0, m3: 36.0 },
-        { id: 3, label: 'Kontainer 3', m1: 12.0, m2: 40.0, m3: 36.0 },
-      ],
+      id: nextId,
+      name: `Titik ${nextId}`,
+      diameterMold: last?.diameterMold ?? PROCTOR_MOLD.diameterMold,
+      heightMold: last?.heightMold ?? PROCTOR_MOLD.heightMold,
+      gs: last?.gs ?? 2.65,
+      moldTare: last?.moldTare ?? '',
+      moldWithSoil: '',
+      containers: Array.from({ length: 3 }, (_, i) => ({ id: i + 1, label: `Cawan ${i + 1}`, m1: '', m2: '', m3: '' })),
     }
     const updated = [...currentProctorSamples, nextSample]
     handleInputChange('proctorSamples', updated)
@@ -848,7 +886,7 @@ export default function TestCalculatorPanel({
   const handleClearProctorSamples = () => {
     const cleared = currentProctorSamples.map((s) => ({
       ...s,
-      massMoldSoil: '',
+      ...(hasProctorTare(s) ? { moldTare: '', moldWithSoil: '' } : { massMoldSoil: '' }),
       containers: (s.containers || []).map((c) => ({
         ...c,
         m1: '',
@@ -860,13 +898,7 @@ export default function TestCalculatorPanel({
   }
 
   // Data baris dinamis untuk modul Uji Sondir CPT (Bab 1 Penyelidikan Lapangan)
-  const rawCptRowsList = testConfig.hasDynamicCptTable
-    ? (Array.isArray(inputs.cptRows) && inputs.cptRows.length > 0 ? inputs.cptRows : (testConfig.initialInputs?.cptRows || []))
-    : []
-
-  const currentCptRows = useMemo(() => {
-    return rawCptRowsList
-  }, [rawCptRowsList])
+  const currentCptRows = showCptTable ? inputs.cptRows : []
 
   const handleCptRowChange = (index, key, val) => {
     const updated = currentCptRows.map((row, idx) => {
@@ -880,15 +912,15 @@ export default function TestCalculatorPanel({
 
   const handleAddCptRow = () => {
     const lastRow = currentCptRows[currentCptRows.length - 1]
-    const nextDepth = lastRow ? Number((Number(lastRow.depth || 0) + 0.20).toFixed(2)) : 0.00
+    const nextDepth = lastRow ? Number((Number(lastRow.depth || 0) + 0.20).toFixed(2)) : 0.20
     const nextId = currentCptRows.length > 0 
       ? Math.max(...currentCptRows.map((r) => Number(r.id) || 0)) + 1 
       : 1
     const newRow = {
       id: nextId,
       depth: nextDepth,
-      qc: 10,
-      tw: 15,
+      qc: '',
+      tw: '',
     }
     const updated = [...currentCptRows, newRow]
     handleInputChange('cptRows', updated)
@@ -902,10 +934,8 @@ export default function TestCalculatorPanel({
     handleInputChange('cptRows', updated)
   }
 
-  const handleResetCptRows = () => {
-    if (testConfig.initialInputs?.cptRows) {
-      handleInputChange('cptRows', testConfig.initialInputs.cptRows.map((r) => ({ ...r })))
-    }
+  const handleClearCptRows = () => {
+    handleInputChange('cptRows', [{ id: 1, depth: 0.2, qc: '', tw: '' }])
   }
 
   // Data titik dinamis untuk modul tabel (Direct Shear)
@@ -953,19 +983,11 @@ export default function TestCalculatorPanel({
   }
 
   const handleRemovePoint = (index) => {
-    if (currentPoints.length <= 3) {
+    if (currentPoints.length <= 1) {
       return
     }
     const updated = currentPoints.filter((_, idx) => idx !== index)
     handleInputChange('points', updated)
-  }
-
-  const handleResetPoints = () => {
-    handleInputChange('points', [
-      { id: 1, area: 31.17, normalLoad: 3.17, shearForce: 1.50, sigma: 0.1017, tau: 0.0481 },
-      { id: 2, area: 31.17, normalLoad: 6.325, shearForce: 2.35, sigma: 0.2029, tau: 0.0754 },
-      { id: 3, area: 31.17, normalLoad: 12.65, shearForce: 4.05, sigma: 0.4058, tau: 0.1299 },
-    ])
   }
 
   const handleClearPoints = () => {
@@ -1041,11 +1063,10 @@ export default function TestCalculatorPanel({
   }
 
   // Data kelompok pengujian dinamis untuk modul Uji Penetrasi Aspal Keras (Bab 2 Bahan Perkerasan)
-  const currentPenetrationGroups = useMemo(() => {
-    if (!testConfig.hasDynamicPenetrationGroups) return []
-    if (Array.isArray(inputs.groups) && inputs.groups.length > 0) return inputs.groups
-    return testConfig.initialInputs?.groups || DEFAULT_PENETRATION_GROUPS || []
-  }, [testConfig.hasDynamicPenetrationGroups, inputs.groups, testConfig.initialInputs])
+  const currentPenetrationGroups = useMemo(
+    () => testConfig.hasDynamicPenetrationGroups ? getPenetrationGroups(inputs) : [],
+    [testConfig.hasDynamicPenetrationGroups, inputs],
+  )
 
   const handlePenetrationPointChange = (groupId, pointId, value) => {
     const updated = currentPenetrationGroups.map((grp) => {
@@ -1064,10 +1085,9 @@ export default function TestCalculatorPanel({
       if (grp.id !== groupId) return grp
       const points = grp.points || []
       const nextId = points.length > 0 ? Math.max(...points.map((p) => Number(p.id) || 0)) + 1 : 1
-      const lastVal = points.length > 0 ? points[points.length - 1].value : 65.0
       return {
         ...grp,
-        points: [...points, { id: nextId, value: lastVal !== '' && lastVal !== null ? lastVal : 65.0 }],
+        points: [...points, { id: nextId, value: '' }],
       }
     })
     handleInputChange('groups', updated)
@@ -1095,9 +1115,9 @@ export default function TestCalculatorPanel({
       id: nextGId,
       name: `Kelompok ${nextGId} (Sampel ${String.fromCharCode(charCode)})`,
       points: [
-        { id: 1, value: 64.0 },
-        { id: 2, value: 65.0 },
-        { id: 3, value: 64.5 },
+        { id: 1, value: '' },
+        { id: 2, value: '' },
+        { id: 3, value: '' },
       ],
     }
     handleInputChange('groups', [...currentPenetrationGroups, newGroup])
@@ -1329,23 +1349,13 @@ export default function TestCalculatorPanel({
   }
 
   // Multi-benda uji saringan agregat (bb-1-5 & bb-2-5)
-  const currentSpecimens = useMemo(() => {
-    if (!testConfig.hasDynamicSieveTable) return []
-    if (Array.isArray(inputs.specimens) && inputs.specimens.length > 0) return inputs.specimens
-    if (Array.isArray(testConfig.initialInputs?.specimens)) return testConfig.initialInputs.specimens
-    return ['Benda Uji I', 'Benda Uji II', 'Benda Uji III']
-  }, [testConfig.hasDynamicSieveTable, inputs.specimens, testConfig.initialInputs])
+  const currentSpecimens = testConfig.hasDynamicSieveTable ? aggregateSpecimens(inputs) : []
 
   const handleSieveWeightChange = (sieveIndex, specIndex, val) => {
     const numVal = val === '' ? '' : Math.max(0, parseFloat(val) || 0)
     const updated = currentSieves.map((s, idx) => {
       if (idx === sieveIndex) {
-        const weights = Array.isArray(s.weights)
-          ? [...s.weights]
-          : currentSpecimens.map(() => s.weight || 0)
-        while (weights.length < currentSpecimens.length) {
-          weights.push(weights[weights.length - 1] || 0)
-        }
+        const weights = currentSpecimens.map((_, index) => aggregateWeight(s, index) ?? '')
         weights[specIndex] = numVal
         const avg = weights.reduce((a, b) => a + Number(b || 0), 0) / weights.length
         return { ...s, weights, weight: Number(avg.toFixed(1)) }
@@ -1360,12 +1370,9 @@ export default function TestCalculatorPanel({
     const roman = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X'][nextIdx - 1] || nextIdx
     const newSpecName = `Benda Uji ${roman}`
     const updatedSpecimens = [...currentSpecimens, newSpecName]
-    const updatedSieves = currentSieves.map((s) => {
-      const weights = Array.isArray(s.weights) ? [...s.weights] : [s.weight || 0]
-      const lastW = weights[weights.length - 1] ?? (s.weight || 0)
-      weights.push(lastW)
-      return { ...s, weights }
-    })
+    const updatedSieves = currentSieves.map((s) => ({
+      ...s, weights: [...currentSpecimens.map((_, index) => aggregateWeight(s, index) ?? ''), ''],
+    }))
     handleInputChange('specimens', updatedSpecimens)
     handleInputChange('sieves', updatedSieves)
   }
@@ -1512,28 +1519,25 @@ export default function TestCalculatorPanel({
     const nextId = currentMarshallSpecimens.length > 0
       ? Math.max(...currentMarshallSpecimens.map((s) => Number(s.id) || 0)) + 1
       : 1
-    const nextNo = currentMarshallSpecimens.length + 1
+    const nextNo = Math.max(0, ...currentMarshallSpecimens.map((s) => Number(s.no) || 0)) + 1
     const newSpecimen = {
-      id: nextId,
-      no: nextNo,
-      pa: 6.0,
-      beratSsd: 1150.0,
-      beratAir: 610.0,
-      beratKering: 1145.0,
-      bacaanStab: 200,
-      flow: 2.50,
-      angkaKorelasi: inputs.angkaKorelasiBeban || 0.886,
+      id: nextId, no: nextNo,
+      pa: '', beratSsd: '', beratAir: '', beratKering: '', bacaanStab: '', flow: '',
+      angkaKorelasi: inputs.angkaKorelasiBeban ?? 0.886, gmmMeasured: '',
     }
     handleInputChange('specimens', [...currentMarshallSpecimens, newSpecimen])
     setSelectedSpecimenStepId(nextId)
+    setMarshallInputTab('tab3')
   }
 
   const handleRemoveMarshallSpecimen = (id) => {
     if (currentMarshallSpecimens.length <= 1) return
+    const index = currentMarshallSpecimens.findIndex((s) => s.id === id)
+    if (index < 0) return
     const filtered = currentMarshallSpecimens.filter((s) => s.id !== id)
     handleInputChange('specimens', filtered)
-    if (selectedSpecimenStepId === id && filtered.length > 0) {
-      setSelectedSpecimenStepId(filtered[0].id)
+    if (selectedSpecimenStepId === id) {
+      setSelectedSpecimenStepId(filtered[Math.min(index, filtered.length - 1)].id)
     }
   }
 
@@ -1676,7 +1680,11 @@ export default function TestCalculatorPanel({
   }
 
   // Calculate live results
-  const rawCalcOutput = testConfig.calculate(inputs)
+  const independentResults = useMemo(() => independentSamples?.map((sample) => ({
+    sample, output: calculateIndependentSample(testConfig, sample),
+  })), [independentSamples, testConfig])
+  const invalidSamples = independentResults?.filter(({ output }) => output.isError) ?? []
+  const rawCalcOutput = independentResults?.find(({ sample }) => sample === activeSample)?.output ?? testConfig.calculate(inputs)
 
   // Jika terdeteksi input minus atau melebihi batas max, kosongkan hasil perhitungan dan set alert error
   const calcOutput = hasNegativeInput
@@ -1716,16 +1724,24 @@ export default function TestCalculatorPanel({
       !calcOutput.status.toLowerCase().startsWith('perlu evaluasi'))
   )
 
+  const canSave = !isInputInvalid && invalidSamples.length === 0 && !(testConfig.hasDynamicFlashSamples && currentFlashSamples.length === 0)
+  const feedback = saveFeedback?.inputs === moduleInputs ? saveFeedback : null
+
   const handleSave = () => {
-    // Cegah submit jika data input tidak logis, ada angka minus, melebihi max, atau validasi gagal
-    if (isInputInvalid || hasNegativeInput || hasExceededInput) {
-      return
-    }
+    if (!canSave) return
 
     const now = new Date()
     const hours = String(now.getHours()).padStart(2, '0')
     const minutes = String(now.getMinutes()).padStart(2, '0')
     const timeString = `Hari ini, ${hours}:${minutes} WIB`
+    const reportInputs = independentSamples ? { samples: independentSamples } : inputs
+    const reportOutput = independentResults?.length > 1 ? {
+      summaryString: `${independentResults.length} sampel • hasil dihitung per sampel`,
+      status: independentResults.every(({ output }) => output.status === calcOutput.status) ? calcOutput.status : 'Lihat hasil per sampel',
+      results: independentResults.map(({ sample, output }) => ({ label: sample.name, value: output.summaryString, sub: output.status })),
+      conclusion: independentResults.map(({ sample, output }) => `${sample.name}: ${output.conclusion || output.summaryString}`).join('\n'),
+      formulaSteps: independentResults.flatMap(({ sample, output }) => [sample.name, ...(output.formulaSteps ?? [])]),
+    } : calcOutput
 
     const newRecord = {
       testId: testConfig.id,
@@ -1736,14 +1752,14 @@ export default function TestCalculatorPanel({
       lab: testConfig.lab,
       category: testConfig.category,
       standard: testConfig.standard,
-      summary: calcOutput.summaryString,
-      status: calcOutput.status,
+      summary: reportOutput.summaryString,
+      status: reportOutput.status,
       time: timeString,
-      inputs: JSON.parse(JSON.stringify(inputs)),
-      calcOutput: JSON.parse(JSON.stringify(calcOutput)),
-      samples: calcOutput.samples || inputs.samples || null,
-      average: calcOutput.average ?? calcOutput.avgResult ?? null,
-      conclusion: calcOutput.conclusion || '',
+      inputs: JSON.parse(JSON.stringify(reportInputs)),
+      calcOutput: JSON.parse(JSON.stringify(reportOutput)),
+      samples: reportOutput.samples || reportInputs.samples || null,
+      average: reportOutput.average ?? reportOutput.avgResult ?? null,
+      conclusion: reportOutput.conclusion || '',
       testConfig: {
         id: testConfig.id,
         code: testConfig.code,
@@ -1753,19 +1769,19 @@ export default function TestCalculatorPanel({
         lab: testConfig.lab,
         subTitle: testConfig.subTitle || '',
       },
-      notes: `${calcOutput.conclusion || ''} | ${(calcOutput.formulaSteps || []).join(' | ')}`,
+      notes: `${reportOutput.conclusion || ''} | ${(reportOutput.formulaSteps || []).join(' | ')}`,
     }
 
-    const savedResult = onSaveToDashboard(newRecord)
-    if (savedResult && savedResult.id) {
-      setLastSavedId(savedResult.id)
-    } else {
-      setLastSavedId(testConfig.code)
+    try {
+      const record = onSaveToDashboard(newRecord)
+      setSaveFeedback({ inputs: moduleInputs, id: record.id })
+    } catch (err) {
+      console.error('Gagal menyimpan hasil pengujian:', err)
+      const message = err.name === 'QuotaExceededError'
+        ? 'Hasil belum tersimpan karena penyimpanan browser penuh.'
+        : 'Hasil belum tersimpan. Periksa penyimpanan browser, lalu coba lagi.'
+      setSaveFeedback({ inputs: moduleInputs, error: message })
     }
-    setSavedNotification(true)
-    setTimeout(() => {
-      setSavedNotification(false)
-    }, 5000)
   }
 
   const getVerdictClass = () => {
@@ -1795,6 +1811,7 @@ export default function TestCalculatorPanel({
     if (calcOutput.status === 'Input tidak valid' || calcOutput.status === 'Input Tidak Valid') return '✕ Input tidak valid'
     if (calcOutput.status === 'Tidak Memenuhi Standar') return '✕ Tidak Memenuhi Standar'
     if (isInputInvalid) return '✕ Input tidak valid'
+    if (calcOutput.status === 'Data terhitung' || calcOutput.status === 'Puncak terestimasi') return calcOutput.status
     if (calcOutput.status === 'Valid') return '✓ Memenuhi Standar'
     if (calcOutput.status === 'Baik') return '✓ Status: Baik (Akurasi Terkalibrasi)'
     if (calcOutput.status === 'Laminer') return '✓ Rezim Aliran: Laminer'
@@ -1806,24 +1823,38 @@ export default function TestCalculatorPanel({
     return `⚠ ${calcOutput.status || 'Perlu Evaluasi'}`
   }
 
+  const [, resetExample = onResetInputs, clearInputs] = [
+    [showCptTable, onResetInputs, handleClearCptRows],
+    [showProctorTable, handleResetProctorSamples, handleClearProctorSamples],
+    [showSoilSieveTable, handleResetSoilSieves, handleClearSoilSieves],
+    [showOedometerTable, handleResetOedometerReadings, handleClearOedometerReadings],
+    [testConfig.hasDynamicDirectShearTable, onResetInputs, handleClearPoints],
+    [showReynoldsTable, handleResetReynoldsRows, handleClearReynoldsRows],
+    [testConfig.hasDynamicPenetrationGroups, handleResetPenetrationGroups, handleClearPenetrationGroups],
+    [testConfig.hasDynamicDuctilityTable, handleResetDuctilitySamples, handleClearDuctilitySamples],
+    [testConfig.hasDynamicViscosityTable, handleResetViscosityPoints, handleClearViscosityPoints],
+    [testConfig.hasMultiSample, handleResetMultiSamples],
+    [testConfig.hasDynamicFlashSamples, handleResetFlashSamples, handleClearFlashSamples],
+    [testConfig.hasDynamicJmfMixDesign, handleResetJmfToLaprak],
+    [showMarshallTable, handleResetMarshallToLaprak],
+  ].find(([enabled]) => enabled) || []
+
   return (
     <div className="calc-panel-wrapper">
       {/* Header Pengujian */}
       <div className="calc-top-header">
         <div className="calc-top-actions">
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', flexWrap: 'wrap' }}>
-            <button 
-              type="button" 
-              className="btn-back-to-dash" 
-              onClick={onBackToDashboard}
-              title="Kembali ke Dashboard Utama"
-            >
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <line x1="19" y1="12" x2="5" y2="12" />
-                <polyline points="12 19 5 12 12 5" />
-              </svg>
-              <span>Kembali ke Dashboard Utama</span>
+          <div className="calc-input-toolbar" role="group" aria-label="Tindakan input">
+            <button type="button" className="btn-action-outline" onClick={resetExample}>
+              <RotateCcw size={15} aria-hidden="true" />
+              <span>Reset Contoh</span>
             </button>
+            {clearInputs && (
+              <button type="button" className="btn-action-outline btn-action-danger" onClick={clearInputs}>
+                <Trash2 size={15} aria-hidden="true" />
+                <span>Kosongkan Input</span>
+              </button>
+            )}
           </div>
           {calcOutput?.status && (
             <span className={`calc-verdict-badge ${getVerdictClass()}`}>
@@ -1844,139 +1875,76 @@ export default function TestCalculatorPanel({
       </div>
 
       {/* Modul Uji Sondir CPT (Tabel Dinamis Excel & Grafik Stratigrafi) ATAU Grid Kalkulator Standar */}
-      {testConfig.hasDynamicCptTable ? (
+      {showCptTable ? (
         <DynamicCptSection
-          testConfig={testConfig}
-          inputs={inputs}
           calcOutput={calcOutput}
-          currentCptRows={currentCptRows}
           onRowChange={handleCptRowChange}
           onAddRow={handleAddCptRow}
           onRemoveRow={handleRemoveCptRow}
-          onResetRows={handleResetCptRows}
-          isInputInvalid={isInputInvalid}
-          hasNegativeInput={hasNegativeInput}
-          hasExceededInput={hasExceededInput}
-          onSave={handleSave}
-          onBack={onBackToDashboard}
-          savedNotification={savedNotification}
-          lastSavedId={lastSavedId}
-          getVerdictClass={getVerdictClass}
-          getVerdictLabel={getVerdictLabel}
+          inputs={inputs}
+          onInputChange={handleInputChange}
+          fields={configuredFields}
           handleKeyDown={handleKeyDown}
         />
-      ) : testConfig.hasDynamicProctorTable ? (
+      ) : showProctorTable ? (
         <DynamicProctorSection
-          testConfig={testConfig}
-          inputs={inputs}
           calcOutput={calcOutput}
-          currentProctorSamples={currentProctorSamples}
           activeProctorSampleIdx={activeProctorSampleIdx}
           setActiveProctorSampleIdx={setActiveProctorSampleIdx}
           onMoldChange={handleProctorMoldChange}
           onContainerChange={handleProctorContainerChange}
           onAddSample={handleAddProctorSample}
           onRemoveSample={handleRemoveProctorSample}
-          onResetSamples={handleResetProctorSamples}
-          onClearSamples={handleClearProctorSamples}
-          isInputInvalid={isInputInvalid}
           hasNegativeInput={hasNegativeInput}
-          hasExceededInput={hasExceededInput}
-          onSave={handleSave}
-          onBack={onBackToDashboard}
-          savedNotification={savedNotification}
-          lastSavedId={lastSavedId}
-          getVerdictClass={getVerdictClass}
-          getVerdictLabel={getVerdictLabel}
           handleKeyDown={handleKeyDown}
         />
-      ) : testConfig.hasDynamicSoilSieveTable ? (
+      ) : showSoilSieveTable ? (
         <DynamicSoilSieveSection
-          testConfig={testConfig}
           inputs={inputs}
           calcOutput={calcOutput}
           currentSoilSieves={currentSoilSieves}
           onSieveChange={handleSoilSieveChange}
           onAddSieve={handleAddSoilSieve}
           onRemoveSieve={handleRemoveSoilSieve}
-          onResetSieves={handleResetSoilSieves}
-          onClearSieves={handleClearSoilSieves}
           onInputChange={handleInputChange}
-          isInputInvalid={isInputInvalid}
-          hasNegativeInput={hasNegativeInput}
-          hasExceededInput={hasExceededInput}
-          onSave={handleSave}
-          onBack={onBackToDashboard}
-          savedNotification={savedNotification}
-          lastSavedId={lastSavedId}
           getVerdictClass={getVerdictClass}
           getVerdictLabel={getVerdictLabel}
-          handleKeyDown={handleKeyDown}
         />
-      ) : testConfig.hasDynamicOedometerTable ? (
+      ) : showOedometerTable ? (
         <DynamicOedometerSection
-          testConfig={testConfig}
           inputs={inputs}
           calcOutput={calcOutput}
           currentOedometerReadings={currentOedometerReadings}
           onReadingChange={handleOedometerReadingChange}
           onAddReading={handleAddOedometerReading}
           onRemoveReading={handleRemoveOedometerReading}
-          onResetReadings={handleResetOedometerReadings}
-          onClearReadings={handleClearOedometerReadings}
           onInputChange={handleInputChange}
-          isInputInvalid={isInputInvalid}
-          hasNegativeInput={hasNegativeInput}
-          hasExceededInput={hasExceededInput}
-          onSave={handleSave}
-          onBack={onBackToDashboard}
-          savedNotification={savedNotification}
-          lastSavedId={lastSavedId}
           getVerdictClass={getVerdictClass}
           getVerdictLabel={getVerdictLabel}
-          handleKeyDown={handleKeyDown}
         />
       ) : testConfig.hasDynamicDirectShearTable ? (
         <DynamicDirectShearSection
           testConfig={testConfig}
           inputs={inputs}
+          onInputChange={handleInputChange}
           calcOutput={calcOutput}
           currentPoints={currentPoints}
           onPointChange={handlePointChange}
           onAddPoint={handleAddPoint}
           onRemovePoint={handleRemovePoint}
-          onResetPoints={handleResetPoints}
-          onClearPoints={handleClearPoints}
-          isInputInvalid={isInputInvalid}
-          hasNegativeInput={hasNegativeInput}
-          hasExceededInput={hasExceededInput}
-          onSave={handleSave}
-          onBack={onBackToDashboard}
-          savedNotification={savedNotification}
-          lastSavedId={lastSavedId}
           getVerdictClass={getVerdictClass}
           getVerdictLabel={getVerdictLabel}
           handleKeyDown={handleKeyDown}
         />
-      ) : testConfig.hasDynamicReynoldsTable ? (
+      ) : showReynoldsTable ? (
         <DynamicReynoldsSection
           testConfig={testConfig}
-          inputs={inputs}
           calcOutput={calcOutput}
           currentReynoldsRows={currentReynoldsRows}
           onRowChange={handleReynoldsRowChange}
           onAddRow={handleAddReynoldsRow}
           onRemoveRow={handleRemoveReynoldsRow}
-          onResetRows={handleResetReynoldsRows}
-          onClearRows={handleClearReynoldsRows}
           onInputChange={handleInputChange}
-          isInputInvalid={isInputInvalid}
-          hasNegativeInput={hasNegativeInput}
-          hasExceededInput={hasExceededInput}
-          onSave={handleSave}
-          onBack={onBackToDashboard}
-          savedNotification={savedNotification}
-          lastSavedId={lastSavedId}
           getVerdictClass={getVerdictClass}
           getVerdictLabel={getVerdictLabel}
           handleKeyDown={handleKeyDown}
@@ -1992,18 +1960,7 @@ export default function TestCalculatorPanel({
           onRemovePoint={handleRemovePenetrationPoint}
           onAddGroup={handleAddPenetrationGroup}
           onRemoveGroup={handleRemovePenetrationGroup}
-          onResetGroups={handleResetPenetrationGroups}
-          onClearGroups={handleClearPenetrationGroups}
           onInputChange={handleInputChange}
-          isInputInvalid={isInputInvalid}
-          hasNegativeInput={hasNegativeInput}
-          hasExceededInput={hasExceededInput}
-          onSave={handleSave}
-          onBack={onBackToDashboard}
-          savedNotification={savedNotification}
-          lastSavedId={lastSavedId}
-          getVerdictClass={getVerdictClass}
-          getVerdictLabel={getVerdictLabel}
           handleKeyDown={handleKeyDown}
         />
       ) : testConfig.hasDynamicDuctilityTable ? (
@@ -2016,17 +1973,8 @@ export default function TestCalculatorPanel({
           onToggleSampleValid={handleToggleDuctilitySampleValid}
           onAddSample={handleAddDuctilitySample}
           onRemoveSample={handleRemoveDuctilitySample}
-          onResetSamples={handleResetDuctilitySamples}
-          onClearSamples={handleClearDuctilitySamples}
           onUnitChange={handleDuctilityUnitChange}
           onInputChange={handleInputChange}
-          isInputInvalid={isInputInvalid}
-          hasNegativeInput={hasNegativeInput}
-          hasExceededInput={hasExceededInput}
-          onSave={handleSave}
-          onBack={onBackToDashboard}
-          savedNotification={savedNotification}
-          lastSavedId={lastSavedId}
           getVerdictClass={getVerdictClass}
           getVerdictLabel={getVerdictLabel}
           handleKeyDown={handleKeyDown}
@@ -2040,17 +1988,8 @@ export default function TestCalculatorPanel({
           onPointChange={handleViscosityPointChange}
           onAddPoint={handleAddViscosityPoint}
           onRemovePoint={handleRemoveViscosityPoint}
-          onResetPoints={handleResetViscosityPoints}
-          onClearPoints={handleClearViscosityPoints}
           onTargetPresetChange={handleTargetPresetChange}
           onInputChange={handleInputChange}
-          isInputInvalid={isInputInvalid}
-          hasNegativeInput={hasNegativeInput}
-          hasExceededInput={hasExceededInput}
-          onSave={handleSave}
-          onBack={onBackToDashboard}
-          savedNotification={savedNotification}
-          lastSavedId={lastSavedId}
           getVerdictClass={getVerdictClass}
           getVerdictLabel={getVerdictLabel}
           handleKeyDown={handleKeyDown}
@@ -2064,68 +2003,38 @@ export default function TestCalculatorPanel({
           onSampleChange={handleMultiSampleChange}
           onAddSample={handleAddMultiSample}
           onRemoveSample={handleRemoveMultiSample}
-          onResetSamples={handleResetMultiSamples}
           onInputChange={handleInputChange}
-          isInputInvalid={isInputInvalid}
           hasNegativeInput={hasNegativeInput}
-          hasExceededInput={hasExceededInput}
-          onSave={handleSave}
-          onBack={onBackToDashboard}
-          savedNotification={savedNotification}
-          lastSavedId={lastSavedId}
           getVerdictClass={getVerdictClass}
           getVerdictLabel={getVerdictLabel}
           handleKeyDown={handleKeyDown}
         />
       ) : testConfig.hasDynamicFlashSamples ? (
         <DynamicFlashPointSection
-          testConfig={testConfig}
           inputs={inputs}
           calcOutput={calcOutput}
           currentFlashSamples={currentFlashSamples}
           onSampleChange={handleFlashSampleChange}
           onAddSample={handleAddFlashSample}
           onRemoveSample={handleRemoveFlashSample}
-          onResetSamples={handleResetFlashSamples}
-          onClearSamples={handleClearFlashSamples}
           onUnitPressureChange={handleFlashUnitPressureChange}
           onInputChange={handleInputChange}
-          isInputInvalid={isInputInvalid}
-          hasNegativeInput={hasNegativeInput}
-          hasExceededInput={hasExceededInput}
-          onSave={handleSave}
-          onBack={onBackToDashboard}
-          savedNotification={savedNotification}
-          lastSavedId={lastSavedId}
-          getVerdictClass={getVerdictClass}
-          getVerdictLabel={getVerdictLabel}
           handleKeyDown={handleKeyDown}
         />
       ) : testConfig.hasDynamicJmfMixDesign ? (
         <DynamicJmfMixSection
-          testConfig={testConfig}
           inputs={inputs}
           calcOutput={calcOutput}
           currentJmfSieves={currentJmfSieves}
           onSieveRetWeightChange={handleJmfSieveRetWeightChange}
-          onResetToLaprak={handleResetJmfToLaprak}
           jmfChartTab={jmfChartTab}
           setJmfChartTab={setJmfChartTab}
           onInputChange={handleInputChange}
-          isInputInvalid={isInputInvalid}
           hasNegativeInput={hasNegativeInput}
-          hasExceededInput={hasExceededInput}
-          onSave={handleSave}
-          onBack={onBackToDashboard}
-          savedNotification={savedNotification}
-          lastSavedId={lastSavedId}
-          getVerdictClass={getVerdictClass}
-          getVerdictLabel={getVerdictLabel}
           handleKeyDown={handleKeyDown}
         />
-      ) : testConfig.hasDynamicMarshallTest ? (
+      ) : showMarshallTable ? (
         <DynamicMarshallSection
-          testConfig={testConfig}
           inputs={inputs}
           calcOutput={calcOutput}
           currentMarshallSpecimens={currentMarshallSpecimens}
@@ -2139,17 +2048,8 @@ export default function TestCalculatorPanel({
           onRemoveSpecimen={handleRemoveMarshallSpecimen}
           onSurfaceAreaChange={handleMarshallSurfaceAreaChange}
           onHeightChange={handleMarshallHeightChange}
-          onResetToLaprak={handleResetMarshallToLaprak}
           onInputChange={handleInputChange}
-          isInputInvalid={isInputInvalid}
           hasNegativeInput={hasNegativeInput}
-          hasExceededInput={hasExceededInput}
-          onSave={handleSave}
-          onBack={onBackToDashboard}
-          savedNotification={savedNotification}
-          lastSavedId={lastSavedId}
-          getVerdictClass={getVerdictClass}
-          getVerdictLabel={getVerdictLabel}
           handleKeyDown={handleKeyDown}
         />
       ) : (
@@ -2216,7 +2116,7 @@ export default function TestCalculatorPanel({
             )}
 
             {/* Dynamic Table Input (Direct Shear / Pasangan Tegangan Normal & Geser) */}
-            {testConfig.hasDynamicTable && (
+            {testConfig.hasDynamicTable && !singlePointReynolds && (
               <div className="calc-dynamic-table-wrap">
                 <div className="calc-table-header-info">
                   <div>
@@ -2291,8 +2191,8 @@ export default function TestCalculatorPanel({
                               type="button"
                               className="btn-remove-table-row"
                               onClick={() => handleRemovePoint(index)}
-                              disabled={currentPoints.length <= 3}
-                              title={currentPoints.length <= 3 ? 'Direct shear memerlukan minimal 3 baris titik uji' : 'Hapus baris titik uji'}
+                              disabled={currentPoints.length <= 1}
+                              title={currentPoints.length <= 1 ? 'Sisakan satu baris untuk input' : 'Hapus baris titik uji'}
                             >
                               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
                                 <polyline points="3 6 5 6 21 6" />
@@ -2306,6 +2206,29 @@ export default function TestCalculatorPanel({
                   </table>
                   </div>
                 </div>
+              </div>
+            )}
+
+            {activeSample && (
+              <div className="calc-method-selection-wrap">
+                <div className="calc-method-tabs-header">
+                  <span className="calc-method-tabs-title">Sampel Pengujian ({independentSamples.length})</span>
+                  <span className="calc-method-tabs-subtitle">Input dan hasil dihitung terpisah untuk setiap sampel.</span>
+                </div>
+                <div className="calc-input-toolbar" role="group" aria-label="Pengaturan sampel">
+                  <select className="penetration-field-input" aria-label="Sampel aktif" value={activeSample.id}
+                    onChange={(event) => setActiveSampleId(independentSamples.find((sample) => String(sample.id) === event.target.value)?.id)}>
+                    {independentSamples.map((sample) => <option key={sample.id} value={sample.id}>{sample.name}</option>)}
+                  </select>
+                  <button type="button" className="btn-action-outline" onClick={addIndependentSample}><Plus size={15} /> Tambah Sampel</button>
+                  <button type="button" className="btn-action-outline" onClick={removeIndependentSample} disabled={independentSamples.length <= 1}
+                    title={independentSamples.length <= 1 ? 'Sisakan minimal satu sampel' : `Hapus ${activeSample.name}`}>
+                    <Trash2 size={15} /> Hapus Sampel
+                  </button>
+                </div>
+                {invalidSamples.length > 0 && <p role="status" className="calc-method-tabs-subtitle">
+                  Periksa sebelum menyimpan: {invalidSamples.map(({ sample }) => sample.name).join(', ')}.
+                </p>}
               </div>
             )}
 
@@ -2358,10 +2281,10 @@ export default function TestCalculatorPanel({
             )}
 
             {/* Multi-Tab / Step Header (Khusus Modul seperti Uji Marshall) */}
-            {testConfig.fieldTabs && (
+            {fieldTabs && (
               <div className="calc-step-tabs-container mb-4">
                 <div className="flex items-center gap-2 border-b border-slate-200 pb-2.5 overflow-x-auto">
-                  {testConfig.fieldTabs.map((tab, idx) => {
+                  {fieldTabs.map((tab, idx) => {
                     const isActive = activeStepTab === idx
                     return (
                       <button
@@ -2392,8 +2315,8 @@ export default function TestCalculatorPanel({
 
             {allFields && allFields.length > 0 && (
               <div className="calc-fields-list">
-                {(testConfig.fieldTabs 
-                  ? allFields.filter((f) => testConfig.fieldTabs[activeStepTab]?.fields.includes(f.key)) 
+                {(fieldTabs
+                  ? allFields.filter((f) => fieldTabs[activeStepTab]?.fields.includes(f.key))
                   : allFields
                 ).map((field) => {
                   const isFieldNegative = (
@@ -2491,7 +2414,7 @@ export default function TestCalculatorPanel({
             )}
 
             {/* Navigasi Tombol Multi-Tab Berikutnya/Sebelumnya */}
-            {testConfig.fieldTabs && (
+            {fieldTabs && (
               <div className="calc-tab-nav-buttons flex justify-between items-center mt-3 pt-3 border-t border-slate-200">
                 <button
                   type="button"
@@ -2502,33 +2425,18 @@ export default function TestCalculatorPanel({
                   ← Tab Sebelumnya
                 </button>
                 <span className="text-xs text-slate-500 font-semibold uppercase tracking-wider">
-                  Langkah {activeStepTab + 1} dari {testConfig.fieldTabs.length}
+                  Langkah {activeStepTab + 1} dari {fieldTabs.length}
                 </span>
                 <button
                   type="button"
-                  disabled={activeStepTab === testConfig.fieldTabs.length - 1}
+                  disabled={activeStepTab === fieldTabs.length - 1}
                   className="px-3.5 py-1.5 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors shadow-sm"
-                  onClick={() => setActiveStepTab((prev) => Math.min(testConfig.fieldTabs.length - 1, prev + 1))}
+                  onClick={() => setActiveStepTab((prev) => Math.min(fieldTabs.length - 1, prev + 1))}
                 >
                   Tab Berikutnya →
                 </button>
               </div>
             )}
-
-            <div className="calc-input-actions">
-              <button
-                type="button"
-                className="btn-calc-reset"
-                onClick={handleResetInputs}
-                title="Kembalikan angka ke parameter default"
-              >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                  <polyline points="1 4 1 10 7 10" />
-                  <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
-                </svg>
-                <span>Reset</span>
-              </button>
-            </div>
           </div>
         </div>
 
@@ -2691,53 +2599,13 @@ export default function TestCalculatorPanel({
                 <span>Input parameter belum logis atau di luar rentang wajar SNI. Tombol simpan dinonaktifkan hingga data diperbaiki.</span>
               </div>
             )}
-
-            {/* Notifikasi Sukses Simpan */}
-            {savedNotification && (
-              <div className="calc-save-banner">
-                <div className="calc-save-banner-text">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                    <polyline points="20 6 9 17 4 12" />
-                  </svg>
-                  <span>Data pengujian <strong>{lastSavedId || testConfig.code}</strong> berhasil disimpan ke Dashboard Utama!</span>
-                </div>
-              </div>
-            )}
-
-            {/* Tombol Aksi Simpan */}
-            <div className="calc-actions-footer">
-              <button
-                type="button"
-                className="btn-save-to-dashboard"
-                onClick={handleSave}
-                disabled={isInputInvalid}
-                title={
-                  isInputInvalid 
-                    ? 'Data input belum valid / tidak logis. Perbaiki nilai input sebelum menyimpan.' 
-                    : 'Simpan Hasil ke Dashboard'
-                }
-              >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                  <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
-                  <polyline points="17 21 17 13 7 13 7 21" />
-                  <polyline points="7 3 7 8 15 8" />
-                </svg>
-                <span>Simpan Hasil ke Dashboard</span>
-              </button>
-
-              <button
-                type="button"
-                className="btn-open-table-direct"
-                onClick={onBackToDashboard}
-              >
-                ← Ke Dashboard Utama
-              </button>
-            </div>
           </div>
 
           {/* Card Panel Baru: Grafik Kurva Gradasi Agregat */}
           {calcOutput.gradationChart && !calcOutput.isError && (
-            <GradationCurveChart chartData={calcOutput.gradationChart} />
+            <GradationCurveChart chartData={calcOutput.gradationChart}
+              onZoneChange={(zone) => handleInputChange('gradationZone', zone)}
+              onCoarseStandardChange={(standard) => handleInputChange('coarseStandard', standard)} />
           )}
 
           {/* Card Panel Khusus: Grafik Kurva Viskositas Saybolt Furol vs Suhu (Bab 7) */}
@@ -2762,6 +2630,38 @@ export default function TestCalculatorPanel({
         </div>
       </div>
       )}
+
+      <div className="calc-result-actions">
+        <div className="calc-actions-footer">
+          <button type="button" className="btn-action-primary" onClick={handleSave} disabled={!canSave}>
+            <Save size={16} aria-hidden="true" />
+            <span>Simpan Hasil ke Dashboard</span>
+          </button>
+          <button type="button" className="btn-action-outline" onClick={onBackToDashboard}>
+            <ArrowLeft size={16} aria-hidden="true" />
+            <span>Kembali ke Dashboard Utama</span>
+          </button>
+        </div>
+        {!canSave && (
+          <p className="calc-save-hint">Periksa input pengujian sebelum menyimpan hasil.</p>
+        )}
+        {feedback?.error && (
+          <div className="calc-error-banner" role="alert">
+            <AlertTriangle size={16} aria-hidden="true" />
+            <span>{feedback.error}</span>
+          </div>
+        )}
+        <div role="status">
+          {feedback?.id && (
+            <div className="calc-save-banner">
+              <div className="calc-save-banner-text">
+                <CheckCircle2 size={16} aria-hidden="true" />
+                <span>Hasil <strong>{feedback.id}</strong> tersimpan di Dashboard Utama.</span>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   )
 }
@@ -2804,7 +2704,7 @@ function DynamicSieveTable({
   const specimenTotals = isMultiSpecimen
     ? specimens.map((_, k) =>
         sieves.reduce((sum, s) => {
-          const w = Array.isArray(s.weights) ? Number(s.weights[k] ?? 0) : Number(s.weight ?? 0)
+          const w = Number(aggregateWeight(s, k))
           return sum + (w > 0 ? w : 0)
         }, 0)
       )
@@ -2911,12 +2811,10 @@ function DynamicSieveTable({
                 (p) => p.label === sieve.label || Math.abs(p.size - Number(sieve.size)) < 0.01
               )
 
-              const weightsList = Array.isArray(sieve.weights)
-                ? sieve.weights
-                : (isMultiSpecimen ? specimens.map(() => sieve.weight || 0) : [sieve.weight || 0])
-              const rowAvgWeight = weightsList.length > 0
-                ? weightsList.reduce((a, b) => a + Number(b || 0), 0) / weightsList.length
-                : 0
+              const weightsList = specimens.map((_, index) => aggregateWeight(sieve, index) ?? '')
+              const rowAvgWeight = weightsList.every((weight) => weight !== '' && Number.isFinite(Number(weight)))
+                ? weightsList.reduce((sum, weight) => sum + Number(weight), 0) / weightsList.length
+                : null
 
               return (
                 <tr key={sieve.id || index} className={isPan ? 'sieve-pan-row' : ''}>
@@ -3014,7 +2912,7 @@ function DynamicSieveTable({
                         )
                       })}
                       <td style={{ textAlign: 'right', fontWeight: 600, background: '#EFF6FF', color: '#1D4ED8', fontVariantNumeric: 'tabular-nums' }}>
-                        {rowAvgWeight.toFixed(1)} g
+                        {rowAvgWeight == null ? '—' : `${rowAvgWeight.toFixed(1)} g`}
                       </td>
                     </>
                   ) : (
@@ -3099,7 +2997,7 @@ function CustomGradationTooltip({ active, payload }) {
     const actualVal = dataPoint.actualPassing
     const ba = dataPoint.upperBound
     const bb = dataPoint.lowerBound
-    const ok = (ba === undefined || actualVal <= ba) && (bb === undefined || actualVal >= bb)
+    const status = comparePassing(actualVal, bb, ba)
 
     return (
       <div className="chart-custom-tooltip">
@@ -3110,20 +3008,20 @@ function CustomGradationTooltip({ active, payload }) {
           <span className="tooltip-dot" style={{ backgroundColor: '#2563EB' }} />
           <span>Lolos Aktual: <strong>{actualVal.toFixed(1)}%</strong></span>
         </div>
-        {ba !== undefined && (
+        {ba != null && (
           <div className="tooltip-row">
             <span className="tooltip-dot" style={{ backgroundColor: '#EA580C' }} />
             <span>Batas Atas (BA): <strong>{ba}%</strong></span>
           </div>
         )}
-        {bb !== undefined && (
+        {bb != null && (
           <div className="tooltip-row">
             <span className="tooltip-dot" style={{ backgroundColor: '#16A34A' }} />
             <span>Batas Bawah (BB): <strong>{bb}%</strong></span>
           </div>
         )}
-        <div className={`tooltip-status ${ok ? 'status-ok' : 'status-bad'}`}>
-          {ok ? '✓ Memenuhi Spesifikasi' : actualVal > ba ? '⚠ Melebihi Batas Atas' : '⚠ Di Bawah Batas Bawah'}
+        <div className={`tooltip-status ${status === 'Memenuhi' ? 'status-ok' : status === 'Tidak ada batas' ? '' : 'status-bad'}`}>
+          {status}
         </div>
       </div>
     )
@@ -3131,74 +3029,17 @@ function CustomGradationTooltip({ active, payload }) {
   return null
 }
 
-function GradationCurveChart({ chartData }) {
-  const {
-    isCoarse,
-    chartTitle,
-    chartSubtitle,
-    specLabel,
-    zoneLabel,
-    zoneFullName,
-    nominalOptions,
-    defaultNominalKey,
-    allBounds,
-    sieves,
-    sieveLabels,
-    sieveNames,
-    actualPassing,
-    upperBound: defaultUpperBound,
-    lowerBound: defaultLowerBound,
-  } = chartData
-
-  // State dropdown pilihan Ukuran Nominal Maksimum (ASTM C-33 / SNI)
-  const [selectedNominalKey, setSelectedNominalKey] = useState(
-    defaultNominalKey || (isCoarse ? '19 mm' : '')
-  )
-
-  // Batas atas dan bawah yang aktif (bisa berganti secara dinamis saat dropdown diubah)
-  const activeBounds = useMemo(() => {
-    if (allBounds && selectedNominalKey && allBounds[selectedNominalKey]) {
-      return allBounds[selectedNominalKey]
-    }
-    return {
-      label: specLabel || zoneLabel || 'Standar',
-      ba: defaultUpperBound,
-      bb: defaultLowerBound,
-    }
-  }, [allBounds, selectedNominalKey, specLabel, zoneLabel, defaultUpperBound, defaultLowerBound])
-
-  const activeUpperBound = activeBounds.ba
-  const activeLowerBound = activeBounds.bb
-  const currentSpecLabel = activeBounds.label || selectedNominalKey || specLabel || zoneLabel
-
-  // Evaluasi kepatuhan terhadap amplop batas standar aktif
-  const isAllWithinBounds = useMemo(() => {
-    return actualPassing.every((val, idx) => {
-      const ba = activeUpperBound[idx] ?? 100
-      const bb = activeLowerBound[idx] ?? 0
-      return val <= ba && val >= bb
-    })
-  }, [actualPassing, activeUpperBound, activeLowerBound])
-
-  // Data terstruktur untuk LineChart Recharts (diurutkan kecil ke besar)
-  const chartDataPoints = useMemo(() => {
-    return sieves.map((sieve, idx) => {
-      const val = actualPassing[idx]
-      const ba = activeUpperBound ? activeUpperBound[idx] : undefined
-      const bb = activeLowerBound ? activeLowerBound[idx] : undefined
-      const ok = (ba === undefined || val <= ba) && (bb === undefined || val >= bb)
-      return {
-        size: sieve,
-        sieveSize: sieve,
-        sieveLabel: sieveLabels[idx],
-        sieveName: sieveNames[idx],
-        actualPassing: val,
-        upperBound: ba,
-        lowerBound: bb,
-        status: ok ? 'Memenuhi' : val > ba ? 'Melebihi BA' : 'Di Bawah BB',
-      }
-    })
-  }, [sieves, sieveLabels, sieveNames, actualPassing, activeUpperBound, activeLowerBound])
+function GradationCurveChart({ chartData, onZoneChange, onCoarseStandardChange }) {
+  const { isCoarse, chartTitle, chartSubtitle, specLabel, zoneNum, sieves, sieveLabels, sieveNames, actualPassing, upperBound, lowerBound, isWithinBounds } = chartData
+  const chartDataPoints = sieves.map((size, i) => ({
+    size,
+    sieveLabel: sieveLabels[i],
+    sieveName: sieveNames[i],
+    actualPassing: actualPassing[i],
+    upperBound: upperBound[i],
+    lowerBound: lowerBound[i],
+    status: comparePassing(actualPassing[i], lowerBound[i], upperBound[i]),
+  }))
 
   return (
     <div className="calc-card-box calc-chart-card">
@@ -3213,37 +3054,44 @@ function GradationCurveChart({ chartData }) {
         <div className="calc-card-header-text">
           <h3 className="calc-card-title">{chartTitle || 'Grafik Kurva Gradasi Agregat'}</h3>
           <span className="calc-card-subtitle">
-            {chartSubtitle || `Distribusi Butiran & Amplop Batas Spesifikasi ASTM C-33 / SNI (${currentSpecLabel || zoneFullName})`}
+            {chartSubtitle}
           </span>
         </div>
-        <span className={`calc-chart-badge ${isAllWithinBounds ? 'status-ok' : 'status-eval'}`}>
-          {isAllWithinBounds ? '✓ Masuk Amplop Standar' : '⚠ Perlu Evaluasi Standar'}
+        <span className={`calc-chart-badge ${isWithinBounds ? 'status-ok' : 'status-eval'}`}>
+          {isWithinBounds ? '✓ Masuk Amplop Standar' : '⚠ Perlu Evaluasi Standar'}
         </span>
       </div>
 
-      {/* Kontrol Pilihan Ukuran Nominal Maksimum (ASTM C-33) jika modul agregat kasar */}
-      {isCoarse && nominalOptions && (
+      {isCoarse ? (
         <div className="calc-chart-controls-bar">
           <div className="nominal-dropdown-group">
-            <label htmlFor="nominalSelect" className="nominal-select-label">
-              Ukuran Nominal Maksimum (ASTM C-33 / SNI):
+            <label htmlFor="coarse-gradation-standard" className="nominal-select-label">Amplop pembanding</label>
+            <select id="coarse-gradation-standard" className="nominal-select-dropdown"
+              value={chartData.coarseStandard} onChange={(event) => onCoarseStandardChange(event.target.value)}>
+              <option value="astm57">ASTM C33 No. 57</option>
+              <option value="ac-wc">Laston AC-WC • Bina Marga 2018 Revisi 2</option>
+            </select>
+          </div>
+        </div>
+      ) : (
+        <div className="calc-chart-controls-bar">
+          <div className="nominal-dropdown-group">
+            <label htmlFor="gradation-zone" className="nominal-select-label">
+              Zona pembanding PUPR
             </label>
             <select
-              id="nominalSelect"
-              value={selectedNominalKey}
-              onChange={(e) => setSelectedNominalKey(e.target.value)}
+              id="gradation-zone"
+              value={zoneNum}
+              onChange={(e) => onZoneChange(Number(e.target.value))}
               className="nominal-select-dropdown"
             >
-              {nominalOptions.map((opt) => (
-                <option key={opt.key} value={opt.key}>
-                  {opt.label}
+              {[1, 2, 3, 4].map((zone) => (
+                <option key={zone} value={zone}>
+                  Zona {zone}
                 </option>
               ))}
             </select>
           </div>
-          <span className="nominal-badge-info">
-            Spesifikasi Terpilih: <strong>ASTM C-33 ({currentSpecLabel})</strong>
-          </span>
         </div>
       )}
 
@@ -3309,9 +3157,10 @@ function GradationCurveChart({ chartData }) {
             />
             {/* Garis Batas Atas (Oranye Putus-putus) */}
             <Line
-              type="monotone"
-              name={isCoarse ? `Batas Atas (BA) - ASTM C-33 (${currentSpecLabel})` : `Batas Atas (BA) - SNI (${currentSpecLabel})`}
+              type="linear"
+              name={`Batas atas (${specLabel})`}
               dataKey="upperBound"
+              connectNulls
               stroke="#EA580C"
               strokeWidth={2}
               strokeDasharray="5 5"
@@ -3319,9 +3168,10 @@ function GradationCurveChart({ chartData }) {
             />
             {/* Garis Batas Bawah (Hijau Putus-putus) */}
             <Line
-              type="monotone"
-              name={isCoarse ? `Batas Bawah (BB) - ASTM C-33 (${currentSpecLabel})` : `Batas Bawah (BB) - SNI (${currentSpecLabel})`}
+              type="linear"
+              name={`Batas bawah (${specLabel})`}
               dataKey="lowerBound"
+              connectNulls
               stroke="#16A34A"
               strokeWidth={2}
               strokeDasharray="5 5"
@@ -3329,7 +3179,7 @@ function GradationCurveChart({ chartData }) {
             />
             {/* Garis Sampel Aktual Pengujian (Biru Solid) */}
             <Line
-              type="monotone"
+              type="linear"
               name="Sampel Pengujian (% Lolos Aktual)"
               dataKey="actualPassing"
               stroke="#2563EB"
@@ -3363,7 +3213,7 @@ function GradationCurveChart({ chartData }) {
               const val = pt.actualPassing
               const bb = pt.lowerBound
               const ba = pt.upperBound
-              const ok = val >= bb && val <= ba
+              const ok = pt.status === 'Memenuhi'
 
               return (
                 <tr key={pt.sieveLabel}>
@@ -3372,7 +3222,7 @@ function GradationCurveChart({ chartData }) {
                     <span style={{ color: '#64748B', fontSize: '0.75rem' }}>({pt.sieveName})</span>
                   </td>
                   <td style={{ textAlign: 'center', color: '#16A34A', fontWeight: '700' }}>
-                    {bb}%
+                    {bb == null ? '—' : bb + '%'}
                   </td>
                   <td style={{ textAlign: 'center' }}>
                     <span className={`chip-passing ${ok ? 'pass-ok' : 'pass-out'}`}>
@@ -3380,11 +3230,11 @@ function GradationCurveChart({ chartData }) {
                     </span>
                   </td>
                   <td style={{ textAlign: 'center', color: '#EA580C', fontWeight: '700' }}>
-                    {ba}%
+                    {ba == null ? '—' : ba + '%'}
                   </td>
                   <td style={{ textAlign: 'center' }}>
                     <span className={`badge-eval ${ok ? 'badge-ok' : 'badge-warn'}`}>
-                      {ok ? 'Memenuhi' : val > ba ? 'Melebihi BA' : 'Di Bawah BB'}
+                      {pt.status}
                     </span>
                   </td>
                 </tr>
@@ -3601,8 +3451,8 @@ function ViscosityCurveChart({ data }) {
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
             <span style={{ color: '#64748B' }}>Viskositas @135°C:</span>
-            <strong style={{ color: data.v135 >= 300 ? '#15803D' : '#D97706', fontWeight: 700 }}>
-              {data.v135.toFixed(1)} cSt {data.v135 >= 300 ? '(≥ 300 cSt ✓)' : '(< 300 cSt ⚠)'}
+            <strong style={{ color: '#475569', fontWeight: 700 }}>
+              {data.v135?.toFixed(1) ?? '—'} cSt (estimasi)
             </strong>
           </div>
         </div>
@@ -3760,7 +3610,7 @@ function PermeabilityClassificationCard({ data }) {
   const rows = [
     {
       key: 'gravel',
-      tipe: 'Kerikil Bersih (Clean Gravel)',
+      tipe: 'Sangat cepat',
       rentang: '> 1.0 cm/s (> 10⁰)',
       metode: 'Constant Head',
       sifat: 'Rembesan sangat cepat / permeabilitas sangat tinggi',
@@ -3768,7 +3618,7 @@ function PermeabilityClassificationCard({ data }) {
     },
     {
       key: 'coarse_sand',
-      tipe: 'Pasir Kasar (Coarse Sand)',
+      tipe: 'Cepat',
       rentang: '10⁻² – 1.0 cm/s (0.01 – 1)',
       metode: 'Constant Head',
       sifat: 'Rembesan cepat / permeabilitas tinggi',
@@ -3776,7 +3626,7 @@ function PermeabilityClassificationCard({ data }) {
     },
     {
       key: 'fine_sand',
-      tipe: 'Pasir Halus (Fine Sand)',
+      tipe: 'Sedang',
       rentang: '10⁻³ – 10⁻² cm/s (0.001 – 0.01)',
       metode: 'Constant Head / Falling Head',
       sifat: 'Rembesan sedang / permeabilitas moderat',
@@ -3784,7 +3634,7 @@ function PermeabilityClassificationCard({ data }) {
     },
     {
       key: 'silt',
-      tipe: 'Lanau (Silt)',
+      tipe: 'Lambat',
       rentang: '10⁻⁵ – 10⁻³ cm/s (0.00001 – 0.001)',
       metode: 'Falling Head',
       sifat: 'Rembesan rendah / permeabilitas rendah',
@@ -3792,7 +3642,7 @@ function PermeabilityClassificationCard({ data }) {
     },
     {
       key: 'clay',
-      tipe: 'Lempung (Clay)',
+      tipe: 'Sangat lambat',
       rentang: '≤ 10⁻⁵ cm/s (≤ 0.00001)',
       metode: 'Falling Head',
       sifat: 'Rembesan sangat lambat / praktis kedap air',
@@ -3811,9 +3661,9 @@ function PermeabilityClassificationCard({ data }) {
           </svg>
         </div>
         <div>
-          <h3 className="calc-card-title">Tabel Klasifikasi Permeabilitas Tanah (SNI 2435 / ASTM D2434)</h3>
+          <h3 className="calc-card-title">Rentang Indikatif Laju Rembesan</h3>
           <span className="calc-card-subtitle">
-            Standar acuan laju rembesan tanah, rekomendasi metode pengujian, dan karakteristik drainase geoteknik
+            Rentang praktikum berdasarkan k. Identifikasi jenis tanah memerlukan pengujian tersendiri.
           </span>
         </div>
       </div>
@@ -3823,9 +3673,9 @@ function PermeabilityClassificationCard({ data }) {
         <table className="perm-table" style={{ width: '100%', borderCollapse: 'separate', borderSpacing: '0', fontSize: '0.8rem' }}>
           <thead>
             <tr style={{ backgroundColor: '#F8FAFC', textAlign: 'left', borderBottom: '2px solid #E2E8F0' }}>
-              <th style={{ padding: '0.65rem 0.75rem', fontWeight: '700', color: '#334155' }}>Klasifikasi Tanah</th>
+              <th style={{ padding: '0.65rem 0.75rem', fontWeight: '700', color: '#334155' }}>Laju Rembesan</th>
               <th style={{ padding: '0.65rem 0.75rem', fontWeight: '700', color: '#334155' }}>Koefisien Rembesan (k)</th>
-              <th style={{ padding: '0.65rem 0.75rem', fontWeight: '700', color: '#334155' }}>Metode Rekomendasi</th>
+              <th style={{ padding: '0.65rem 0.75rem', fontWeight: '700', color: '#334155' }}>Metode Umum</th>
               <th style={{ padding: '0.65rem 0.75rem', fontWeight: '700', color: '#334155' }}>Karakteristik Drainase</th>
               <th style={{ padding: '0.65rem 0.75rem', fontWeight: '700', color: '#334155', textAlign: 'center' }}>Status</th>
             </tr>
@@ -3908,232 +3758,92 @@ function PermeabilityClassificationCard({ data }) {
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
             <polyline points="20 6 9 17 4 12" />
           </svg>
-          Terverifikasi SNI 2435:2008 / ASTM D2434
+          Pembanding praktikum
         </div>
       </div>
     </div>
   )
 }
 
-// Tooltip Kustom untuk Grafik Recharts Sondir CPT (Sinkron 3 Parameter)
+const formatCpt = (value, decimals) => Number.isFinite(value) ? value.toFixed(decimals) : '—'
+
 function CustomCptTooltip({ active, payload }) {
-  if (active && payload && payload.length) {
-    const data = payload[0].payload
-    const fsVal = data.fs !== undefined ? data.fs : data.hambatanSetempat
-    const frVal = data.fr !== undefined ? data.fr : data.frictionRatio
-    return (
-      <div
-        style={{
-          backgroundColor: '#0F172A',
-          color: '#FFFFFF',
-          padding: '0.65rem 0.9rem',
-          borderRadius: '0.6rem',
-          fontSize: '0.78rem',
-          boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.3)',
-          border: '1px solid #334155',
-          minWidth: '190px',
-        }}
-      >
-        <div style={{ fontWeight: '700', borderBottom: '1px solid #334155', paddingBottom: '0.35rem', marginBottom: '0.35rem', color: '#F8FAFC' }}>
-          Kedalaman: {Number(data.depth || 0).toFixed(2)} m
-        </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
-          <div style={{ color: '#93C5FD', display: 'flex', justifyContent: 'space-between', gap: '0.75rem' }}>
-            <span>qc (Konus):</span>
-            <strong>{Number(data.qc || 0).toFixed(1)} kg/cm²</strong>
-          </div>
-          <div style={{ color: '#FDBA74', display: 'flex', justifyContent: 'space-between', gap: '0.75rem' }}>
-            <span>fs (Pelekat):</span>
-            <strong>{Number(fsVal || 0).toFixed(2)} kg/cm²</strong>
-          </div>
-          <div style={{ color: '#86EFAC', display: 'flex', justifyContent: 'space-between', gap: '0.75rem' }}>
-            <span>FR (Rasio):</span>
-            <strong>{data.qc > 0 ? `${Number(frVal || 0).toFixed(2)}%` : '-'}</strong>
-          </div>
-          {data.jumlahHambatanPelekat !== undefined && (
-            <div style={{ color: '#CBD5E1', display: 'flex', justifyContent: 'space-between', gap: '0.75rem' }}>
-              <span>JHP Kumulatif:</span>
-              <span>{Number(data.jumlahHambatanPelekat || 0).toFixed(1)} kg/cm</span>
-            </div>
-          )}
-          {data.rowSoil && (
-            <div style={{ marginTop: '0.3rem', paddingTop: '0.3rem', borderTop: '1px dashed #334155', color: '#4ADE80', fontSize: '0.74rem' }}>
-              Lapisan: <strong>{data.rowSoil}</strong>
-            </div>
-          )}
-        </div>
-      </div>
-    )
-  }
-  return null
+  const point = active ? payload?.[0]?.payload : null
+  if (!point) return null
+  return (
+    <div className="cpt-profile-tooltip">
+      <strong>Kedalaman: {formatCpt(point.depth, 2)} m</strong>
+      <div>qc: {formatCpt(point.qc, 2)} kgf/cm²</div>
+      <div>fs: {formatCpt(point.fs, 3)} kgf/cm²</div>
+      <div>Rf: {formatCpt(point.fr, 2)} %</div>
+      <div>JHP: {formatCpt(point.jumlahHambatanPelekat, 2)} kgf/cm</div>
+    </div>
+  )
 }
 
-// Komponen Modul Khusus: Uji Sondir CPT (Tabel Dinamis Excel & Grafik Stratigrafi Recharts)
-function DynamicCptSection({
-  testConfig,
-  inputs,
-  calcOutput,
-  currentCptRows,
-  onRowChange,
-  onAddRow,
-  onRemoveRow,
-  onResetRows,
-  isInputInvalid,
-  hasNegativeInput,
-  hasExceededInput,
-  onSave,
-  onBack,
-  savedNotification,
-  lastSavedId,
-  getVerdictClass,
-  getVerdictLabel,
-  handleKeyDown,
-}) {
-  const computedRows = calcOutput.cptRows || []
-  const chartData = calcOutput.chartData || []
-  const totalKedalaman = calcOutput.totalKedalaman ?? 0
-  const avgQc = calcOutput.avgQc ?? 0
-  const totalJhp = calcOutput.totalJhp ?? (computedRows.length > 0 ? computedRows[computedRows.length - 1].jumlahHambatanPelekat : 0)
-  const avgFr = calcOutput.avgFr ?? 0
-  const predictedSoil = calcOutput.predictedSoil || '-'
-  const hasInvalidRow = Boolean(calcOutput.hasInvalidRow)
+function DynamicCptSection({ calcOutput, inputs, fields, onInputChange, onRowChange, onAddRow, onRemoveRow, handleKeyDown }) {
+  const computedRows = calcOutput.cptRows
+  const chartData = calcOutput.chartData
+  const { max: depthLimit, step } = cptDepthScale(chartData)
+  const profiles = [
+    ['qc', 'Perlawanan Konus (qc)', 'kgf/cm²', '#2563EB'],
+    ['fs', 'Geser Lokal (fs)', 'kgf/cm²', '#EA580C'],
+    ['fr', 'Angka Banding Geser (Rf)', '%', '#16A34A'],
+  ]
+  const metrics = [
+    ['Kedalaman Terakhir', calcOutput.totalKedalaman, 2, 'm'],
+    ['Rata-rata qc', calcOutput.avgQc, 2, 'kgf/cm²'],
+    ['JHP Kumulatif', calcOutput.totalJhp, 2, 'kgf/cm'],
+    ['Rata-rata Rf', calcOutput.avgFr, 2, '%'],
+    ['Titik Pengamatan', calcOutput.measurementCount, 0, 'titik'],
+  ]
 
   return (
-    <div className="cpt-dynamic-container" style={{ width: '100%', marginTop: '0.5rem' }}>
-      {/* Toast Notifikasi Tersimpan */}
-      {savedNotification && (
-        <div className="calc-saved-toast">
-          <div className="calc-toast-icon">
-            <CheckCircle2 size={18} />
-          </div>
-          <div className="calc-toast-text">
-            <strong>Data Uji Sondir Berhasil Disimpan!</strong>
-            <span>Rekam data kedalaman {totalKedalaman.toFixed(2)} m telah ditambahkan ke dashboard riwayat pengujian ({lastSavedId}).</span>
-          </div>
-        </div>
-      )}
-
-      {/* 1. KARTU RINGKASAN ATAS (5 METRIK UTAMA GEOTEKNIK) */}
+    <div className="cpt-dynamic-container">
       <div className="cpt-summary-grid">
-        {/* Card 1: Total Kedalaman */}
-        <div className="cpt-metric-card">
-          <div className="cpt-metric-header">
-            <span className="cpt-metric-label">Total Kedalaman</span>
-            <span className="cpt-metric-badge badge-blue">Selesai Uji</span>
+        {metrics.map(([label, value, decimals, unit]) => (
+          <div className="cpt-metric-card" key={label}>
+            <div className="cpt-metric-header"><span className="cpt-metric-label">{label}</span></div>
+            <div className="cpt-metric-value">
+              {formatCpt(value, decimals)} <span className="cpt-metric-unit">{unit}</span>
+            </div>
           </div>
-          <div className="cpt-metric-value">
-            {totalKedalaman.toFixed(2)} <span className="cpt-metric-unit">m</span>
-          </div>
-          <div className="cpt-metric-footer">Kedalaman Penetrasi Akhir</div>
-        </div>
-
-        {/* Card 2: Rata-rata qc */}
-        <div className="cpt-metric-card">
-          <div className="cpt-metric-header">
-            <span className="cpt-metric-label">Rata-rata qc</span>
-            <span className="cpt-metric-badge badge-blue">Konus</span>
-          </div>
-          <div className="cpt-metric-value" style={{ color: '#2563EB' }}>
-            {avgQc.toFixed(1)} <span className="cpt-metric-unit">kg/cm²</span>
-          </div>
-          <div className="cpt-metric-footer">Hambatan Penetrasi Konus</div>
-        </div>
-
-        {/* Card 3: Total JHP Kumulatif */}
-        <div className="cpt-metric-card">
-          <div className="cpt-metric-header">
-            <span className="cpt-metric-label">Total JHP Kumulatif</span>
-            <span className="cpt-metric-badge badge-amber">Pelekat</span>
-          </div>
-          <div className="cpt-metric-value" style={{ color: '#C2410C' }}>
-            {totalJhp.toFixed(1)} <span className="cpt-metric-unit">kg/cm</span>
-          </div>
-          <div className="cpt-metric-footer">Jumlah Hambatan Pelekat</div>
-        </div>
-
-        {/* Card 4: Rata-rata FR */}
-        <div className="cpt-metric-card">
-          <div className="cpt-metric-header">
-            <span className="cpt-metric-label">Rata-rata FR</span>
-            <span className="cpt-metric-badge badge-orange">Selubung</span>
-          </div>
-          <div className="cpt-metric-value" style={{ color: '#EA580C' }}>
-            {avgFr.toFixed(2)} <span className="cpt-metric-unit">%</span>
-          </div>
-          <div className="cpt-metric-footer">Friction Ratio Rata-rata</div>
-        </div>
-
-        {/* Card 5: Prediksi Lapisan Tanah */}
-        <div className="cpt-metric-card">
-          <div className="cpt-metric-header">
-            <span className="cpt-metric-label">Prediksi Lapisan</span>
-            <span className="cpt-metric-badge badge-emerald">Robertson</span>
-          </div>
-          <div className="cpt-metric-value text-soil-name" style={{ color: '#0F766E', fontSize: '1.05rem', fontWeight: '800' }}>
-            {predictedSoil}
-          </div>
-          <div className="cpt-metric-footer">Estimasi Berdasarkan Korelasi FR</div>
-        </div>
+        ))}
       </div>
 
-      {/* 2. TABEL PERHITUNGAN SONDIR (SPREADSHEET EXCEL) */}
-      <div className="calc-card-box cpt-card-box" style={{ marginTop: '0.5rem' }}>
-        {/* Header Box Tabel */}
+      <div className="calc-card-box cpt-card-box">
         <div className="calc-card-header cpt-table-card-header">
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            <div className="calc-card-header-icon" style={{ backgroundColor: '#EFF6FF', color: '#2563EB' }}>
-              <TrendingUp size={20} />
-            </div>
-            <div>
-              <h3 className="calc-card-title">Tabel Perhitungan Sondir (Spreadsheet Excel)</h3>
-              <span className="calc-card-subtitle">
-                Ketik kedalaman, qc, dan tw. Nilai Friction (d), fs, JHP Kumulatif, dan FR terhitung otomatis real-time.
-              </span>
-            </div>
+          <div>
+            <h3 className="calc-card-title">Tabel Perhitungan Sondir</h3>
+            <span className="calc-card-subtitle">Masukkan bacaan manometer Cw dan Tw. Baris 0 m dengan bacaan 0/0 hanya acuan permukaan.</span>
           </div>
-
-          <div className="cpt-header-actions">
-            <button
-              type="button"
-              className="btn-cpt-add-row"
-              onClick={onAddRow}
-              title="Tambah baris kedalaman baru (+0.20 m)"
-            >
-              <Plus size={15} />
-              <span>Tambah Baris</span>
-            </button>
-            <button
-              type="button"
-              className="btn-cpt-reset-sample"
-              onClick={onResetRows}
-              title="Kembalikan data tabel ke 15 baris contoh awal (lapisan realistis)"
-            >
-              <RotateCcw size={14} />
-              <span>Reset Contoh</span>
-            </button>
-          </div>
+          <button type="button" className="btn-cpt-add-row" onClick={onAddRow}>
+            <Plus size={15} /> Tambah Baris
+          </button>
         </div>
-
-        {/* Alert Error jika tw < qc */}
-        {hasInvalidRow && (
-          <div className="cpt-invalid-alert-banner">
+        <fieldset className="cpt-calibration">
+          <legend>Dimensi alat (cm²)</legend>
+          <p>Cocokkan luas alat dengan lembar kalibrasi. Contoh memakai piston 10, konus 10, dan selimut 150 cm².</p>
+          <div className="cpt-calibration-fields">
+            {fields.filter(({ key }) => key.endsWith('Area')).map(({ key, label }) => (
+              <label key={key}>
+                {label}
+                <input type="number" min="0.01" step="any" className="cpt-input-number"
+                  value={inputs[key] ?? calcOutput.areas[key] ?? ''}
+                  onChange={(event) => onInputChange(key, event.target.value)}
+                  onKeyDown={(event) => handleKeyDown(event, key)} />
+              </label>
+            ))}
+          </div>
+        </fieldset>
+        {(calcOutput.hasInvalidRow || calcOutput.hasInvalidAreas || calcOutput.hasIntervalDeviation) && (
+          <div className="cpt-invalid-alert-banner" role="status">
             <AlertTriangle size={18} />
-            <div>
-              <strong>Peringatan Validitas Manometer:</strong> Terdapat baris di mana Jumlah Hambatan (tw) lebih kecil dari Hambatan Konus (qc). Harap periksa kembali input baris yang bergaris merah.
-            </div>
+            <span>{calcOutput.hasIntervalDeviation && !calcOutput.isError
+              ? 'Ada interval yang berbeda dari 20 cm. Periksa kedalaman atau konfirmasi bahwa jarak tersebut memang tercatat.'
+              : calcOutput.conclusion}</span>
           </div>
         )}
-
-        {/* Alert Error jika angka negatif */}
-        {hasNegativeInput && (
-          <div className="cpt-invalid-alert-banner">
-            <AlertTriangle size={18} />
-            <div>
-              <strong>Input Tidak Valid:</strong> Nilai kedalaman, qc, atau tw tidak boleh bernilai negatif.
-            </div>
-          </div>
-        )}
-
         {/* Container Tabel Dinamis dengan Horizontal Scroll Responsif */}
         <div className="cpt-table-responsive">
           <div className="table-scroll-wrapper">
@@ -4142,12 +3852,13 @@ function DynamicCptSection({
               <tr>
                 <th style={{ width: '42px', textAlign: 'center' }}>No</th>
                 <th style={{ minWidth: '95px' }}>Kedalaman <span className="th-unit">(m)</span></th>
-                <th style={{ minWidth: '115px' }}>Hambatan Konus (qc) <span className="th-unit">(kg/cm²)</span></th>
-                <th style={{ minWidth: '115px' }}>Jumlah Hambatan (tw) <span className="th-unit">(kg/cm²)</span></th>
-                <th style={{ minWidth: '95px', textAlign: 'center' }}>Friction (d) <span className="th-unit">(kg/cm²)</span></th>
-                <th style={{ minWidth: '100px', textAlign: 'center' }}>Hambatan Setempat (fs) <span className="th-unit">(kg/cm²)</span></th>
-                <th style={{ minWidth: '120px', textAlign: 'center' }}>Jml Hambatan Pelekat (JHP) <span className="th-unit">(kg/cm)</span></th>
-                <th style={{ minWidth: '85px', textAlign: 'center' }}>FR (%) <span className="th-unit">(%)</span></th>
+                <th style={{ minWidth: '115px' }}>Bacaan Konus (Cw) <span className="th-unit">(kgf/cm²)</span></th>
+                <th style={{ minWidth: '115px' }}>Bacaan Total (Tw) <span className="th-unit">(kgf/cm²)</span></th>
+                <th style={{ minWidth: '95px', textAlign: 'center' }}>Selisih (Tw − Cw) <span className="th-unit">(kgf/cm²)</span></th>
+                <th style={{ minWidth: '100px' }}>Perlawanan Konus (qc) <span className="th-unit">(kgf/cm²)</span></th>
+                <th style={{ minWidth: '100px', textAlign: 'center' }}>Geser Lokal (fs) <span className="th-unit">(kgf/cm²)</span></th>
+                <th style={{ minWidth: '120px', textAlign: 'center' }}>Jml Hambatan Pelekat (JHP) <span className="th-unit">(kgf/cm)</span></th>
+                <th style={{ minWidth: '85px', textAlign: 'center' }}>Rf <span className="th-unit">(%)</span></th>
                 <th style={{ width: '45px', textAlign: 'center' }}>Aksi</th>
               </tr>
             </thead>
@@ -4167,7 +3878,8 @@ function DynamicCptSection({
                           min="0"
                           placeholder="0.00"
                           className={`cpt-input-number ${isRowInvalid ? 'input-error' : ''}`}
-                          value={row.depth !== undefined ? row.depth : ''}
+                          aria-label={`Kedalaman baris ${index + 1}`}
+                          value={inputs.cptRows[index].depth ?? ''}
                           onKeyDown={(e) => handleKeyDown && handleKeyDown(e, 'depth')}
                           onChange={(e) => onRowChange(index, 'depth', e.target.value)}
                         />
@@ -4181,7 +3893,8 @@ function DynamicCptSection({
                           min="0"
                           placeholder="0.0"
                           className={`cpt-input-number ${isRowInvalid ? 'input-error' : ''}`}
-                          value={row.qc !== undefined ? row.qc : ''}
+                          aria-label={`Cw baris ${index + 1}`}
+                          value={inputs.cptRows[index].qc ?? ''}
                           onKeyDown={(e) => handleKeyDown && handleKeyDown(e, 'qc')}
                           onChange={(e) => onRowChange(index, 'qc', e.target.value)}
                         />
@@ -4195,36 +3908,38 @@ function DynamicCptSection({
                           min="0"
                           placeholder="0.0"
                           className={`cpt-input-number ${isRowInvalid ? 'input-error' : ''}`}
-                          value={row.tw !== undefined ? row.tw : ''}
+                          aria-label={`Tw baris ${index + 1}`}
+                          value={inputs.cptRows[index].tw ?? ''}
                           onKeyDown={(e) => handleKeyDown && handleKeyDown(e, 'tw')}
                           onChange={(e) => onRowChange(index, 'tw', e.target.value)}
-                          title={isRowInvalid ? 'Jumlah Hambatan (tw) tidak boleh lebih kecil dari Hambatan Konus (qc)' : ''}
+                          aria-invalid={isRowInvalid || undefined}
                         />
                       </div>
                       {isRowInvalid && (
                         <div className="cpt-cell-error-tip">
-                          tw &lt; qc !
+                          {row.errorMessage}
                         </div>
                       )}
                     </td>
                     <td style={{ textAlign: 'center' }}>
                       <span className={`cpt-read-value ${isRowInvalid ? 'val-invalid' : ''}`}>
-                        {isRowInvalid ? '-' : row.friction.toFixed(1)}
+                        {formatCpt(row.friction, 2)}
                       </span>
                     </td>
+                    <td style={{ textAlign: 'center' }}>{formatCpt(row.qc, 2)}</td>
                     <td style={{ textAlign: 'center' }}>
                       <span className={`cpt-read-value ${isRowInvalid ? 'val-invalid' : ''}`}>
-                        {isRowInvalid ? '-' : row.hambatanSetempat.toFixed(2)}
+                        {formatCpt(row.fs, 3)}
                       </span>
                     </td>
                     <td style={{ textAlign: 'center' }}>
                       <span className={`cpt-read-value ${isRowInvalid ? 'val-invalid' : 'val-jhp'}`} style={{ color: '#C2410C', fontWeight: 700 }}>
-                        {isRowInvalid ? '-' : Number(row.jumlahHambatanPelekat || 0).toFixed(1)}
+                        {formatCpt(row.jumlahHambatanPelekat, 2)}
                       </span>
                     </td>
                     <td style={{ textAlign: 'center' }}>
                       <span className={`cpt-read-value ${isRowInvalid ? 'val-invalid' : 'val-fr'}`}>
-                        {isRowInvalid ? '-' : (row.qc > 0 ? `${row.frictionRatio.toFixed(2)}%` : '-')}
+                        {formatCpt(row.frictionRatio, 2)}
                       </span>
                     </td>
                     <td style={{ textAlign: 'center' }}>
@@ -4249,7 +3964,7 @@ function DynamicCptSection({
         {/* Bottom Actions of Table */}
         <div className="cpt-table-footer-bar">
           <span className="cpt-table-count-label">
-            Menampilkan <strong>{computedRows.length}</strong> interval kedalaman pengujian (0.00 m - {totalKedalaman.toFixed(2)} m)
+            Menampilkan <strong>{computedRows.length}</strong> baris pengujian
           </span>
           <button
             type="button"
@@ -4257,371 +3972,58 @@ function DynamicCptSection({
             onClick={onAddRow}
           >
             <Plus size={14} />
-            <span>+ Tambah Baris Kedalaman Berikutnya</span>
+            <span>Tambah Baris Kedalaman Berikutnya</span>
           </button>
         </div>
       </div>
 
-      {/* 3. PANEL 3 GRAFIK STRATIGRAFI SONDIR SEJAJAR (STANDAR GEOTEKNIK) */}
+
       <div className="calc-card-box cpt-charts-triplet-card">
-        <div className="calc-card-header cpt-table-card-header">
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            <div className="calc-card-header-icon" style={{ backgroundColor: '#EFF6FF', color: '#2563EB' }}>
-              <TrendingUp size={20} />
-            </div>
-            <div>
-              <h3 className="calc-card-title">Kurva Profil Stratigrafi Sondir (3 Grafik Sejajar)</h3>
-              <span className="calc-card-subtitle">
-                Standar Geoteknik SNI 2827:2008 &amp; ASTM D3441 • Step Chart 20 cm • Sumbu Y Terbalik (Kedalaman 0 m di Atas) • Kursor Sinkron Otomatis
-              </span>
-            </div>
-          </div>
-          <div className="cpt-chart-badges-row" style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
-            <span className="cpt-chart-badge badge-blue">1. qc (Biru)</span>
-            <span className="cpt-chart-badge badge-orange">2. fs (Orange)</span>
-            <span className="cpt-chart-badge badge-emerald">3. FR (Hijau)</span>
+        <div className="calc-card-header">
+          <div>
+            <h3 className="calc-card-title">Profil Sondir terhadap Kedalaman</h3>
+            <span className="calc-card-subtitle">Permukaan 0 m di atas. Ketiga grafik memakai skala kedalaman yang sama.</span>
           </div>
         </div>
-
-        {/* Grid 3 Grafik Sejajar: Kiri (qc), Tengah (fs), Kanan (FR) */}
         <div className="cpt-charts-triplet-grid">
-          {/* Grafik 1 (Kiri): Hambatan Konus (qc) */}
-          <div className="cpt-triplet-item">
-            <div className="cpt-triplet-header">
-              <div className="cpt-triplet-title-wrap">
-                <h4 className="cpt-triplet-title">Grafik 1: Hambatan Konus (qc)</h4>
-                <span className="cpt-triplet-sub">Sumbu X: qc (kg/cm²) • Step Chart</span>
-              </div>
-              <span className="cpt-chart-badge badge-blue">qc (kg/cm²)</span>
+          {profiles.map(([key, label, unit, color]) => (
+            <div className="cpt-triplet-item" key={key}>
+              <h4 className="cpt-triplet-title">{label} ({unit})</h4>
+              {chartData.some((point) => Number.isFinite(point[key])) ? (
+                <div className="cpt-recharts-box">
+                  <ResponsiveContainer width="100%" height={340}>
+                    <LineChart layout="vertical" data={chartData} syncId="cpt-profile"
+                      margin={{ top: 20, right: 22, left: 12, bottom: 16 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
+                      <XAxis type="number" domain={[0, 'auto']} stroke="#64748B" fontSize={11} />
+                      <YAxis type="number" dataKey="depth" domain={[0, depthLimit]} allowDataOverflow
+                        ticks={Array.from({ length: Math.round(depthLimit / step) + 1 }, (_, i) => i * step)}
+                        stroke="#64748B" fontSize={11} width={62}>
+                        <Label value="Kedalaman (m)" angle={-90} position="insideLeft" style={{ textAnchor: 'middle' }} />
+                      </YAxis>
+                      <Tooltip content={<CustomCptTooltip />} />
+                      <Line type="linear" dataKey={key} stroke={color} strokeWidth={2}
+                        dot={{ r: 3, fill: color }} connectNulls={false} isAnimationActive={false} />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              ) : <p className="calc-card-subtitle">Belum ada bacaan yang dapat digambar.</p>}
             </div>
-
-            <div className="cpt-recharts-box">
-              <ResponsiveContainer width="100%" height={340}>
-                <LineChart
-                  layout="vertical"
-                  data={chartData}
-                  syncId="cpt-profile"
-                  margin={{ top: 20, right: 25, left: 55, bottom: 40 }}
-                >
-                  <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
-                  <XAxis
-                    type="number"
-                    domain={[0, 'auto']}
-                    stroke="#64748B"
-                    fontSize={11}
-                  >
-                    <Label
-                      value="Hambatan Konus qc (kg/cm²)"
-                      offset={-18}
-                      position="insideBottom"
-                      fill="#334155"
-                      fontSize={11}
-                      fontWeight={700}
-                      style={{ textAnchor: 'middle' }}
-                    />
-                  </XAxis>
-                  <YAxis
-                    type="number"
-                    dataKey="depth"
-                    reversed={true}
-                    domain={[0, Math.max(3.0, totalKedalaman)]}
-                    stroke="#64748B"
-                    fontSize={11}
-                    width={45}
-                  >
-                    <Label
-                      value="Kedalaman (m)"
-                      angle={-90}
-                      position="insideLeft"
-                      offset={-15}
-                      fill="#334155"
-                      fontSize={11}
-                      fontWeight={700}
-                      style={{ textAnchor: 'middle' }}
-                    />
-                  </YAxis>
-                  <Tooltip content={<CustomCptTooltip />} />
-                  <Line
-                    type="step"
-                    dataKey="qc"
-                    stroke="#2563EB"
-                    strokeWidth={2.5}
-                    dot={{ r: 3, fill: '#2563EB' }}
-                    activeDot={{ r: 6 }}
-                    isAnimationActive={false}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-
-          {/* Grafik 2 (Tengah): Hambatan Pelekat Lokal (fs) */}
-          <div className="cpt-triplet-item">
-            <div className="cpt-triplet-header">
-              <div className="cpt-triplet-title-wrap">
-                <h4 className="cpt-triplet-title">Grafik 2: Hambatan Setempat (fs)</h4>
-                <span className="cpt-triplet-sub">Sumbu X: fs = d / 10 (kg/cm²) • Step Chart</span>
-              </div>
-              <span className="cpt-chart-badge badge-orange">fs (kg/cm²)</span>
-            </div>
-
-            <div className="cpt-recharts-box">
-              <ResponsiveContainer width="100%" height={340}>
-                <LineChart
-                  layout="vertical"
-                  data={chartData}
-                  syncId="cpt-profile"
-                  margin={{ top: 20, right: 25, left: 55, bottom: 40 }}
-                >
-                  <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
-                  <XAxis
-                    type="number"
-                    domain={[0, 'auto']}
-                    stroke="#64748B"
-                    fontSize={11}
-                  >
-                    <Label
-                      value="Hambatan Setempat fs (kg/cm²)"
-                      offset={-18}
-                      position="insideBottom"
-                      fill="#334155"
-                      fontSize={11}
-                      fontWeight={700}
-                      style={{ textAnchor: 'middle' }}
-                    />
-                  </XAxis>
-                  <YAxis
-                    type="number"
-                    dataKey="depth"
-                    reversed={true}
-                    domain={[0, Math.max(3.0, totalKedalaman)]}
-                    stroke="#64748B"
-                    fontSize={11}
-                    width={45}
-                  >
-                    <Label
-                      value="Kedalaman (m)"
-                      angle={-90}
-                      position="insideLeft"
-                      offset={-15}
-                      fill="#334155"
-                      fontSize={11}
-                      fontWeight={700}
-                      style={{ textAnchor: 'middle' }}
-                    />
-                  </YAxis>
-                  <Tooltip content={<CustomCptTooltip />} />
-                  <Line
-                    type="step"
-                    dataKey="fs"
-                    stroke="#EA580C"
-                    strokeWidth={2.5}
-                    dot={{ r: 3, fill: '#EA580C' }}
-                    activeDot={{ r: 6 }}
-                    isAnimationActive={false}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-
-          {/* Grafik 3 (Kanan): Friction Ratio (FR) */}
-          <div className="cpt-triplet-item">
-            <div className="cpt-triplet-header">
-              <div className="cpt-triplet-title-wrap">
-                <h4 className="cpt-triplet-title">Grafik 3: Friction Ratio (FR)</h4>
-                <span className="cpt-triplet-sub">Sumbu X: FR (%) • Batas 1.5% &amp; 3.0%</span>
-              </div>
-              <span className="cpt-chart-badge badge-emerald">FR (%)</span>
-            </div>
-
-            <div className="cpt-recharts-box">
-              <ResponsiveContainer width="100%" height={340}>
-                <LineChart
-                  layout="vertical"
-                  data={chartData}
-                  syncId="cpt-profile"
-                  margin={{ top: 20, right: 25, left: 55, bottom: 40 }}
-                >
-                  <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
-                  <XAxis
-                    type="number"
-                    domain={[0, 'auto']}
-                    stroke="#64748B"
-                    fontSize={11}
-                  >
-                    <Label
-                      value="Friction Ratio FR (%)"
-                      offset={-18}
-                      position="insideBottom"
-                      fill="#334155"
-                      fontSize={11}
-                      fontWeight={700}
-                      style={{ textAnchor: 'middle' }}
-                    />
-                  </XAxis>
-                  <YAxis
-                    type="number"
-                    dataKey="depth"
-                    reversed={true}
-                    domain={[0, Math.max(3.0, totalKedalaman)]}
-                    stroke="#64748B"
-                    fontSize={11}
-                    width={45}
-                  >
-                    <Label
-                      value="Kedalaman (m)"
-                      angle={-90}
-                      position="insideLeft"
-                      offset={-15}
-                      fill="#334155"
-                      fontSize={11}
-                      fontWeight={700}
-                      style={{ textAnchor: 'middle' }}
-                    />
-                  </YAxis>
-                  <ReferenceLine
-                    x={1.5}
-                    stroke="red"
-                    strokeDasharray="3 3"
-                    label={{ value: '1.5%', position: 'top', fill: 'red', fontSize: 10, fontWeight: 700 }}
-                  />
-                  <ReferenceLine
-                    x={3.0}
-                    stroke="red"
-                    strokeDasharray="3 3"
-                    label={{ value: '3.0%', position: 'top', fill: 'red', fontSize: 10, fontWeight: 700 }}
-                  />
-                  <Tooltip content={<CustomCptTooltip />} />
-                  <Line
-                    type="step"
-                    dataKey="fr"
-                    stroke="#16A34A"
-                    strokeWidth={2.5}
-                    dot={{ r: 3, fill: '#16A34A' }}
-                    activeDot={{ r: 6 }}
-                    isAnimationActive={false}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
+          ))}
         </div>
       </div>
 
-      {/* 3. EVALUASI STANDAR, RUMUS EXCEL & ACTION BUTTONS */}
-      <div className="calc-card-box cpt-footer-eval-card" style={{ marginTop: '1.5rem' }}>
+      <div className="calc-card-box cpt-footer-eval-card">
         <div className="calc-card-header">
-          <div className="calc-card-header-icon" style={{ backgroundColor: '#F0FDF4', color: '#166534' }}>
-            <CheckCircle2 size={20} />
-          </div>
           <div>
-            <h3 className="calc-card-title">Kesimpulan Geoteknik & Standar SNI 2827:2008</h3>
-            <span className="calc-card-subtitle">Interpretasi profil lapisan tanah dan rincian langkah rumus perhitungan Excel</span>
-          </div>
-          <span className={`calc-chart-badge ${hasInvalidRow ? 'status-eval' : 'status-ok'}`} style={{ marginLeft: 'auto' }}>
-            {hasInvalidRow ? '⚠️ Validitas Manometer Diperlukan' : '✓ Memenuhi Standar SNI 2827:2008'}
-          </span>
-        </div>
-
-        {/* Teks Kesimpulan */}
-        <div className="cpt-conclusion-box">
-          <p className="cpt-conclusion-text">
-            {calcOutput.conclusion}
-          </p>
-        </div>
-
-        {/* Rincian Langkah Rumus Excel & SNI */}
-        <div className="cpt-steps-container">
-          <h4 className="cpt-steps-title">Rincian Rumus Berantai Sesuai Lembar Hitung Excel & SNI 2827:2008:</h4>
-          <div className="cpt-steps-grid">
-            <div className="cpt-step-item">
-              <span className="cpt-step-num">1</span>
-              <div>
-                <strong>Hambatan Gesek Selubung:</strong>
-                <code>Friction (d) = tw - qc</code>
-                <p>Selisih tekanan total pembacaan manometer (konus + selubung) terhadap konus saja (kg/cm²).</p>
-              </div>
-            </div>
-            <div className="cpt-step-item">
-              <span className="cpt-step-num">2</span>
-              <div>
-                <strong>Hambatan Setempat:</strong>
-                <code>fs = (tw - qc) / 10 = d / 10</code>
-                <p>Gaya gesek per satuan luas selubung bikonus standar penampang 10 cm² (kg/cm²).</p>
-              </div>
-            </div>
-            <div className="cpt-step-item">
-              <span className="cpt-step-num">3</span>
-              <div>
-                <strong>Hambatan Pelekat Interval:</strong>
-                <code>ΔJHP = fs × 20 cm = d × 2</code>
-                <p>Hambatan gesek interval pergerakan konus setiap 20 cm penetrasi alat sondir (kg/cm).</p>
-              </div>
-            </div>
-            <div className="cpt-step-item">
-              <span className="cpt-step-num">4</span>
-              <div>
-                <strong>Jumlah Hambatan Pelekat Kumulatif:</strong>
-                <code>JHP_i = JHP_(i-1) + ΔJHP_i</code>
-                <p>Akumulasi berantai kumulatif dari permukaan (0 m = 0) sampai kedalaman pengujian (kg/cm).</p>
-              </div>
-            </div>
-            <div className="cpt-step-item">
-              <span className="cpt-step-num">5</span>
-              <div>
-                <strong>Rasio Gesekan:</strong>
-                <code>FR = (fs / qc) × 100%</code>
-                <p>Rasio karakteristik gesekan tanah untuk menentukan jenis stratigrafi tanah (%).</p>
-              </div>
-            </div>
-            <div className="cpt-step-item">
-              <span className="cpt-step-num">6</span>
-              <div>
-                <strong>Klasifikasi Tanah (Robertson):</strong>
-                <code>qc dan FR per Interval &amp; Rata-rata</code>
-                <p>Interpretasi jenis tanah (Lempung Lunak, Lanau, Pasir Berlanau, Pasir Padat) berdasarkan nilai qc &amp; FR.</p>
-              </div>
-            </div>
+            <h3 className="calc-card-title">Ringkasan dan Rumus Sondir</h3>
+            <span className="calc-card-subtitle">Acuan perhitungan SNI 2827:2008</span>
           </div>
         </div>
-
-        {/* Action Buttons */}
-        <div className="calc-actions-footer" style={{ marginTop: '1.5rem', borderTop: '1px solid #E2E8F0', paddingTop: '1.25rem' }}>
-          <button
-            type="button"
-            className="btn-save-to-dashboard"
-            onClick={onSave}
-            disabled={isInputInvalid || hasInvalidRow || hasNegativeInput}
-            title={
-              isInputInvalid || hasInvalidRow || hasNegativeInput
-                ? 'Data input belum valid. Perbaiki nilai input atau periksa baris merah sebelum menyimpan.'
-                : 'Simpan Rekam Hasil Sondir ke Dashboard'
-            }
-          >
-            <Save size={16} />
-            <span>Simpan Hasil ke Dashboard</span>
-          </button>
-
-          <button
-            type="button"
-            className="btn-open-table-direct"
-            onClick={onResetRows}
-            title="Kembalikan tabel ke 15 baris contoh awal"
-          >
-            <RotateCcw size={15} style={{ marginRight: '6px' }} />
-            <span>Reset Contoh (15 Baris)</span>
-          </button>
-
-          <button
-            type="button"
-            className="btn-open-table-direct"
-            onClick={onBack}
-          >
-            <ArrowLeft size={15} style={{ marginRight: '6px' }} />
-            <span>Ke Dashboard Utama</span>
-          </button>
-        </div>
+        <p className="cpt-conclusion-text">{calcOutput.conclusion}</p>
+        <ol className="cpt-formula-list">
+          {CPT_FORMULAS.map((formula) => <li key={formula}>{formula}</li>)}
+        </ol>
       </div>
     </div>
   )
@@ -4667,34 +4069,21 @@ function CustomProctorTooltip({ active, payload }) {
 
 // Komponen Modul Khusus: Standard Proctor Lab Multi-Titik Sampel (Standar ITERA)
 function DynamicProctorSection({
-  testConfig,
-  inputs,
   calcOutput,
-  currentProctorSamples,
   activeProctorSampleIdx,
   setActiveProctorSampleIdx,
   onMoldChange,
   onContainerChange,
   onAddSample,
   onRemoveSample,
-  onResetSamples,
-  onClearSamples,
-  isInputInvalid,
   hasNegativeInput,
-  hasExceededInput,
-  onSave,
-  onBack,
-  savedNotification,
-  lastSavedId,
-  getVerdictClass,
-  getVerdictLabel,
   handleKeyDown,
 }) {
   const computedSamples = calcOutput.proctorSamples || []
   const chartData = calcOutput.chartData || []
-  const mdd = Number(calcOutput.mdd || 0)
-  const omc = Number(calcOutput.omc || 0)
-  const avgWet = Number(calcOutput.avgWet || 0)
+  const { mdd, omc, avgWet } = calcOutput
+  const format = (value, digits) => Number.isFinite(value) ? value.toFixed(digits) : '—'
+  const hasPeak = Number.isFinite(mdd)
   const rekapitulasiTable = calcOutput.rekapitulasiTable || []
   const hasInvalidContainer = Boolean(calcOutput.hasInvalidContainer)
   const hasInvalidMold = Boolean(calcOutput.hasInvalidMold)
@@ -4704,19 +4093,6 @@ function DynamicProctorSection({
 
   return (
     <div className="proctor-dynamic-container" style={{ width: '100%', marginTop: '0.5rem' }}>
-      {/* Toast Notifikasi Tersimpan */}
-      {savedNotification && (
-        <div className="calc-saved-toast">
-          <div className="calc-toast-icon">
-            <CheckCircle2 size={18} />
-          </div>
-          <div className="calc-toast-text">
-            <strong>Data Uji Standard Proctor Berhasil Disimpan!</strong>
-            <span>Rekam hasil pemadatan MDD = {mdd.toFixed(3)} gr/cm³ pada OMC = {omc.toFixed(2)}% telah ditambahkan ke riwayat ({lastSavedId}).</span>
-          </div>
-        </div>
-      )}
-
       {/* 1. KARTU RINGKASAN ATAS (4 METRIK UTAMA) */}
       <div className="proctor-summary-grid">
         {/* Card 1: MDD */}
@@ -4726,7 +4102,7 @@ function DynamicProctorSection({
             <span className="cpt-metric-badge badge-blue">Puncak</span>
           </div>
           <div className="cpt-metric-value" style={{ color: '#2563EB' }}>
-            {mdd.toFixed(3)} <span className="cpt-metric-unit">gr/cm³</span>
+            {format(mdd, 3)} <span className="cpt-metric-unit">gr/cm³</span>
           </div>
           <div className="cpt-metric-footer">Maximum Dry Density (γ_dry)</div>
         </div>
@@ -4738,7 +4114,7 @@ function DynamicProctorSection({
             <span className="cpt-metric-badge badge-orange">Optimum</span>
           </div>
           <div className="cpt-metric-value" style={{ color: '#EA580C' }}>
-            {omc.toFixed(2)} <span className="cpt-metric-unit">%</span>
+            {format(omc, 2)} <span className="cpt-metric-unit">%</span>
           </div>
           <div className="cpt-metric-footer">Optimum Moisture Content (w_opt)</div>
         </div>
@@ -4750,7 +4126,7 @@ function DynamicProctorSection({
             <span className="cpt-metric-badge badge-blue">Basah</span>
           </div>
           <div className="cpt-metric-value">
-            {avgWet.toFixed(3)} <span className="cpt-metric-unit">gr/cm³</span>
+            {format(avgWet, 3)} <span className="cpt-metric-unit">gr/cm³</span>
           </div>
           <div className="cpt-metric-footer">Average Wet Density (γ_wet)</div>
         </div>
@@ -4758,11 +4134,11 @@ function DynamicProctorSection({
         {/* Card 4: Status Validasi */}
         <div className="proctor-metric-card">
           <div className="cpt-metric-header">
-            <span className="cpt-metric-label">Status Validasi Standar</span>
+            <span className="cpt-metric-label">Status Kurva</span>
             <span className="cpt-metric-badge badge-emerald">SNI / ASTM</span>
           </div>
-          <div className="cpt-metric-value text-soil-name" style={{ color: calcOutput.isError ? '#DC2626' : '#15803D', fontSize: '1.05rem', fontWeight: '800' }}>
-            {calcOutput.isError ? 'Perlu Evaluasi' : 'Memenuhi SNI 1742:2008'}
+          <div className="cpt-metric-value text-soil-name" style={{ color: hasPeak ? '#15803D' : '#92400E', fontSize: '1.05rem', fontWeight: '800' }}>
+            {calcOutput.status}
           </div>
           <div className="cpt-metric-footer">Metode Standard Compaction</div>
         </div>
@@ -4793,25 +4169,6 @@ function DynamicProctorSection({
             >
               <Plus size={15} />
               <span>Tambah Titik Sampel</span>
-            </button>
-            <button
-              type="button"
-              className="btn-cpt-reset-sample"
-              onClick={onResetSamples}
-              title="Kembalikan data tabel ke 3 sampel contoh awal"
-            >
-              <RotateCcw size={14} />
-              <span>Reset Contoh</span>
-            </button>
-            <button
-              type="button"
-              className="btn-cpt-reset-sample"
-              onClick={onClearSamples}
-              title="Kosongkan seluruh angka input agar bisa diisi dari awal"
-              style={{ color: '#DC2626', borderColor: '#FECACA' }}
-            >
-              <Trash2 size={14} />
-              <span>Kosongkan Input</span>
             </button>
           </div>
         </div>
@@ -4877,35 +4234,50 @@ function DynamicProctorSection({
               Parameter Uji {activeSample.name}
             </h4>
             <div style={{ display: 'flex', gap: '0.75rem', fontSize: '0.78rem', color: '#475569' }}>
-              <span>Volume Mold: <strong>{Number(activeSample.volumeMold || 0).toFixed(2)} cm³</strong></span>
+              <span>Volume Mold: <strong>{format(activeSample.volumeMold, 2)} cm³</strong></span>
               <span>•</span>
-              <span>Berat Basah (γ_wet): <strong style={{ color: '#2563EB' }}>{Number(activeSample.gammaWet || 0).toFixed(3)} gr/cm³</strong></span>
+              <span>Berat Basah (γ_wet): <strong style={{ color: '#2563EB' }}>{format(activeSample.gammaWet, 3)} gr/cm³</strong></span>
               <span>•</span>
-              <span>Berat Kering (γ_dry): <strong style={{ color: '#15803D' }}>{Number(activeSample.gammaDry || 0).toFixed(3)} gr/cm³</strong></span>
+              <span>Berat Kering (γ_dry): <strong style={{ color: '#15803D' }}>{format(activeSample.gammaDry, 3)} gr/cm³</strong></span>
             </div>
           </div>
 
           {/* Row 1: Mold Inputs */}
           <div className="proctor-mold-grid">
+            {activeSample.separateTare ? [
+              ['moldTare', 'Massa Cetakan Kosong'],
+              ['moldWithSoil', 'Massa Cetakan + Tanah Basah'],
+            ].map(([key, label]) => (
+              <label className="proctor-input-group" key={key}>
+                <span>{label}</span>
+                <span className="proctor-input-wrap">
+                  <input type="number" step="any" min="0" className="proctor-input-field"
+                    value={activeSample[key] ?? ''}
+                    onChange={(e) => onMoldChange(activeProctorSampleIdx, key, e.target.value)} />
+                  <span className="proctor-unit-suffix">g</span>
+                </span>
+              </label>
+            )) : (
             <div className="proctor-input-group">
-              <label>Massa Total Tanah Basah dalam Mold (M)</label>
+              <label>Massa Bersih Tanah Basah</label>
               <div className="proctor-input-wrap">
                 <input
                   type="number"
                   step="0.1"
                   min="0"
-                  placeholder="432.5"
+                  placeholder="1800"
                   className="proctor-input-field"
-                  value={activeSample.massMoldSoil !== undefined ? activeSample.massMoldSoil : ''}
+                  value={activeSample.massMoldSoil ?? ''}
                   onKeyDown={(e) => handleKeyDown && handleKeyDown(e, 'mass')}
                   onChange={(e) => onMoldChange(activeProctorSampleIdx, 'massMoldSoil', e.target.value)}
                 />
                 <span className="proctor-unit-suffix">gr</span>
               </div>
               <span style={{ fontSize: '0.65rem', color: '#94A3B8', marginTop: '2px', display: 'block' }}>
-                Jika &lt; 10 otomatis dibaca kg
+                Data lama di bawah 10 mengikuti satuan kg.
               </span>
             </div>
+            )}
 
             <div className="proctor-input-group">
               <label>Diameter Mold (D)</label>
@@ -4914,16 +4286,16 @@ function DynamicProctorSection({
                   type="number"
                   step="0.01"
                   min="0"
-                  placeholder="5.5"
+                  placeholder="10.16"
                   className="proctor-input-field"
-                  value={activeSample.diameterMold !== undefined ? activeSample.diameterMold : ''}
+                  value={activeSample.diameterMold ?? ''}
                   onKeyDown={(e) => handleKeyDown && handleKeyDown(e, 'diameter')}
                   onChange={(e) => onMoldChange(activeProctorSampleIdx, 'diameterMold', e.target.value)}
                 />
                 <span className="proctor-unit-suffix">cm</span>
               </div>
               <span style={{ fontSize: '0.65rem', color: '#94A3B8', marginTop: '2px', display: 'block' }}>
-                Default: 5.5 cm
+                Ukur diameter bagian dalam cetakan
               </span>
             </div>
 
@@ -4934,16 +4306,16 @@ function DynamicProctorSection({
                   type="number"
                   step="0.01"
                   min="0"
-                  placeholder="10.0"
+                  placeholder="11.64"
                   className="proctor-input-field"
-                  value={activeSample.heightMold !== undefined ? activeSample.heightMold : ''}
+                  value={activeSample.heightMold ?? ''}
                   onKeyDown={(e) => handleKeyDown && handleKeyDown(e, 'height')}
                   onChange={(e) => onMoldChange(activeProctorSampleIdx, 'heightMold', e.target.value)}
                 />
                 <span className="proctor-unit-suffix">cm</span>
               </div>
               <span style={{ fontSize: '0.65rem', color: '#94A3B8', marginTop: '2px', display: 'block' }}>
-                Default: 10.0 cm
+                Ukur tinggi efektif cetakan
               </span>
             </div>
 
@@ -4956,14 +4328,14 @@ function DynamicProctorSection({
                   min="1.0"
                   placeholder="2.65"
                   className="proctor-input-field"
-                  value={activeSample.gs !== undefined ? activeSample.gs : ''}
+                  value={activeSample.gs ?? ''}
                   onKeyDown={(e) => handleKeyDown && handleKeyDown(e, 'gs')}
                   onChange={(e) => onMoldChange(activeProctorSampleIdx, 'gs', e.target.value)}
                 />
                 <span className="proctor-unit-suffix">-</span>
               </div>
               <span style={{ fontSize: '0.65rem', color: '#94A3B8', marginTop: '2px', display: 'block' }}>
-                Default: 2.65 (ZAV)
+                Gunakan Gs hasil uji tanah ini untuk ZAV
               </span>
             </div>
           </div>
@@ -5003,7 +4375,7 @@ function DynamicProctorSection({
                               min="0"
                               placeholder="0.00"
                               className={`cpt-input-number ${isContInvalid ? 'input-error' : ''}`}
-                              value={c.m1 !== undefined ? c.m1 : ''}
+                              value={c.m1 ?? ''}
                               onKeyDown={(e) => handleKeyDown && handleKeyDown(e, 'm1')}
                               onChange={(e) => onContainerChange(activeProctorSampleIdx, cIdx, 'm1', e.target.value)}
                             />
@@ -5018,7 +4390,7 @@ function DynamicProctorSection({
                               min="0"
                               placeholder="0.00"
                               className={`cpt-input-number ${isContInvalid ? 'input-error' : ''}`}
-                              value={c.m2 !== undefined ? c.m2 : ''}
+                              value={c.m2 ?? ''}
                               onKeyDown={(e) => handleKeyDown && handleKeyDown(e, 'm2')}
                               onChange={(e) => onContainerChange(activeProctorSampleIdx, cIdx, 'm2', e.target.value)}
                             />
@@ -5026,7 +4398,7 @@ function DynamicProctorSection({
                           </div>
                           {isContInvalid && (
                             <div className="cpt-cell-error-tip">
-                              M2 harus &gt; M3
+                              M2 harus ≥ M3
                             </div>
                           )}
                         </td>
@@ -5038,7 +4410,7 @@ function DynamicProctorSection({
                               min="0"
                               placeholder="0.00"
                               className={`cpt-input-number ${isContInvalid ? 'input-error' : ''}`}
-                              value={c.m3 !== undefined ? c.m3 : ''}
+                              value={c.m3 ?? ''}
                               onKeyDown={(e) => handleKeyDown && handleKeyDown(e, 'm3')}
                               onChange={(e) => onContainerChange(activeProctorSampleIdx, cIdx, 'm3', e.target.value)}
                             />
@@ -5074,7 +4446,7 @@ function DynamicProctorSection({
                       Rata-rata Kadar Air {activeSample.name} (w̄) = (w1 + w2 + w3) / 3:
                     </td>
                     <td colSpan={3} style={{ textAlign: 'center', color: '#1D4ED8', fontSize: '0.92rem' }}>
-                      {Number(activeSample.avgW || 0).toFixed(2)}%
+                      {format(activeSample.avgW, 2)}%
                     </td>
                   </tr>
                 </tbody>
@@ -5118,18 +4490,18 @@ function DynamicProctorSection({
                       {row.name}
                     </td>
                     <td style={{ textAlign: 'center', fontWeight: '600' }}>
-                      {row.avgW.toFixed(2)}%
+                      {format(row.avgW, 2)}%
                     </td>
                     <td style={{ textAlign: 'center', fontWeight: '600' }}>
-                      {row.gammaWet.toFixed(3)}
+                      {format(row.gammaWet, 3)}
                     </td>
                     <td style={{ textAlign: 'center', fontWeight: '800', color: row.isPeak ? '#B45309' : '#0369A1' }}>
-                      {row.gammaDry.toFixed(3)}
+                      {format(row.gammaDry, 3)}
                     </td>
                     <td style={{ textAlign: 'center' }}>
-                      {row.isPeak ? (
+                      {row.aboveZav ? 'Di atas ZAV' : row.isInvalid ? 'Periksa data' : row.isPeak ? (
                         <span className="badge-mdd-peak">
-                          ★ Puncak MDD
+                          Titik tertinggi terukur
                         </span>
                       ) : (
                         <span style={{ fontSize: '0.7rem', color: '#64748B' }}>
@@ -5145,7 +4517,7 @@ function DynamicProctorSection({
           </div>
 
           <div style={{ marginTop: '0.75rem', padding: '0.65rem 0.85rem', backgroundColor: '#F8FAFC', borderRadius: '0.5rem', fontSize: '0.73rem', color: '#475569', lineHeight: 1.4 }}>
-            <span>Kerapatan Kering Maksimum: <strong style={{ color: '#2563EB' }}>MDD = {mdd.toFixed(3)} gr/cm³</strong> tercapai pada kadar air optimum <strong style={{ color: '#EA580C' }}>OMC = {omc.toFixed(2)}%</strong>.</span>
+            <span>{calcOutput.conclusion}</span>
           </div>
         </div>
 
@@ -5231,8 +4603,8 @@ function DynamicProctorSection({
             <h3 className="calc-card-title">Kesimpulan Geoteknik & Standar SNI 1742:2008</h3>
             <span className="calc-card-subtitle">Interpretasi hasil pemadatan Standard Proctor dan rincian rumus perhitungan</span>
           </div>
-          <span className={`calc-chart-badge ${calcOutput.isError ? 'status-eval' : 'status-ok'}`} style={{ marginLeft: 'auto' }}>
-            {calcOutput.isError ? '⚠️ Cek Validitas Data Uji' : '✓ Memenuhi Standar SNI 1742:2008'}
+          <span className={`calc-chart-badge ${hasPeak ? 'status-ok' : 'status-eval'}`} style={{ marginLeft: 'auto' }}>
+            {calcOutput.status}
           </span>
         </div>
 
@@ -5243,108 +4615,11 @@ function DynamicProctorSection({
           </p>
         </div>
 
-        {/* Rincian Langkah Rumus Berantai Sesuai Laboratorium ITERA */}
-        <div className="cpt-steps-container">
-          <h4 className="cpt-steps-title">Rincian Rumus Berantai Sesuai Laboratorium Teknik Sipil ITERA:</h4>
-          <div className="cpt-steps-grid">
-            <div className="cpt-step-item">
-              <span className="cpt-step-num">1</span>
-              <div>
-                <strong>Kadar Air Tiap Kontainer:</strong>
-                <code>w = ((M2 - M3) / (M3 - M1)) × 100%</code>
-                <p>Rasio massa air yang menguap saat di-oven 105°C terhadap massa butir tanah kering.</p>
-              </div>
-            </div>
-            <div className="cpt-step-item">
-              <span className="cpt-step-num">2</span>
-              <div>
-                <strong>Kadar Air Rata-rata Sampel:</strong>
-                <code>w̄ = (w1 + w2 + w3) / 3</code>
-                <p>Rata-rata 3 kontainer sub-pengujian untuk meminimalkan deviasi penimbangan cawan.</p>
-              </div>
-            </div>
-            <div className="cpt-step-item">
-              <span className="cpt-step-num">3</span>
-              <div>
-                <strong>Volume Cetakan Mold:</strong>
-                <code>V = 0.25 × 3.1416 × D² × H</code>
-                <p>Volume silinder mold laboratorium pemadatan tanah (diameter D = 5.5 cm, tinggi H = 10.0 cm).</p>
-              </div>
-            </div>
-            <div className="cpt-step-item">
-              <span className="cpt-step-num">4</span>
-              <div>
-                <strong>Berat Volume Basah:</strong>
-                <code>γ_wet = M / V (gr/cm³)</code>
-                <p>Massa tanah basah padat dalam cetakan mold dibagi dengan volume cetakan mold.</p>
-              </div>
-            </div>
-            <div className="cpt-step-item">
-              <span className="cpt-step-num">5</span>
-              <div>
-                <strong>Berat Volume Kering (Dry Density):</strong>
-                <code>γ_dry = γ_wet / (1 + w̄/100) (gr/cm³)</code>
-                <p>Kepadatan kering butiran tanah tanpa memperhitungkan berat air pori.</p>
-              </div>
-            </div>
-            <div className="cpt-step-item">
-              <span className="cpt-step-num">6</span>
-              <div>
-                <strong>Kurva Batas Zero Air Voids (ZAV):</strong>
-                <code>γ_zav = (Gs × 1.0) / (1 + w × Gs / 100)</code>
-                <p>Kerapatan teoretis saat seluruh rongga udara terisi penuh air (kejenuhan S = 100%).</p>
-              </div>
-            </div>
-          </div>
-        </div>
+        <ol className="cpt-steps-container">
+          {calcOutput.formulaSteps?.map((step) => <li key={step}>{step}</li>)}
+        </ol>
 
         {/* Action Buttons */}
-        <div className="calc-actions-footer" style={{ marginTop: '1.5rem', borderTop: '1px solid #E2E8F0', paddingTop: '1.25rem' }}>
-          <button
-            type="button"
-            className="btn-save-to-dashboard"
-            onClick={onSave}
-            disabled={isInputInvalid || calcOutput.isError || hasNegativeInput}
-            title={
-              isInputInvalid || calcOutput.isError || hasNegativeInput
-                ? 'Data input belum valid. Periksa nilai kontainer atau dimensi mold sebelum menyimpan.'
-                : 'Simpan Rekam Hasil Proctor ke Dashboard'
-            }
-          >
-            <Save size={16} />
-            <span>Simpan Hasil ke Dashboard</span>
-          </button>
-
-          <button
-            type="button"
-            className="btn-open-table-direct"
-            onClick={onResetSamples}
-            title="Kembalikan tabel ke 3 titik sampel contoh awal"
-          >
-            <RotateCcw size={15} style={{ marginRight: '6px' }} />
-            <span>Reset Contoh (3 Sampel)</span>
-          </button>
-
-          <button
-            type="button"
-            className="btn-open-table-direct"
-            onClick={onClearSamples}
-            title="Kosongkan seluruh angka input untuk memasukkan data uji baru"
-            style={{ color: '#DC2626' }}
-          >
-            <Trash2 size={15} style={{ marginRight: '6px' }} />
-            <span>Kosongkan Input</span>
-          </button>
-
-          <button
-            type="button"
-            className="btn-open-table-direct"
-            onClick={onBack}
-          >
-            <ArrowLeft size={15} style={{ marginRight: '6px' }} />
-            <span>Ke Dashboard Utama</span>
-          </button>
-        </div>
       </div>
     </div>
   )
@@ -5378,26 +4653,15 @@ function CustomSoilSieveTooltip({ active, payload }) {
 }
 
 function DynamicSoilSieveSection({
-  testConfig,
   inputs,
   calcOutput,
   currentSoilSieves,
   onSieveChange,
   onAddSieve,
   onRemoveSieve,
-  onResetSieves,
-  onClearSieves,
   onInputChange,
-  isInputInvalid,
-  hasNegativeInput,
-  hasExceededInput,
-  onSave,
-  onBack,
-  savedNotification,
-  lastSavedId,
   getVerdictClass,
   getVerdictLabel,
-  handleKeyDown,
 }) {
   const [isReversedAxis, setIsReversedAxis] = useState(true)
 
@@ -5417,68 +4681,8 @@ function DynamicSoilSieveSection({
   const cu = calcOutput?.cu
   const cc = calcOutput?.cc
 
-  const isFormDisabled = isInputInvalid || hasNegativeInput || hasExceededInput
-
   return (
     <div className="dynamic-cpt-container">
-      {/* Header Panel & Aksi Cepat */}
-      <div className="calc-panel-header" style={{ marginBottom: '1.25rem' }}>
-        <div className="calc-header-left">
-          <button onClick={onBack} className="btn-back-header" title="Kembali ke Dashboard">
-            <ArrowLeft size={16} />
-            <span>Kembali</span>
-          </button>
-          <div className="calc-title-box">
-            <div className="calc-category-badge">{testConfig.category}</div>
-            <h2 className="calc-title-text">{testConfig.name}</h2>
-            <div className="calc-standard-badge">
-              <span>{testConfig.standard}</span>
-              <span className="badge-code">{testConfig.code}</span>
-            </div>
-          </div>
-        </div>
-
-        <div className="calc-header-actions calc-top-action-bar">
-          <button
-            type="button"
-            onClick={onResetSieves}
-            className="btn-action-outline"
-            title="Kembalikan ke data contoh standar laboratorium (8 Ayakan)"
-          >
-            <RotateCcw size={15} />
-            <span>Reset Contoh</span>
-          </button>
-          <button
-            type="button"
-            onClick={onClearSieves}
-            className="btn-action-outline btn-action-danger"
-            title="Kosongkan seluruh nilai massa tertahan untuk input baru"
-          >
-            <Trash2 size={15} />
-            <span>Kosongkan Input</span>
-          </button>
-          <button
-            type="button"
-            onClick={onSave}
-            disabled={isFormDisabled}
-            className={`btn-action-primary ${savedNotification ? 'btn-saved' : ''}`}
-            title="Simpan data ke riwayat pengujian"
-          >
-            {savedNotification ? (
-              <>
-                <Check size={16} />
-                <span>Tersimpan (#{lastSavedId})</span>
-              </>
-            ) : (
-              <>
-                <Save size={16} />
-                <span>Simpan Pengujian</span>
-              </>
-            )}
-          </button>
-        </div>
-      </div>
-
       {/* 4 Kartu Ringkasan Hasil Utama */}
       <div className="soil-sieve-summary-grid">
         {/* Card 1: Cu */}
@@ -5522,13 +4726,13 @@ function DynamicSoilSieveSection({
             <span className="proctor-metric-badge badge-blue" style={{ backgroundColor: '#ECFDF5', color: '#065F46', borderColor: '#A7F3D0' }}>Fines</span>
           </div>
           <div className="soil-sieve-card-value">
-            {calcOutput?.finesPct !== undefined ? `${calcOutput.finesPct.toFixed(1)}` : '0.0'}
+            {calcOutput?.finesPct?.toFixed(1) ?? '—'}
             <span className="soil-sieve-card-unit">%</span>
           </div>
           <div className="soil-sieve-card-sub">
             Lolos Ayakan No. 200 (&lt; 0.075 mm)
-            <div style={{ marginTop: '4px', fontWeight: 700, color: (calcOutput?.finesPct <= 50) ? '#059669' : '#DC2626' }}>
-              {(calcOutput?.finesPct <= 50) ? 'Tanah Berbutir Kasar (≤ 50%)' : 'Tanah Berbutir Halus (> 50%)'}
+            <div style={{ marginTop: '4px', fontWeight: 700, color: (calcOutput?.finesPct < 50) ? '#059669' : '#475569' }}>
+              {calcOutput?.finesPct == null ? 'Data No. 200 belum tersedia' : calcOutput.finesPct < 50 ? 'Tanah Berbutir Kasar (< 50%)' : 'Tanah Berbutir Halus (≥ 50%)'}
             </div>
           </div>
         </div>
@@ -5699,7 +4903,7 @@ function DynamicSoilSieveSection({
                     type="number"
                     step="0.1"
                     min="0"
-                    value={inputs.panWeight !== undefined ? inputs.panWeight : 24}
+                    value={inputs.panWeight ?? ''}
                     onChange={(e) => {
                       onInputChange('panWeight', e.target.value)
                       const panIdx = currentSoilSieves.findIndex(s => s.isPan || Number(s.diameter) <= 0 || /pan/i.test(s.sieveNo))
@@ -5861,15 +5065,15 @@ function DynamicSoilSieveSection({
             <div className="soil-sieve-fractions-bar">
               <div>
                 <span style={{ color: '#64748B' }}>Kerikil (&gt; 4.75 mm): </span>
-                <strong style={{ color: '#0F172A' }}>{calcOutput?.gravelPct?.toFixed(1) || '0.0'}%</strong>
+                <strong style={{ color: '#0F172A' }}>{calcOutput?.gravelPct == null ? '—' : `${calcOutput.gravelPct.toFixed(1)}%`}</strong>
               </div>
               <div>
                 <span style={{ color: '#64748B' }}>Pasir (0.075 - 4.75 mm): </span>
-                <strong style={{ color: '#2563EB' }}>{calcOutput?.sandPct?.toFixed(1) || '0.0'}%</strong>
+                <strong style={{ color: '#2563EB' }}>{calcOutput?.sandPct == null ? '—' : `${calcOutput.sandPct.toFixed(1)}%`}</strong>
               </div>
               <div>
                 <span style={{ color: '#64748B' }}>Halus (&lt; 0.075 mm): </span>
-                <strong style={{ color: '#059669' }}>{calcOutput?.finesPct?.toFixed(1) || '0.0'}%</strong>
+                <strong style={{ color: '#059669' }}>{calcOutput?.finesPct == null ? '—' : `${calcOutput.finesPct.toFixed(1)}%`}</strong>
               </div>
             </div>
           </div>
@@ -5914,50 +5118,6 @@ function DynamicSoilSieveSection({
           </div>
         </div>
       )}
-
-      {/* Action Footer Navigation */}
-      <div className="calc-panel-footer" style={{ marginTop: '1.5rem' }}>
-        <button
-          type="button"
-          className="btn-back-footer"
-          onClick={onBack}
-        >
-          <ArrowLeft size={16} />
-          <span>Kembali ke Dashboard</span>
-        </button>
-
-        <div className="calc-footer-right-actions">
-          <button
-            type="button"
-            className="btn-open-table-direct"
-            onClick={onResetSieves}
-            title="Kembalikan tabel ke susunan ayakan contoh awal"
-          >
-            <RotateCcw size={15} style={{ marginRight: '6px' }} />
-            <span>Reset Contoh</span>
-          </button>
-
-          <button
-            type="button"
-            className="btn-open-table-direct"
-            onClick={onClearSieves}
-            title="Kosongkan seluruh angka input untuk memasukkan data uji baru"
-            style={{ color: '#DC2626' }}
-          >
-            <Trash2 size={15} style={{ marginRight: '6px' }} />
-            <span>Kosongkan Input</span>
-          </button>
-
-          <button
-            type="button"
-            className="btn-open-table-direct"
-            onClick={onBack}
-          >
-            <ArrowLeft size={15} style={{ marginRight: '6px' }} />
-            <span>Ke Dashboard Utama</span>
-          </button>
-        </div>
-      </div>
     </div>
   )
 }
@@ -5987,26 +5147,15 @@ function CustomOedometerTooltip({ active, payload }) {
 }
 
 function DynamicOedometerSection({
-  testConfig,
   inputs,
   calcOutput,
   currentOedometerReadings,
   onReadingChange,
   onAddReading,
   onRemoveReading,
-  onResetReadings,
-  onClearReadings,
   onInputChange,
-  isInputInvalid,
-  hasNegativeInput,
-  hasExceededInput,
-  onSave,
-  onBack,
-  savedNotification,
-  lastSavedId,
   getVerdictClass,
   getVerdictLabel,
-  handleKeyDown,
 }) {
   const chartPoints = calcOutput?.chartDataPoints || []
 
@@ -6019,68 +5168,8 @@ function DynamicOedometerSection({
   const cvMin = calcOutput?.cvMin
   const cc = calcOutput?.cc
 
-  const isFormDisabled = isInputInvalid || hasNegativeInput || hasExceededInput
-
   return (
     <div className="dynamic-cpt-container">
-      {/* Top Header Panel */}
-      <div className="calc-panel-header" style={{ marginBottom: '1.25rem' }}>
-        <div className="calc-header-left">
-          <button onClick={onBack} className="btn-back-header" title="Kembali ke Dashboard">
-            <ArrowLeft size={16} />
-            <span>Kembali</span>
-          </button>
-          <div className="calc-title-box">
-            <div className="calc-category-badge">{testConfig.category}</div>
-            <h2 className="calc-title-text">{testConfig.name}</h2>
-            <div className="calc-standard-badge">
-              <span>{testConfig.standard}</span>
-              <span className="badge-code">{testConfig.code}</span>
-            </div>
-          </div>
-        </div>
-
-        <div className="calc-header-actions calc-top-action-bar">
-          <button
-            type="button"
-            onClick={onResetReadings}
-            className="btn-action-outline"
-            title="Kembalikan ke data contoh standar laboratorium (14 Pembacaan Waktu)"
-          >
-            <RotateCcw size={15} />
-            <span>Reset Contoh</span>
-          </button>
-          <button
-            type="button"
-            onClick={onClearReadings}
-            className="btn-action-outline btn-action-danger"
-            title="Kosongkan seluruh nilai penurunan untuk input baru"
-          >
-            <Trash2 size={15} />
-            <span>Kosongkan Input</span>
-          </button>
-          <button
-            type="button"
-            onClick={onSave}
-            disabled={isFormDisabled}
-            className={`btn-action-primary ${savedNotification ? 'btn-saved' : ''}`}
-            title="Simpan data ke riwayat pengujian"
-          >
-            {savedNotification ? (
-              <>
-                <Check size={16} />
-                <span>Tersimpan (#{lastSavedId})</span>
-              </>
-            ) : (
-              <>
-                <Save size={16} />
-                <span>Simpan Pengujian</span>
-              </>
-            )}
-          </button>
-        </div>
-      </div>
-
       {/* 4 Kartu Ringkasan Hasil Utama */}
       <div className="oedometer-summary-grid">
         {/* Card 1: Cv */}
@@ -6330,7 +5419,7 @@ function DynamicOedometerSection({
               </div>
               <div>
                 <h3 className="calc-card-title">Kurva Konsolidasi Metode Taylor</h3>
-                <p className="calc-card-subtitle">Sumbu X: √t (√menit) | Sumbu Y: Perubahan Tebal ΔH (cm)</p>
+                <p className="calc-card-subtitle">Akar waktu √t (√menit) dan penurunan ΔH (cm), bertambah ke bawah</p>
               </div>
             </div>
 
@@ -6339,12 +5428,13 @@ function DynamicOedometerSection({
               <ResponsiveContainer width="100%" height={360}>
                 <LineChart
                   data={chartPoints}
-                  margin={{ top: 20, right: 30, left: 10, bottom: 25 }}
+                  margin={{ top: 32, right: 30, left: 10, bottom: 16 }}
                 >
                   <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
                   <XAxis
                     dataKey="sqrtT"
                     type="number"
+                    orientation="top"
                     stroke="#64748B"
                     fontSize={11}
                     fontWeight={600}
@@ -6352,8 +5442,8 @@ function DynamicOedometerSection({
                   >
                     <Label
                       value="Akar Waktu √t (√menit)"
-                      offset={-15}
-                      position="insideBottom"
+                      offset={8}
+                      position="top"
                       fill="#334155"
                       fontWeight={700}
                       fontSize={11}
@@ -6362,6 +5452,8 @@ function DynamicOedometerSection({
                   <YAxis
                     dataKey="deltaH"
                     type="number"
+                    domain={[0, 'auto']}
+                    reversed
                     stroke="#64748B"
                     fontSize={11}
                     fontWeight={600}
@@ -6377,7 +5469,7 @@ function DynamicOedometerSection({
                     />
                   </YAxis>
                   <Tooltip content={<CustomOedometerTooltip />} />
-                  <Legend verticalAlign="top" height={36} wrapperStyle={{ fontSize: '0.75rem', fontWeight: 600 }} />
+                  <Legend verticalAlign="bottom" wrapperStyle={{ paddingTop: 8, fontSize: '0.75rem', fontWeight: 600 }} />
 
                   {/* Reference Lines for t90 */}
                   {sqrtT90 > 0 && (
@@ -6386,7 +5478,6 @@ function DynamicOedometerSection({
                       stroke="#2563EB"
                       strokeDasharray="3 3"
                       strokeWidth={1.5}
-                      label={{ value: `√t90 = ${sqrtT90.toFixed(2)}`, fill: '#1E40AF', fontSize: 10, position: 'top' }}
                     />
                   )}
                   {deltaH90 > 0 && (
@@ -6395,7 +5486,7 @@ function DynamicOedometerSection({
                       stroke="#2563EB"
                       strokeDasharray="3 3"
                       strokeWidth={1.5}
-                      label={{ value: `ΔH90 = ${deltaH90.toFixed(3)} cm`, fill: '#1E40AF', fontSize: 10, position: 'right' }}
+                      label={{ value: `ΔH90 = ${deltaH90.toFixed(3)} cm`, fill: '#1E40AF', fontSize: 10, position: 'insideTopRight' }}
                     />
                   )}
 
@@ -6409,7 +5500,7 @@ function DynamicOedometerSection({
                       stroke="#FFFFFF"
                       strokeWidth={2}
                       label={{
-                        value: `t90 = ${t90?.toFixed(2)} m`,
+                        value: `t90 = ${t90?.toFixed(2)} menit`,
                         position: 'top',
                         fill: '#B91C1C',
                         fontSize: 10,
@@ -6468,7 +5559,7 @@ function DynamicOedometerSection({
               <div className="oedometer-taylor-card">
                 <div style={{ fontWeight: 700, color: '#1E40AF', marginBottom: '2px' }}>Titik Konsolidasi Primer 90%</div>
                 <div style={{ color: '#64748B' }}>
-                  √t90 = <strong style={{ color: '#2563EB' }}>{sqrtT90?.toFixed(3) || '-'}</strong> ➔ t90 = <strong style={{ color: '#2563EB' }}>{t90?.toFixed(2) || '-'} m</strong>
+                  √t90 = <strong style={{ color: '#2563EB' }}>{sqrtT90?.toFixed(3) || '-'}</strong> ➔ t90 = <strong style={{ color: '#2563EB' }}>{t90?.toFixed(2) || '-'} menit</strong>
                 </div>
               </div>
             </div>
@@ -6514,50 +5605,6 @@ function DynamicOedometerSection({
           </div>
         </div>
       )}
-
-      {/* Action Footer Navigation */}
-      <div className="calc-panel-footer" style={{ marginTop: '1.5rem' }}>
-        <button
-          type="button"
-          className="btn-back-footer"
-          onClick={onBack}
-        >
-          <ArrowLeft size={16} />
-          <span>Kembali ke Dashboard</span>
-        </button>
-
-        <div className="calc-footer-right-actions">
-          <button
-            type="button"
-            className="btn-open-table-direct"
-            onClick={onResetReadings}
-            title="Kembalikan tabel ke susunan contoh awal (14 Pembacaan Waktu)"
-          >
-            <RotateCcw size={15} style={{ marginRight: '6px' }} />
-            <span>Reset Contoh</span>
-          </button>
-
-          <button
-            type="button"
-            className="btn-open-table-direct"
-            onClick={onClearReadings}
-            title="Kosongkan seluruh angka penurunan untuk memasukkan data uji baru"
-            style={{ color: '#DC2626' }}
-          >
-            <Trash2 size={15} style={{ marginRight: '6px' }} />
-            <span>Kosongkan Input</span>
-          </button>
-
-          <button
-            type="button"
-            className="btn-open-table-direct"
-            onClick={onBack}
-          >
-            <ArrowLeft size={15} style={{ marginRight: '6px' }} />
-            <span>Ke Dashboard Utama</span>
-          </button>
-        </div>
-      </div>
     </div>
   )
 }
@@ -6625,20 +5672,12 @@ function CustomDirectShearTooltip({ active, payload }) {
 function DynamicDirectShearSection({
   testConfig,
   inputs,
+  onInputChange,
   calcOutput,
   currentPoints,
   onPointChange,
   onAddPoint,
   onRemovePoint,
-  onResetPoints,
-  onClearPoints,
-  isInputInvalid,
-  hasNegativeInput,
-  hasExceededInput,
-  onSave,
-  onBack,
-  savedNotification,
-  lastSavedId,
   getVerdictClass,
   getVerdictLabel,
   handleKeyDown,
@@ -6651,6 +5690,8 @@ function DynamicDirectShearSection({
   const chartPoints = calcOutput.chartPoints || []
   const formulaSteps = calcOutput.formulaSteps || []
   const isError = Boolean(calcOutput.isError)
+  const fromDial = inputs.shearInputMode === 'dial'
+  const measuredField = fromDial ? 'dialReading' : 'shearForce'
 
   return (
     <div className="calc-content-wrap">
@@ -6739,7 +5780,7 @@ function DynamicDirectShearSection({
                 Tabel Titik Pengujian Kuat Geser Langsung
               </h4>
               <p className="calc-table-hint" style={{ fontSize: '0.78rem', color: '#64748B', marginTop: '0.25rem' }}>
-                SNI 3420:2016 mensyaratkan minimal 3 titik pengujian dengan beban normal bertingkat.
+                Hasil dan grafik memerlukan minimal 3 titik uji valid dengan beban normal bertingkat.
               </p>
             </div>
 
@@ -6753,60 +5794,32 @@ function DynamicDirectShearSection({
                 <Plus size={14} />
                 <span>Tambah Titik Uji</span>
               </button>
-
-              <button
-                type="button"
-                className="btn-reset-table-data"
-                onClick={onClearPoints}
-                title="Kosongkan seluruh nilai beban untuk input baru"
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '0.35rem',
-                  padding: '0.45rem 0.75rem',
-                  borderRadius: '0.375rem',
-                  border: '1px solid #CBD5E1',
-                  background: '#FFFFFF',
-                  color: '#475569',
-                  fontSize: '0.78rem',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                }}
-              >
-                <RotateCcw size={13} />
-                <span>Reset</span>
-              </button>
-
-              <button
-                type="button"
-                className="btn-reset-table-data"
-                onClick={onResetPoints}
-                title="Muat 3 titik data laboratorium standar"
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '0.35rem',
-                  padding: '0.45rem 0.75rem',
-                  borderRadius: '0.375rem',
-                  border: '1px solid #93C5FD',
-                  background: '#EFF6FF',
-                  color: '#1D4ED8',
-                  fontSize: '0.78rem',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                }}
-              >
-                <span>Contoh Standar</span>
-              </button>
             </div>
           </div>
 
+          <div className="proctor-mold-grid" style={{ marginBottom: '0.85rem' }}>
+            <label className="proctor-input-group">
+              <span>Sumber gaya geser</span>
+              <select className="proctor-input-field" value={inputs.shearInputMode ?? 'force'}
+                onChange={(event) => onInputChange('shearInputMode', event.target.value)}>
+                <option value="force">Gaya puncak terkalibrasi (kgf)</option>
+                <option value="dial">Bacaan puncak alat (div)</option>
+              </select>
+            </label>
+            {fromDial && (
+              <label className="proctor-input-group">
+                <span>Faktor kalibrasi (kgf/div)</span>
+                <input type="number" min="0" step="any" className="proctor-input-field"
+                  value={inputs.shearCalibration ?? ''} onChange={(event) => onInputChange('shearCalibration', event.target.value)} />
+              </label>
+            )}
+          </div>
           <div className="direct-shear-table-container">
             <div className="table-scroll-wrapper">
             <table className="direct-shear-table">
               <thead>
                 <tr>
-                  <th style={{ width: '55px', textAlign: 'center' }}>Titik #</th>
+                  <th scope="col">Titik Uji</th>
                   <th style={{ minWidth: '100px' }}>
                     Luas Kotak (A) <span style={{ color: '#2563EB', fontSize: '0.7rem' }}>cm²</span>
                   </th>
@@ -6814,7 +5827,7 @@ function DynamicDirectShearSection({
                     Beban Normal (P) <span style={{ color: '#059669', fontSize: '0.7rem' }}>kg</span>
                   </th>
                   <th style={{ minWidth: '115px' }}>
-                    Gaya Geser (F) <span style={{ color: '#DC2626', fontSize: '0.7rem' }}>kg</span>
+                    {fromDial ? 'Bacaan Puncak (div)' : 'Gaya Geser (kgf)'}
                   </th>
                   <th style={{ minWidth: '110px', textAlign: 'right' }}>
                     Tegangan Normal (σ) <span style={{ fontSize: '0.7rem' }}>kg/cm²</span>
@@ -6822,23 +5835,33 @@ function DynamicDirectShearSection({
                   <th style={{ minWidth: '110px', textAlign: 'right' }}>
                     Tegangan Geser (τ) <span style={{ fontSize: '0.7rem' }}>kg/cm²</span>
                   </th>
-                  <th style={{ width: '60px', textAlign: 'center' }}>Aksi</th>
                 </tr>
               </thead>
               <tbody>
                 {currentPoints.map((pt, index) => {
                   const areaVal = pt.area !== undefined && pt.area !== '' ? pt.area : '31.17'
                   const pVal = pt.normalLoad !== undefined && pt.normalLoad !== null ? pt.normalLoad : ''
-                  const fVal = pt.shearForce !== undefined && pt.shearForce !== null ? pt.shearForce : ''
-                  const sigmaVal = pt.sigma !== undefined && pt.sigma !== '' && pt.sigma !== null && !isNaN(Number(pt.sigma)) ? Number(pt.sigma).toFixed(3) : '-'
-                  const tauVal = pt.tau !== undefined && pt.tau !== '' && pt.tau !== null && !isNaN(Number(pt.tau)) ? Number(pt.tau).toFixed(3) : '-'
+                  const fVal = pt[measuredField] ?? ''
+                  const computed = calcOutput.computedPoints?.find((row) => row.id === pt.id)
+                  const sigmaVal = computed?.sigma?.toFixed(3) ?? '—'
+                  const tauVal = computed?.tau?.toFixed(3) ?? '—'
 
                   return (
                     <tr key={pt.id || index}>
-                      <td style={{ textAlign: 'center' }}>
-                        <span className="point-badge" style={{ fontSize: '0.75rem', fontWeight: 700, padding: '2px 8px', borderRadius: '4px', background: '#F1F5F9', color: '#334155' }}>
-                          #{index + 1}
-                        </span>
+                      <td>
+                        <div className="direct-shear-point-actions">
+                          <span className="point-badge">#{index + 1}</span>
+                          <button
+                            type="button"
+                            className="btn-remove-table-row"
+                            onClick={() => onRemovePoint(index)}
+                            disabled={currentPoints.length <= 1}
+                            aria-label={`Hapus titik uji ${index + 1}`}
+                            title={currentPoints.length <= 1 ? 'Sisakan satu baris untuk input' : `Hapus titik uji ${index + 1}`}
+                          >
+                            <Trash2 size={14} aria-hidden="true" />
+                          </button>
+                        </div>
                       </td>
 
                       <td>
@@ -6878,8 +5901,8 @@ function DynamicDirectShearSection({
                           className="calc-table-numeric-input"
                           style={{ width: '100%', padding: '0.35rem 0.5rem', borderRadius: '0.25rem', border: '1px solid #CBD5E1', fontSize: '0.82rem' }}
                           value={fVal}
-                          onKeyDown={(e) => handleKeyDown(e, 'shearForce')}
-                          onChange={(e) => onPointChange(index, 'shearForce', e.target.value)}
+                          onKeyDown={(e) => handleKeyDown(e, measuredField)}
+                          onChange={(e) => onPointChange(index, measuredField, e.target.value)}
                         />
                       </td>
 
@@ -6895,25 +5918,6 @@ function DynamicDirectShearSection({
                         </span>
                       </td>
 
-                      <td style={{ textAlign: 'center' }}>
-                        <button
-                          type="button"
-                          className="btn-remove-table-row"
-                          onClick={() => onRemovePoint(index)}
-                          disabled={currentPoints.length <= 3}
-                          title={currentPoints.length <= 3 ? 'Direct shear memerlukan minimal 3 baris titik uji' : 'Hapus baris titik uji ini'}
-                          style={{
-                            padding: '4px 6px',
-                            borderRadius: '4px',
-                            border: 'none',
-                            background: currentPoints.length <= 3 ? '#F1F5F9' : '#FEE2E2',
-                            color: currentPoints.length <= 3 ? '#94A3B8' : '#DC2626',
-                            cursor: currentPoints.length <= 3 ? 'not-allowed' : 'pointer',
-                          }}
-                        >
-                          <Trash2 size={14} />
-                        </button>
-                      </td>
                     </tr>
                   )
                 })}
@@ -7120,81 +6124,6 @@ function DynamicDirectShearSection({
               ))}
             </div>
           </div>
-
-          {/* Tombol Aksi Simpan & Navigasi */}
-          <div className="calc-action-buttons-wrap" style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
-            <button
-              type="button"
-              className="btn-save-test"
-              onClick={onSave}
-              disabled={isInputInvalid || hasNegativeInput || hasExceededInput}
-              style={{ flex: 1, padding: '0.75rem 1.25rem', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', borderRadius: '0.5rem', background: '#059669', color: '#FFFFFF', fontWeight: 700, border: 'none', cursor: 'pointer' }}
-            >
-              <Save size={16} />
-              <span>{savedNotification ? 'Tersimpan!' : 'Simpan Pengujian'}</span>
-            </button>
-
-            <button
-              type="button"
-              className="btn-back-footer"
-              onClick={onBack}
-              style={{ padding: '0.75rem 1.25rem', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', borderRadius: '0.5rem', background: '#F1F5F9', color: '#334155', fontWeight: 600, border: '1px solid #CBD5E1', cursor: 'pointer' }}
-            >
-              <ArrowLeft size={16} />
-              <span>Kembali ke Dashboard</span>
-            </button>
-          </div>
-
-          {savedNotification && (
-            <div style={{ padding: '0.75rem 1rem', background: '#ECFDF5', border: '1px solid #6EE7B7', borderRadius: '0.5rem', color: '#065F46', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <CheckCircle2 size={16} />
-              <span>Data pengujian geser langsung berhasil disimpan ke riwayat dashboard! (ID: {lastSavedId})</span>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* 4. Footer Navigasi Bawah */}
-      <div className="calc-footer-nav" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1.5rem', paddingTop: '1rem', borderTop: '1px solid #E2E8F0', flexWrap: 'wrap', gap: '0.75rem' }}>
-        <button
-          type="button"
-          className="btn-back-footer"
-          onClick={onBack}
-        >
-          <ArrowLeft size={16} />
-          <span>Kembali ke Dashboard</span>
-        </button>
-
-        <div className="calc-footer-right-actions">
-          <button
-            type="button"
-            className="btn-open-table-direct"
-            onClick={onResetPoints}
-            title="Kembalikan tabel ke susunan contoh awal standar laboratorium"
-          >
-            <RotateCcw size={15} style={{ marginRight: '6px' }} />
-            <span>Reset Contoh</span>
-          </button>
-
-          <button
-            type="button"
-            className="btn-open-table-direct"
-            onClick={onClearPoints}
-            title="Kosongkan seluruh data pengujian untuk memasukkan data baru"
-            style={{ color: '#DC2626' }}
-          >
-            <Trash2 size={15} style={{ marginRight: '6px' }} />
-            <span>Kosongkan Input</span>
-          </button>
-
-          <button
-            type="button"
-            className="btn-open-table-direct"
-            onClick={onBack}
-          >
-            <ArrowLeft size={15} style={{ marginRight: '6px' }} />
-            <span>Ke Dashboard Utama</span>
-          </button>
         </div>
       </div>
     </div>
@@ -7211,25 +6140,13 @@ function DynamicPenetrationSection({
   onRemovePoint,
   onAddGroup,
   onRemoveGroup,
-  onResetGroups,
-  onClearGroups,
   onInputChange,
-  isInputInvalid,
-  hasNegativeInput,
-  hasExceededInput,
-  onSave,
-  onBack,
-  savedNotification,
-  lastSavedId,
-  getVerdictClass,
-  getVerdictLabel,
   handleKeyDown,
 }) {
   const penAkhirVal = calcOutput.penAkhir || '-'
   const selisihVal = calcOutput.selisih || '-'
   const groupResults = calcOutput.groupResults || []
   const formulaSteps = calcOutput.formulaSteps || []
-  const penNum = calcOutput.penAkhirNum || 0
 
   return (
     <div className="calc-content-wrap">
@@ -7250,10 +6167,10 @@ function DynamicPenetrationSection({
 
       {/* 2. Empat Kartu Ringkasan Hasil Utama */}
       <div className="penetration-summary-grid">
-        {/* Kartu 1: Penetrasi Akhir Terkoreksi */}
+        {/* Kartu 1: Rerata Deskriptif */}
         <div className={`penetration-metric-card ${calcOutput.isSpecLolos ? 'card-blue' : 'card-rose'}`}>
           <div className="penetration-card-head">
-            <span className="penetration-card-title">Penetrasi Akhir (P_akhir)</span>
+            <span className="penetration-card-title">Rerata Deskriptif</span>
             <span className="penetration-card-badge">0.1 mm (dmm)</span>
           </div>
           <div className="penetration-card-value">
@@ -7261,9 +6178,9 @@ function DynamicPenetrationSection({
             <span className="penetration-card-unit">dmm</span>
           </div>
           <div className="penetration-card-sub">
-            {penAkhirVal !== '-'
-              ? `Spesifikasi ${calcOutput.kelasLabel || 'Aspal'}: ${calcOutput.minSpec ?? 60} - ${calcOutput.maxSpec ?? 70} dmm`
-              : 'Data pembacaan belum lengkap'}
+            {calcOutput.minSpec != null
+              ? `Spesifikasi ${calcOutput.kelasLabel || 'Aspal'}: ${calcOutput.minSpec} - ${calcOutput.maxSpec} dmm`
+              : 'Pilih kelas penetrasi yang berlaku'}
           </div>
         </div>
 
@@ -7279,20 +6196,20 @@ function DynamicPenetrationSection({
           </div>
           <div className="penetration-card-sub">
             {selisihVal !== '-'
-              ? `Toleransi SNI 2456: Maks ${calcOutput.batasToleransi ?? 4} dmm (${calcOutput.isPresisiLolos ? 'Lolos Presisi' : 'Melebihi Batas'})`
+              ? `Selisih terbesar dalam kelompok. ${calcOutput.isPresisiLolos ? 'Semua kelompok dalam batas' : 'Periksa hasil per kelompok'}`
               : 'Menunggu titik valid'}
           </div>
         </div>
 
-        {/* Kartu 3: Total Titik Valid vs Outlier */}
+        {/* Kartu 3: Kelompok dalam batas selisih */}
         <div className="penetration-metric-card card-amber">
           <div className="penetration-card-head">
-            <span className="penetration-card-title">Titik Valid / Outlier</span>
-            <span className="penetration-card-badge">Filter Statistik</span>
+            <span className="penetration-card-title">Kelompok Dalam Batas</span>
+            <span className="penetration-card-badge">SNI 2456:2011</span>
           </div>
           <div className="penetration-card-value">
-            {calcOutput.totalValidCount ?? 0}
-            <span className="penetration-card-unit">/ {calcOutput.totalOutlierCount ?? 0} outlier</span>
+            {groupResults.filter((group) => group.precisionOk).length}
+            <span className="penetration-card-unit">/ {groupResults.length} kelompok</span>
           </div>
           <div className="penetration-card-sub">
             Total {calcOutput.totalRawPointsCount ?? 0} titik pengamatan di {currentPenetrationGroups.length} kelompok
@@ -7302,18 +6219,14 @@ function DynamicPenetrationSection({
         {/* Kartu 4: Evaluasi Mutu & Kesesuaian Standar */}
         <div className={`penetration-metric-card ${calcOutput.verdictClass === 'valid' ? 'card-emerald' : calcOutput.verdictClass === 'warning' ? 'card-amber' : 'card-rose'}`}>
           <div className="penetration-card-head">
-            <span className="penetration-card-title">Evaluasi Mutu Standar</span>
-            <span className="penetration-card-badge">Bina Marga & SNI</span>
+            <span className="penetration-card-title">Evaluasi Penetrasi</span>
+            <span className="penetration-card-badge">SNI 2456 / SNI 8135</span>
           </div>
           <div className="penetration-card-value" style={{ fontSize: '1.25rem' }}>
             {calcOutput.status || 'Belum Diisi'}
           </div>
           <div className="penetration-card-sub">
-            {calcOutput.isSpecLolos && calcOutput.isPresisiLolos
-              ? 'Memenuhi syarat spesifikasi dan presisi pengujian SNI 2456:2011'
-              : !calcOutput.isSpecLolos
-              ? 'Nilai penetrasi berada di luar rentang spesifikasi kelas aspal'
-              : 'Presisi pembacaan melebihi toleransi perbedaan pembacaan SNI'}
+            {calcOutput.conclusion || 'Menunggu pembacaan yang sah'}
           </div>
         </div>
       </div>
@@ -7332,9 +6245,9 @@ function DynamicPenetrationSection({
               onChange={(e) => onInputChange('kelasAspal', e.target.value)}
               className="penetration-field-input"
             >
-              <option value="pen6070">Aspal Pen 60/70 (Syarat: 60 - 70 dmm)</option>
-              <option value="pen4050">Aspal Pen 40/50 (Syarat: 40 - 50 dmm)</option>
-              <option value="pen80100">Aspal Pen 80/100 (Syarat: 80 - 100 dmm)</option>
+              {!testConfig.fields[0].options.some((option) => option.value === (inputs.kelasAspal || 'pen6070')) &&
+                <option value={inputs.kelasAspal}>Kelas lama: pilih ulang</option>}
+              {testConfig.fields[0].options.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
             </select>
           </div>
 
@@ -7387,7 +6300,7 @@ function DynamicPenetrationSection({
         <div>
           <h3 className="penetration-groups-title">Daftar Kelompok & Titik Pembacaan Jarum Penetrasi</h3>
           <p style={{ fontSize: '0.8rem', color: '#64748B', marginTop: '0.15rem' }}>
-            Setiap kelompok dianalisis secara independen untuk eliminasi outlier [P̄ ± S] sebelum digabungkan ke Penetrasi Akhir.
+            Presisi diperiksa per kelompok. Ulangi kelompok yang melebihi batas; bacaan asli tetap tersimpan.
           </p>
         </div>
         <div className="penetration-groups-actions">
@@ -7401,35 +6314,14 @@ function DynamicPenetrationSection({
             <Plus size={15} style={{ marginRight: '6px' }} />
             <span>Tambah Kelompok</span>
           </button>
-
-          <button
-            type="button"
-            onClick={onResetGroups}
-            className="btn-open-table-direct"
-            title="Kembalikan ke data contoh standar laboratorium praktikum"
-          >
-            <RotateCcw size={15} style={{ marginRight: '6px' }} />
-            <span>Reset Contoh</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={onClearGroups}
-            className="btn-open-table-direct"
-            style={{ color: '#DC2626' }}
-            title="Kosongkan seluruh nilai pembacaan jarum"
-          >
-            <Trash2 size={15} style={{ marginRight: '6px' }} />
-            <span>Kosongkan Input</span>
-          </button>
         </div>
       </div>
 
       {/* Kartu-kartu per kelompok */}
       <div className="penetration-groups-list">
-        {currentPenetrationGroups.map((grp, gIndex) => {
+        {currentPenetrationGroups.map((grp) => {
           const gStats = groupResults.find((g) => g.groupId === grp.id) || {}
-          const hasOutlier = Boolean(gStats.outlierPoints && gStats.outlierPoints.length > 0)
+          const needsRepeat = gStats.evaluation === 'Ulangi uji'
 
           return (
             <div key={grp.id} className="penetration-group-card">
@@ -7438,14 +6330,8 @@ function DynamicPenetrationSection({
                 <div className="penetration-group-title-wrap">
                   <span className="penetration-group-name">{grp.name || `Kelompok ${grp.id}`}</span>
                   <div className="penetration-group-badges">
-                    <span className="penetration-group-badge badge-clean">
-                      Rata-rata Bersih: {gStats.cleanMean !== undefined ? `${gStats.cleanMean.toFixed(1)} dmm` : '-'}
-                    </span>
-                    <span className="penetration-group-badge">
-                      SD (S) = {gStats.sd !== undefined ? `${gStats.sd.toFixed(2)} dmm` : '-'}
-                    </span>
-                    <span className={`penetration-group-badge ${hasOutlier ? 'badge-outlier' : ''}`}>
-                      {gStats.outlierPoints ? `${gStats.outlierPoints.length} Outlier` : '0 Outlier'}
+                    <span className={`penetration-group-badge ${gStats.precisionOk ? 'badge-clean' : needsRepeat ? 'badge-outlier' : ''}`}>
+                      {gStats.precisionOk ? `Hasil: ${gStats.reported} dmm` : gStats.evaluation}
                     </span>
                   </div>
                 </div>
@@ -7473,22 +6359,10 @@ function DynamicPenetrationSection({
                 </button>
               </div>
 
-              {/* Banner Statistik & Rentang Valid Outlier */}
-              <div className={`penetration-group-banner ${hasOutlier ? 'has-outlier' : ''}`}>
-                <div>
-                  <strong>Rentang Valid Outlier [P̄ ± S]: </strong>
-                  <span>
-                    [{gStats.lowerBound !== undefined ? gStats.lowerBound.toFixed(2) : '-'} dmm s/d {gStats.upperBound !== undefined ? gStats.upperBound.toFixed(2) : '-'} dmm]
-                  </span>
-                  <span style={{ marginLeft: '0.75rem', opacity: 0.85 }}>
-                    (P̄ awal = {gStats.meanInitial !== undefined ? gStats.meanInitial.toFixed(2) : '-'} dmm, CV = {gStats.cv !== undefined ? gStats.cv.toFixed(2) : '-'}%)
-                  </span>
-                </div>
-                {hasOutlier && (
-                  <span style={{ fontWeight: 700 }}>
-                    ⚠️ {gStats.outlierPoints.length} titik tereliminasi dari perhitungan bersih
-                  </span>
-                )}
+              <div className={`penetration-group-banner ${needsRepeat ? 'has-outlier' : ''}`}>
+                <strong>Selisih: {gStats.precisionGap?.toFixed(2) ?? '—'} dmm</strong>
+                <span>Batas: {gStats.precisionLimit ?? '—'} dmm</span>
+                <span>{gStats.n ?? 0} bacaan sah</span>
               </div>
 
               {/* Input Titik Pembacaan Jarum */}
@@ -7496,19 +6370,21 @@ function DynamicPenetrationSection({
                 <div className="penetration-points-grid">
                   {(grp.points || []).map((pt, pIndex) => {
                     const pAnalysis = gStats.pointsAnalysis ? gStats.pointsAnalysis.find((p) => p.id === pt.id) : null
-                    const isOutlier = Boolean(pAnalysis && pAnalysis.isOutlier)
-                    const isFilled = pt.value !== '' && pt.value !== null && !isNaN(Number(pt.value)) && Number(pt.value) > 0
+                    const isFilled = pt.value !== '' && pt.value != null
+                    const invalidReading = isFilled && !pAnalysis?.isValidNumber
 
                     return (
                       <div
                         key={pt.id || pIndex}
-                        className={`penetration-point-row ${isOutlier ? 'point-outlier' : ''}`}
+                        className={`penetration-point-row ${invalidReading ? 'point-outlier' : ''}`}
                       >
                         <span className="penetration-point-label">Titik #{pIndex + 1}</span>
                         <input
                           type="number"
                           step="0.1"
                           min="0"
+                          max="500"
+                          aria-label={`Titik ${pIndex + 1} ${grp.name || grp.id}`}
                           value={pt.value}
                           onChange={(e) => onPointChange(grp.id, pt.id, e.target.value)}
                           onKeyDown={handleKeyDown}
@@ -7517,15 +6393,15 @@ function DynamicPenetrationSection({
                         />
                         <span style={{ fontSize: '0.75rem', color: '#64748B', fontWeight: 600 }}>dmm</span>
 
-                        {isOutlier ? (
-                          <span className="penetration-point-badge outlier" title="Nilai berada di luar rentang [P̄ ± S], dieliminasi">
+                        {invalidReading ? (
+                          <span className="penetration-point-badge outlier" title="Masukkan bacaan 0 sampai 500 dmm">
                             <AlertTriangle size={12} />
-                            <span>Outlier</span>
+                            <span>Periksa</span>
                           </span>
                         ) : isFilled ? (
-                          <span className="penetration-point-badge valid" title="Nilai masuk dalam rentang toleransi statistik">
+                          <span className="penetration-point-badge valid">
                             <Check size={12} />
-                            <span>Valid</span>
+                            <span>Terbaca</span>
                           </span>
                         ) : (
                           <span className="penetration-point-badge empty">
@@ -7566,10 +6442,10 @@ function DynamicPenetrationSection({
         <div className="penetration-recap-head" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
           <div>
             <span className="penetration-recap-title" style={{ display: 'block' }}>
-              Tabel Rekapitulasi Analisis Statistik & Outlier Antar-Kelompok (SNI 2456:2011)
+              Rekapitulasi Penetrasi per Kelompok (SNI 2456:2011)
             </span>
             <span style={{ fontSize: '0.78rem', color: '#64748B' }}>
-              Data dieliminasi otomatis bila melampaui rentang [P̄ ± S]
+              Hasil dilaporkan jika minimal tiga bacaan sah tersedia dan selisihnya dalam batas.
             </span>
           </div>
           <TableNavScrollButtons />
@@ -7583,12 +6459,10 @@ function DynamicPenetrationSection({
                 <th style={{ minWidth: '150px' }}>Kelompok Sampel</th>
                 <th style={{ minWidth: '70px' }}>Titik (n)</th>
                 <th style={{ minWidth: '110px' }}>Rata Awal (P̄)</th>
-                <th style={{ minWidth: '110px' }}>Std Deviasi (S)</th>
-                <th style={{ minWidth: '90px' }}>Koef. Var (K)</th>
-                <th style={{ minWidth: '120px' }}>Batas Bawah (P̄ - S)</th>
-                <th style={{ minWidth: '120px' }}>Batas Atas (P̄ + S)</th>
-                <th style={{ minWidth: '140px' }}>Outlier Tereliminasi</th>
-                <th style={{ minWidth: '120px' }}>Rata Bersih (P_clean)</th>
+                <th>Selisih (dmm)</th>
+                <th>Batas (dmm)</th>
+                <th>Hasil (dmm)</th>
+                <th>Evaluasi</th>
               </tr>
             </thead>
             <tbody>
@@ -7596,40 +6470,13 @@ function DynamicPenetrationSection({
                 <tr key={g.groupId || idx}>
                   <td><strong>{g.groupName}</strong></td>
                   <td>{g.n}</td>
-                  <td>{g.meanInitial.toFixed(2)} dmm</td>
-                  <td>{g.sd.toFixed(2)} dmm</td>
-                  <td>{g.cv.toFixed(2)}%</td>
-                  <td>{g.lowerBound.toFixed(2)} dmm</td>
-                  <td>{g.upperBound.toFixed(2)} dmm</td>
-                  <td>
-                    {g.outlierPoints && g.outlierPoints.length > 0 ? (
-                      <span style={{ color: '#DC2626', fontWeight: 700 }}>
-                        {g.outlierPoints.map((p) => `${p.value.toFixed(1)}`).join(', ')} dmm
-                      </span>
-                    ) : (
-                      <span style={{ color: '#16A34A', fontSize: '0.78rem' }}>Nihil (0 outlier)</span>
-                    )}
-                  </td>
-                  <td style={{ fontWeight: 700, color: '#1D4ED8' }}>
-                    {g.cleanMean.toFixed(2)} dmm
-                  </td>
+                  <td>{g.meanInitial?.toFixed(2) ?? '—'}</td>
+                  <td>{g.precisionGap?.toFixed(2) ?? '—'}</td>
+                  <td>{g.precisionLimit ?? '—'}</td>
+                  <td>{g.reported ?? '—'}</td>
+                  <td>{g.evaluation}</td>
                 </tr>
               ))}
-
-              {/* Baris Total Gabungan */}
-              <tr className="total-row">
-                <td>HASIL GLOBAL (SEMUA KELOMPOK)</td>
-                <td>{calcOutput.totalValidCount ?? 0} valid</td>
-                <td colSpan="5" style={{ textAlign: 'center', color: '#64748B', fontStyle: 'italic', fontSize: '0.75rem' }}>
-                  Total {calcOutput.totalRawPointsCount ?? 0} pembacaan jarum | Selisih Presisi (ΔP) = {calcOutput.selisih ?? '-'} dmm (Toleransi SNI ≤ {calcOutput.batasToleransi ?? 4} dmm)
-                </td>
-                <td style={{ color: calcOutput.totalOutlierCount > 0 ? '#DC2626' : '#16A34A' }}>
-                  {calcOutput.totalOutlierCount ?? 0} titik dieliminasi
-                </td>
-                <td style={{ fontSize: '1rem', fontWeight: 800, color: '#0F172A' }}>
-                  {penAkhirVal} dmm
-                </td>
-              </tr>
             </tbody>
           </table>
           </div>
@@ -7640,40 +6487,15 @@ function DynamicPenetrationSection({
       <div className="penetration-sni-guide">
         <div className="penetration-sni-title">
           <Info size={16} style={{ color: '#2563EB' }} />
-          <span>Tabel Toleransi Presisi Perbedaan Pembacaan Maks-Min (SNI 2456:2011 Tabel 1)</span>
+          <span>Batas Selisih Bacaan Tertinggi dan Terendah (SNI 2456:2011 Tabel 2)</span>
         </div>
         <div className="penetration-sni-grid">
-          <div className={`penetration-sni-tier ${penNum > 0 && penNum < 50 ? 'active' : ''}`}>
-            <div className="penetration-sni-tier-range">Rentang Penetrasi: 0 - 49 dmm</div>
-            <div className="penetration-sni-tier-limit">Maksimal Selisih: 2 dmm</div>
-            <div className="penetration-sni-tier-status">
-              {penNum > 0 && penNum < 50 ? '● Kategori Sampel Ini' : 'Aspal sangat keras'}
+          {PENETRATION_PRECISION.map(([min, max, limit]) => (
+            <div key={min} className="penetration-sni-tier">
+              <div className="penetration-sni-tier-range">Rentang penetrasi: {min}–{max} dmm</div>
+              <div className="penetration-sni-tier-limit">Maksimal selisih: {limit} dmm</div>
             </div>
-          </div>
-
-          <div className={`penetration-sni-tier ${penNum >= 50 && penNum < 150 ? 'active' : ''}`}>
-            <div className="penetration-sni-tier-range">Rentang Penetrasi: 50 - 149 dmm</div>
-            <div className="penetration-sni-tier-limit">Maksimal Selisih: 4 dmm</div>
-            <div className="penetration-sni-tier-status">
-              {penNum >= 50 && penNum < 150 ? '● Kategori Sampel Ini (Pen 60/70 & Pen 80/100)' : 'Aspal standar jalan raya'}
-            </div>
-          </div>
-
-          <div className={`penetration-sni-tier ${penNum >= 150 && penNum < 250 ? 'active' : ''}`}>
-            <div className="penetration-sni-tier-range">Rentang Penetrasi: 150 - 249 dmm</div>
-            <div className="penetration-sni-tier-limit">Maksimal Selisih: 12 dmm</div>
-            <div className="penetration-sni-tier-status">
-              {penNum >= 150 && penNum < 250 ? '● Kategori Sampel Ini' : 'Aspal lunak / modifikasi'}
-            </div>
-          </div>
-
-          <div className={`penetration-sni-tier ${penNum >= 250 ? 'active' : ''}`}>
-            <div className="penetration-sni-tier-range">Rentang Penetrasi: 250 - 500 dmm</div>
-            <div className="penetration-sni-tier-limit">Maksimal Selisih: 20 dmm</div>
-            <div className="penetration-sni-tier-status">
-              {penNum >= 250 ? '● Kategori Sampel Ini' : 'Aspal cair / emulsi'}
-            </div>
-          </div>
+          ))}
         </div>
       </div>
 
@@ -7681,7 +6503,7 @@ function DynamicPenetrationSection({
       <div className="calc-steps-section" style={{ background: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '0.75rem', padding: '1.25rem', marginBottom: '1.5rem', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
         <h4 style={{ fontSize: '0.95rem', fontWeight: 700, color: '#1E293B', marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           <TrendingUp size={16} style={{ color: '#2563EB' }} />
-          <span>Langkah Rumus Perhitungan Matematis Lengkap (SNI 2456:2011 & Bina Marga 2018)</span>
+          <span>Langkah Perhitungan Penetrasi</span>
         </h4>
         <pre
           style={{
@@ -7701,7 +6523,7 @@ function DynamicPenetrationSection({
         </pre>
       </div>
 
-      {/* 8. Kesimpulan & Tombol Aksi Simpan */}
+      {/* 8. Kesimpulan */}
       <div
         className="calc-conclusion-section"
         style={{
@@ -7725,129 +6547,6 @@ function DynamicPenetrationSection({
         <p style={{ fontSize: '0.875rem', lineHeight: 1.5, color: calcOutput.verdictClass === 'valid' ? '#14532D' : calcOutput.verdictClass === 'warning' ? '#78350F' : '#881337', margin: 0 }}>
           {calcOutput.conclusion}
         </p>
-
-        {/* Tombol Simpan & Navigasi */}
-        <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', marginTop: '1.25rem' }}>
-          <button
-            type="button"
-            className="btn-save-test"
-            onClick={onSave}
-            disabled={isInputInvalid || hasNegativeInput || hasExceededInput}
-            style={{
-              padding: '0.75rem 1.5rem',
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '0.5rem',
-              borderRadius: '0.5rem',
-              fontWeight: 700,
-              fontSize: '0.875rem',
-              cursor: isInputInvalid || hasNegativeInput || hasExceededInput ? 'not-allowed' : 'pointer',
-              opacity: isInputInvalid || hasNegativeInput || hasExceededInput ? 0.6 : 1,
-            }}
-          >
-            <Save size={16} />
-            <span>{savedNotification ? 'Tersimpan!' : 'Simpan Pengujian'}</span>
-          </button>
-
-          <button
-            type="button"
-            className="btn-back-footer"
-            onClick={onBack}
-            style={{
-              padding: '0.75rem 1.25rem',
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '0.5rem',
-              borderRadius: '0.5rem',
-              background: '#F1F5F9',
-              color: '#334155',
-              fontWeight: 600,
-              border: '1px solid #CBD5E1',
-              cursor: 'pointer',
-            }}
-          >
-            <ArrowLeft size={16} />
-            <span>Kembali ke Dashboard</span>
-          </button>
-        </div>
-
-        {savedNotification && (
-          <div
-            style={{
-              padding: '0.75rem 1rem',
-              background: '#ECFDF5',
-              border: '1px solid #6EE7B7',
-              borderRadius: '0.5rem',
-              color: '#065F46',
-              fontSize: '0.8rem',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.5rem',
-              marginTop: '0.75rem',
-            }}
-          >
-            <CheckCircle2 size={16} />
-            <span>Data pengujian penetrasi aspal berhasil disimpan ke riwayat dashboard! (ID: {lastSavedId})</span>
-          </div>
-        )}
-      </div>
-
-      {/* 9. Footer Navigasi Bawah */}
-      <div
-        className="calc-footer-nav"
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          marginTop: '1.5rem',
-          paddingTop: '1rem',
-          borderTop: '1px solid #E2E8F0',
-          flexWrap: 'wrap',
-          gap: '0.75rem',
-        }}
-      >
-        <button
-          type="button"
-          className="btn-back-footer"
-          onClick={onBack}
-        >
-          <ArrowLeft size={16} />
-          <span>Kembali ke Dashboard</span>
-        </button>
-
-        <div className="calc-footer-right-actions">
-          <button
-            type="button"
-            className="btn-open-table-direct"
-            onClick={onResetGroups}
-            title="Kembalikan tabel ke susunan contoh awal standar laboratorium"
-          >
-            <RotateCcw size={15} style={{ marginRight: '6px' }} />
-            <span>Reset Contoh</span>
-          </button>
-
-          <button
-            type="button"
-            className="btn-open-table-direct"
-            onClick={onClearGroups}
-            title="Kosongkan seluruh data pengujian untuk memasukkan data baru"
-            style={{ color: '#DC2626' }}
-          >
-            <Trash2 size={15} style={{ marginRight: '6px' }} />
-            <span>Kosongkan Input</span>
-          </button>
-
-          <button
-            type="button"
-            className="btn-open-table-direct"
-            onClick={onBack}
-          >
-            <ArrowLeft size={15} style={{ marginRight: '6px' }} />
-            <span>Ke Dashboard Utama</span>
-          </button>
-        </div>
       </div>
     </div>
   )
@@ -7915,21 +6614,11 @@ function CustomReynoldsTooltip({ active, payload }) {
 // =========================================================================
 function DynamicReynoldsSection({
   testConfig,
-  inputs,
   calcOutput,
   currentReynoldsRows,
   onRowChange,
   onAddRow,
   onRemoveRow,
-  onResetRows,
-  onClearRows,
-  isInputInvalid,
-  hasNegativeInput,
-  hasExceededInput,
-  onSave,
-  onBack,
-  savedNotification,
-  lastSavedId,
   getVerdictClass,
   getVerdictLabel,
   handleKeyDown,
@@ -8053,51 +6742,6 @@ function DynamicReynoldsSection({
               >
                 <Plus size={14} />
                 <span>Tambah Baris Pengujian</span>
-              </button>
-
-              <button
-                type="button"
-                className="btn-reset-table-data"
-                onClick={onClearRows}
-                title="Kosongkan nilai waktu untuk memasukkan data baru"
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '0.35rem',
-                  padding: '0.45rem 0.75rem',
-                  borderRadius: '0.375rem',
-                  border: '1px solid #CBD5E1',
-                  background: '#FFFFFF',
-                  color: '#475569',
-                  fontSize: '0.78rem',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                }}
-              >
-                <RotateCcw size={13} />
-                <span>Reset</span>
-              </button>
-
-              <button
-                type="button"
-                className="btn-reset-table-data"
-                onClick={onResetRows}
-                title="Muat 5 baris data laboratorium standar (Laminer, Transisi, Turbulen)"
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '0.35rem',
-                  padding: '0.45rem 0.75rem',
-                  borderRadius: '0.375rem',
-                  border: '1px solid #93C5FD',
-                  background: '#EFF6FF',
-                  color: '#1D4ED8',
-                  fontSize: '0.78rem',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                }}
-              >
-                <span>Contoh Standar</span>
               </button>
             </div>
           </div>
@@ -8589,81 +7233,6 @@ function DynamicReynoldsSection({
             ))}
           </div>
         </div>
-
-        {/* Panel F: Tombol Aksi Simpan & Navigasi */}
-        <div className="calc-action-buttons-wrap" style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
-          <button
-            type="button"
-            className="btn-save-test"
-            onClick={onSave}
-            disabled={isInputInvalid || hasNegativeInput || hasExceededInput}
-            style={{ flex: 1, padding: '0.75rem 1.25rem', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', borderRadius: '0.5rem', background: '#059669', color: '#FFFFFF', fontWeight: 700, border: 'none', cursor: 'pointer' }}
-          >
-            <Save size={16} />
-            <span>{savedNotification ? 'Tersimpan!' : 'Simpan Pengujian'}</span>
-          </button>
-
-          <button
-            type="button"
-            className="btn-back-footer"
-            onClick={onBack}
-            style={{ padding: '0.75rem 1.25rem', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', borderRadius: '0.5rem', background: '#F1F5F9', color: '#334155', fontWeight: 600, border: '1px solid #CBD5E1', cursor: 'pointer' }}
-          >
-            <ArrowLeft size={16} />
-            <span>Kembali ke Dashboard</span>
-          </button>
-        </div>
-
-        {savedNotification && (
-          <div style={{ padding: '0.75rem 1rem', background: '#ECFDF5', border: '1px solid #6EE7B7', borderRadius: '0.5rem', color: '#065F46', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <CheckCircle2 size={16} />
-            <span>Data pengujian Osborne Reynolds berhasil disimpan ke riwayat dashboard! (ID: {lastSavedId})</span>
-          </div>
-        )}
-      </div>
-
-      {/* 4. Footer Navigasi Bawah */}
-      <div className="calc-footer-nav" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1.5rem', paddingTop: '1rem', borderTop: '1px solid #E2E8F0', flexWrap: 'wrap', gap: '0.75rem' }}>
-        <button
-          type="button"
-          className="btn-back-footer"
-          onClick={onBack}
-        >
-          <ArrowLeft size={16} />
-          <span>Kembali ke Dashboard</span>
-        </button>
-
-        <div className="calc-footer-right-actions">
-          <button
-            type="button"
-            className="btn-open-table-direct"
-            onClick={onResetRows}
-            title="Kembalikan tabel ke susunan contoh awal standar laboratorium"
-          >
-            <RotateCcw size={15} style={{ marginRight: '6px' }} />
-            <span>Reset Contoh</span>
-          </button>
-
-          <button
-            type="button"
-            className="btn-open-table-direct"
-            onClick={onClearRows}
-            title="Kosongkan seluruh data pengujian untuk memasukkan data baru"
-            style={{ color: '#DC2626' }}
-          >
-            <Trash2 size={15} style={{ marginRight: '6px' }} />
-            <span>Kosongkan Input</span>
-          </button>
-
-          <button
-            type="button"
-            className="btn-open-table-direct"
-            onClick={onBack}
-          >
-            <ArrowLeft size={15} style={{ marginRight: '6px' }} />
-            <span>Ke Dashboard Utama</span>
-          </button>
-        </div>
       </div>
     </div>
   )
@@ -8681,17 +7250,8 @@ function DynamicDuctilitySection({
   onToggleSampleValid,
   onAddSample,
   onRemoveSample,
-  onResetSamples,
-  onClearSamples,
   onUnitChange,
   onInputChange,
-  isInputInvalid,
-  hasNegativeInput,
-  hasExceededInput,
-  onSave,
-  onBack,
-  savedNotification,
-  lastSavedId,
   getVerdictClass,
   getVerdictLabel,
   handleKeyDown,
@@ -8699,7 +7259,7 @@ function DynamicDuctilitySection({
   const currentUnit = inputs.satuanInput || 'cm'
   const isMm = currentUnit === 'mm'
   const kelas = inputs.kelasAspal || 'pen6070'
-  const minDaktilitas = kelas === 'modifikasi' ? 50 : 100
+  const minDaktilitas = kelas === 'pen6070' ? 100 : null
 
   const dRataVal = calcOutput.dRata !== undefined && !isNaN(calcOutput.dRata) ? calcOutput.dRata.toFixed(1) : '-'
   const nValid = calcOutput.nValid || 0
@@ -8773,10 +7333,10 @@ function DynamicDuctilitySection({
 
           {/* Ambang Batas Acuan */}
           <div className="ductility-param-col ductility-param-summary">
-            <span className="ductility-param-label">Target Batas SNI:</span>
+            <span className="ductility-param-label">Pembanding Bina Marga</span>
             <div className="ductility-target-badge">
-              <span className="target-num">≥ {minDaktilitas}</span>
-              <span className="target-unit">cm</span>
+              <span className="target-num">{minDaktilitas === null ? '—' : '≥ 100'}</span>
+              {minDaktilitas !== null && <span className="target-unit">cm</span>}
             </div>
             <span className="ductility-param-desc">
               Suhu uji konstan 25°C, kecepatan penarikan 5 cm/menit (±5%).
@@ -8788,7 +7348,7 @@ function DynamicDuctilitySection({
       {/* 3. Empat Kartu Ringkasan Bento Hasil Utama */}
       <div className="penetration-summary-grid" style={{ marginTop: '1.25rem' }}>
         {/* Kartu 1: Daktilitas Rata-rata */}
-        <div className={`penetration-metric-card ${calcOutput.isRataLolos ? 'card-blue' : 'card-rose'}`}>
+        <div className={`penetration-metric-card ${calcOutput.isRataLolos == null ? 'card-amber' : calcOutput.isRataLolos ? 'card-blue' : 'card-rose'}`}>
           <div className="penetration-card-head">
             <span className="penetration-card-title">Daktilitas Rata-rata (D_rata)</span>
             <span className="penetration-card-badge">{nValid} Cetakan Valid</span>
@@ -8798,7 +7358,7 @@ function DynamicDuctilitySection({
             <span className="penetration-card-unit">cm</span>
           </div>
           <div className="penetration-card-sub">
-            Syarat SNI: ≥ {minDaktilitas} cm ({calcOutput.isRataLolos ? 'Lolos' : 'Gagal'})
+            {minDaktilitas === null ? 'Daktilitas aspal modifikasi segar dilaporkan' : 'Pembanding Pen 60/70 ≥ 100 cm dari tiga benda uji'}
           </div>
         </div>
 
@@ -8841,7 +7401,7 @@ function DynamicDuctilitySection({
             {calcOutput.status || '-'}
           </div>
           <div className="penetration-card-sub">
-            {calcOutput.isRataLolos ? 'Kohesi aspal baik & elastis' : 'Aspal getas & rawan retak'}
+            {calcOutput.conclusion}
           </div>
         </div>
       </div>
@@ -8887,7 +7447,6 @@ function DynamicDuctilitySection({
               {currentDuctilitySamples.map((sample, idx) => {
                 const rawNum = sample.value !== undefined && sample.value !== null && sample.value !== '' ? Number(sample.value) : NaN
                 const valCm = !isNaN(rawNum) ? (isMm ? rawNum / 10 : rawNum) : NaN
-                const isLolos = !isNaN(valCm) && valCm >= minDaktilitas
                 const isIncluded = sample.isValid !== undefined ? Boolean(sample.isValid) : true
 
                 return (
@@ -8923,19 +7482,7 @@ function DynamicDuctilitySection({
                       )}
                     </td>
                     <td style={{ textAlign: 'center' }}>
-                      {!isNaN(valCm) ? (
-                        isLolos ? (
-                          <span className="ductility-badge-eval lolos">
-                            ✓ Memenuhi (≥ {minDaktilitas} cm)
-                          </span>
-                        ) : (
-                          <span className="ductility-badge-eval gagal">
-                            ✕ Kurang (&lt; {minDaktilitas} cm)
-                          </span>
-                        )
-                      ) : (
-                        <span style={{ color: '#94A3B8' }}>-</span>
-                      )}
+                      {Number.isFinite(valCm) && valCm > 0 ? 'Terbaca' : '—'}
                     </td>
                     <td style={{ textAlign: 'center' }}>
                       <button
@@ -9004,74 +7551,6 @@ function DynamicDuctilitySection({
             {calcOutput.conclusion}
           </p>
         </div>
-
-        <div className="calc-verdict-actions-row">
-          <button
-            type="button"
-            className="btn-verdict-save"
-            onClick={onSave}
-            disabled={isInputInvalid || hasNegativeInput || hasExceededInput}
-            title={
-              isInputInvalid || hasNegativeInput || hasExceededInput
-                ? 'Perbaiki nilai parameter agar bernilai valid sebelum menyimpan'
-                : 'Simpan hasil pengujian daktilitas ke riwayat dashboard'
-            }
-          >
-            <Save size={16} />
-            <span>Simpan Data Pengujian</span>
-          </button>
-        </div>
-
-        {savedNotification && (
-          <div style={{ padding: '0.75rem 1rem', background: '#ECFDF5', border: '1px solid #6EE7B7', borderRadius: '0.5rem', color: '#065F46', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.75rem' }}>
-            <CheckCircle2 size={16} />
-            <span>Data pengujian daktilitas aspal berhasil disimpan ke riwayat dashboard! (ID: {lastSavedId})</span>
-          </div>
-        )}
-      </div>
-
-      {/* 7. Footer Navigasi Bawah */}
-      <div className="calc-footer-nav" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1.5rem', paddingTop: '1rem', borderTop: '1px solid #E2E8F0', flexWrap: 'wrap', gap: '0.75rem' }}>
-        <button
-          type="button"
-          className="btn-back-footer"
-          onClick={onBack}
-        >
-          <ArrowLeft size={16} />
-          <span>Kembali ke Dashboard</span>
-        </button>
-
-        <div className="calc-footer-right-actions">
-          <button
-            type="button"
-            className="btn-open-table-direct"
-            onClick={onResetSamples}
-            title="Kembalikan data ke 3 sampel default laboratorium"
-          >
-            <RotateCcw size={15} style={{ marginRight: '6px' }} />
-            <span>Reset Contoh</span>
-          </button>
-
-          <button
-            type="button"
-            className="btn-open-table-direct"
-            onClick={onClearSamples}
-            title="Kosongkan seluruh nilai pembacaan cetakan"
-            style={{ color: '#DC2626' }}
-          >
-            <Trash2 size={15} style={{ marginRight: '6px' }} />
-            <span>Kosongkan Input</span>
-          </button>
-
-          <button
-            type="button"
-            className="btn-open-table-direct"
-            onClick={onBack}
-          >
-            <ArrowLeft size={15} style={{ marginRight: '6px' }} />
-            <span>Ke Dashboard Utama</span>
-          </button>
-        </div>
       </div>
     </div>
   )
@@ -9089,17 +7568,8 @@ function DynamicViscositySection({
   onPointChange,
   onAddPoint,
   onRemovePoint,
-  onResetPoints,
-  onClearPoints,
   onTargetPresetChange,
   onInputChange,
-  isInputInvalid,
-  hasNegativeInput,
-  hasExceededInput,
-  onSave,
-  onBack,
-  savedNotification,
-  lastSavedId,
   getVerdictClass,
   getVerdictLabel,
   handleKeyDown,
@@ -9112,19 +7582,15 @@ function DynamicViscositySection({
   const vCompMin = calcOutput.vCompMin !== undefined ? calcOutput.vCompMin : (inputs.vCompMin || 250)
   const vCompMax = calcOutput.vCompMax !== undefined ? calcOutput.vCompMax : (inputs.vCompMax || 310)
 
-  const tMixMin = calcOutput.tMixMin !== undefined && !isNaN(calcOutput.tMixMin) ? calcOutput.tMixMin.toFixed(1) : '-'
-  const tMixMax = calcOutput.tMixMax !== undefined && !isNaN(calcOutput.tMixMax) ? calcOutput.tMixMax.toFixed(1) : '-'
-  const tMixAvg = calcOutput.tMixAvg !== undefined && !isNaN(calcOutput.tMixAvg) ? calcOutput.tMixAvg.toFixed(1) : '-'
+  const rangeText = (min, max) => Number.isFinite(min) && Number.isFinite(max)
+    ? `${min.toFixed(1)}–${max.toFixed(1)} °C` : 'Belum dapat ditentukan'
+  const mixRange = rangeText(calcOutput.tMixMin, calcOutput.tMixMax)
+  const compactionRange = rangeText(calcOutput.tCompMin, calcOutput.tCompMax)
 
-  const tCompMin = calcOutput.tCompMin !== undefined && !isNaN(calcOutput.tCompMin) ? calcOutput.tCompMin.toFixed(1) : '-'
-  const tCompMax = calcOutput.tCompMax !== undefined && !isNaN(calcOutput.tCompMax) ? calcOutput.tCompMax.toFixed(1) : '-'
-  const tCompAvg = calcOutput.tCompAvg !== undefined && !isNaN(calcOutput.tCompAvg) ? calcOutput.tCompAvg.toFixed(1) : '-'
-
-  const v135 = calcOutput.v135 !== undefined && !isNaN(calcOutput.v135) ? calcOutput.v135.toFixed(1) : '-'
+  const v135 = Number.isFinite(calcOutput.v135) ? calcOutput.v135.toFixed(1) : '—'
   const r2 = calcOutput.r2 !== undefined && !isNaN(calcOutput.r2) ? calcOutput.r2.toFixed(4) : '-'
   const regresiStr = calcOutput.viscosityChart?.regresiStr || (calcOutput.a !== undefined && calcOutput.b !== undefined ? `log₁₀(v) = ${calcOutput.a.toFixed(4)} ${calcOutput.b >= 0 ? '+' : '-'} ${Math.abs(calcOutput.b).toFixed(5)}·T` : '-')
   
-  const isV135Lolos = calcOutput.v135 !== undefined && calcOutput.v135 >= 300.0
   const formulaSteps = calcOutput.formulaSteps || []
 
   // Konversi helper untuk baris tabel preview
@@ -9286,7 +7752,7 @@ function DynamicViscositySection({
               onChange={(e) => onInputChange('metodeKonversi', e.target.value)}
               style={{ padding: '0.55rem 0.75rem', borderRadius: '0.5rem', border: '1px solid #CBD5E1', fontSize: '0.82rem', background: '#FFFFFF', color: '#0F172A', fontWeight: 500 }}
             >
-              <option value="astm">Rumus Eksak ASTM D2161 / SNI 7729:2011</option>
+              <option value="astm">Korelasi SFS per rentang waktu (estimasi)</option>
               <option value="modul">Faktor Konversi Praktis Modul Kampus (v = 2.0 × t)</option>
               <option value="pendekatan">Faktor Konversi Pendekatan Linier (v = 2.16 × t)</option>
             </select>
@@ -9317,10 +7783,10 @@ function DynamicViscositySection({
         <div className="viscosity-summary-bento-card" style={{ borderLeft: '4px solid #F59E0B' }}>
           <span className="bento-label" style={{ color: '#B45309' }}>Rentang Suhu Pencampuran (Mixing)</span>
           <div className="bento-value" style={{ color: '#D97706' }}>
-            {tMixMin} - {tMixMax} <span style={{ fontSize: '1rem', fontWeight: 500 }}>°C</span>
+            {mixRange}
           </div>
           <div className="bento-sub">
-            Rata-rata: <strong>{tMixAvg} °C</strong> (Target: {vMixMin}-{vMixMax} cSt)
+            Target: {vMixMin}–{vMixMax} cSt
           </div>
         </div>
 
@@ -9328,24 +7794,21 @@ function DynamicViscositySection({
         <div className="viscosity-summary-bento-card" style={{ borderLeft: '4px solid #0284C7' }}>
           <span className="bento-label" style={{ color: '#0369A1' }}>Rentang Suhu Pemadatan (Compaction)</span>
           <div className="bento-value" style={{ color: '#0284C7' }}>
-            {tCompMin} - {tCompMax} <span style={{ fontSize: '1rem', fontWeight: 500 }}>°C</span>
+            {compactionRange}
           </div>
           <div className="bento-sub">
-            Rata-rata: <strong>{tCompAvg} °C</strong> (Target: {vCompMin}-{vCompMax} cSt)
+            Target: {vCompMin}–{vCompMax} cSt
           </div>
         </div>
 
         {/* Card 3: Viskositas pada 135°C */}
-        <div className="viscosity-summary-bento-card" style={{ borderLeft: `4px solid ${isV135Lolos ? '#10B981' : '#EF4444'}` }}>
-          <span className="bento-label" style={{ color: isV135Lolos ? '#047857' : '#B91C1C' }}>Viskositas Kinematik pada 135°C</span>
-          <div className="bento-value" style={{ color: isV135Lolos ? '#059669' : '#DC2626' }}>
+        <div className="viscosity-summary-bento-card" style={{ borderLeft: '4px solid #64748B' }}>
+          <span className="bento-label" style={{ color: '#475569' }}>Estimasi Viskositas pada 135 °C</span>
+          <div className="bento-value" style={{ color: '#334155' }}>
             {v135} <span style={{ fontSize: '1rem', fontWeight: 500 }}>cSt</span>
           </div>
           <div className="bento-sub" style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-            <span>Syarat Bina Marga: ≥ 300 cSt</span>
-            <span className={`bento-pill ${isV135Lolos ? 'green' : 'red'}`}>
-              {isV135Lolos ? 'Lolos' : 'Kurang'}
-            </span>
+            <span>Batas Pen 60/70 ≥ 300 cSt memakai uji ASTM D2170.</span>
           </div>
         </div>
 
@@ -9360,6 +7823,10 @@ function DynamicViscositySection({
           </div>
         </div>
       </div>
+
+      {calcOutput.status === 'Perlu Evaluasi' && (
+        <p className="calc-warning-banner" role="status">{calcOutput.conclusion}</p>
+      )}
 
       {/* 4. Tabel Interaktif Titik Pengujian Laboratorium (Dinamis Multi-Suhu) */}
       <div className="calc-card-box" style={{ marginBottom: '1.25rem', overflow: 'hidden' }}>
@@ -9386,28 +7853,6 @@ function DynamicViscositySection({
             >
               <Plus size={15} />
               <span>Tambah Titik Uji</span>
-            </button>
-
-            <button
-              type="button"
-              className="btn-open-table-direct"
-              onClick={onResetPoints}
-              title="Kembalikan ke 4 titik acuan default"
-              style={{ fontSize: '0.78rem', padding: '0.45rem 0.75rem' }}
-            >
-              <RotateCcw size={14} style={{ marginRight: '4px' }} />
-              <span>Reset 4 Titik</span>
-            </button>
-
-            <button
-              type="button"
-              className="btn-open-table-direct"
-              onClick={onClearPoints}
-              title="Kosongkan nilai waktu alir untuk input baru"
-              style={{ fontSize: '0.78rem', padding: '0.45rem 0.75rem', color: '#DC2626' }}
-            >
-              <Trash2 size={14} style={{ marginRight: '4px' }} />
-              <span>Kosongkan</span>
             </button>
           </div>
         </div>
@@ -9563,56 +8008,6 @@ function DynamicViscositySection({
           </div>
         )}
       </div>
-
-      {/* 7. Footer Navigasi Bawah */}
-      <div className="calc-footer-nav" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1.5rem', paddingTop: '1rem', borderTop: '1px solid #E2E8F0', flexWrap: 'wrap', gap: '0.75rem' }}>
-        <button
-          type="button"
-          className="btn-back-footer"
-          onClick={onBack}
-        >
-          <ArrowLeft size={16} />
-          <span>Kembali ke Dashboard</span>
-        </button>
-
-        <div className="calc-footer-right-actions" style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-          <button
-            type="button"
-            className="btn-open-table-direct"
-            onClick={onResetPoints}
-            title="Kembalikan data ke 4 titik default pengujian"
-          >
-            <RotateCcw size={15} style={{ marginRight: '6px' }} />
-            <span>Reset Contoh</span>
-          </button>
-
-          <button
-            type="button"
-            className="btn-open-table-direct"
-            onClick={onClearPoints}
-            title="Kosongkan seluruh nilai waktu alir"
-            style={{ color: '#DC2626' }}
-          >
-            <Trash2 size={15} style={{ marginRight: '6px' }} />
-            <span>Kosongkan Input</span>
-          </button>
-
-          <button
-            type="button"
-            className="btn-verdict-save"
-            onClick={onSave}
-            disabled={isInputInvalid || hasNegativeInput || hasExceededInput}
-            title={
-              isInputInvalid || hasNegativeInput || hasExceededInput
-                ? 'Perbaiki nilai parameter agar bernilai valid sebelum menyimpan'
-                : 'Simpan hasil pengujian viskositas ke riwayat dashboard'
-            }
-          >
-            <Save size={16} />
-            <span>{savedNotification ? 'Tersimpan!' : 'Simpan Pengujian'}</span>
-          </button>
-        </div>
-      </div>
     </div>
   )
 }
@@ -9670,15 +8065,8 @@ function DynamicMultiSampleSection({
   onSampleChange,
   onAddSample,
   onRemoveSample,
-  onResetSamples,
   onInputChange,
-  isInputInvalid,
   hasNegativeInput,
-  hasExceededInput,
-  onSave,
-  onBack,
-  savedNotification,
-  lastSavedId,
   getVerdictClass,
   getVerdictLabel,
   handleKeyDown,
@@ -9745,7 +8133,7 @@ function DynamicMultiSampleSection({
                     {field.type === 'select' ? (
                       <select
                         className="calc-select-field"
-                        value={inputs[field.key] !== undefined ? inputs[field.key] : ''}
+                        value={field.key === 'mutuBaja' && inputs[field.key] === 'BjTS 420' ? 'BjTS 420B' : inputs[field.key] ?? testConfig.initialInputs?.[field.key] ?? ''}
                         onChange={(e) => onInputChange(field.key, Number(e.target.value) || e.target.value)}
                         style={{ width: '100%', padding: '0.5rem', borderRadius: '6px', border: '1px solid #CBD5E1', fontSize: '0.85rem' }}
                       >
@@ -9762,7 +8150,7 @@ function DynamicMultiSampleSection({
                           step={field.step || 'any'}
                           min={field.min ?? 0}
                           className="calc-input-field"
-                          value={inputs[field.key] !== undefined ? inputs[field.key] : ''}
+                          value={inputs[field.key] ?? testConfig.initialInputs?.[field.key] ?? ''}
                           onChange={(e) => onInputChange(field.key, e.target.value === '' ? '' : Number(e.target.value))}
                           onKeyDown={(e) => handleKeyDown(e, field.key)}
                           style={{ flex: 1, padding: '0.5rem', borderRadius: '6px', border: '1px solid #CBD5E1', fontSize: '0.85rem' }}
@@ -9797,16 +8185,6 @@ function DynamicMultiSampleSection({
               </div>
 
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <button
-                  type="button"
-                  onClick={onResetSamples}
-                  className="btn-reset-inputs"
-                  style={{ display: 'flex', alignItems: 'center', gap: '4px', background: '#F1F5F9', color: '#475569', border: '1px solid #CBD5E1', padding: '0.45rem 0.75rem', borderRadius: '6px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 500 }}
-                  title="Kembalikan data sampel ke default awal"
-                >
-                  <RotateCcw size={14} />
-                  <span>Reset Data</span>
-                </button>
                 <button
                   type="button"
                   onClick={onAddSample}
@@ -9944,7 +8322,7 @@ function DynamicMultiSampleSection({
                 </div>
                 <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
                   <span style={{ fontSize: '0.75rem', background: '#FEF2F2', color: '#DC2626', padding: '2px 8px', borderRadius: '12px', fontWeight: 600 }}>
-                    Titik Acuan N = 25 (LL = {calcOutput.llValue ?? calcOutput.results?.[0]?.value}%)
+                    {calcOutput.llValue == null ? 'LL belum tersedia' : `N = 25 (LL = ${calcOutput.llValue.toFixed(2)}%)`}
                   </span>
                 </div>
               </div>
@@ -9959,8 +8337,9 @@ function DynamicMultiSampleSection({
                     <XAxis
                       dataKey="n"
                       type="number"
-                      domain={['dataMin - 2', 'dataMax + 2']}
-                      label={{ value: 'Jumlah Ketukan Cawan (N) - Skala Casagrande', position: 'insideBottom', offset: -12, fontSize: 11, fill: '#64748B' }}
+                      domain={['dataMin', 'dataMax']}
+                      scale="log"
+                      label={{ value: 'Jumlah Ketukan (N) — Skala Logaritmik', position: 'insideBottom', offset: -12, fontSize: 11, fill: '#64748B' }}
                       tick={{ fontSize: 11, fill: '#475569' }}
                     />
                     <YAxis
@@ -9980,7 +8359,7 @@ function DynamicMultiSampleSection({
                         y={calcOutput.llValue}
                         stroke="#DC2626"
                         strokeDasharray="4 4"
-                        label={{ value: `LL=${calcOutput.llValue}%`, position: 'right', fill: '#DC2626', fontSize: 11, fontWeight: 700 }}
+                        label={{ value: `LL=${calcOutput.llValue.toFixed(2)}%`, position: 'right', fill: '#DC2626', fontSize: 11, fontWeight: 700 }}
                       />
                     )}
                     <Line
@@ -10018,7 +8397,7 @@ function DynamicMultiSampleSection({
                   </span>
                 </div>
                 <div>
-                  <strong>If = {calcOutput.flowIndex ?? '-'}</strong> | <strong>R² = {calcOutput.r2 ?? '-'}</strong>
+                  <strong>If = {calcOutput.flowIndex?.toFixed(2) ?? '—'}</strong> | <strong>R² = {calcOutput.r2?.toFixed(4) ?? '—'}</strong>
                 </div>
               </div>
             </div>
@@ -10145,39 +8524,6 @@ function DynamicMultiSampleSection({
               <span>Input tidak boleh bernilai negatif. Harap perbaiki angka penimbangan.</span>
             </div>
           )}
-
-          {/* Notifikasi Sukses Simpan */}
-          {savedNotification && (
-            <div className="calc-save-banner" style={{ marginBottom: '1rem' }}>
-              <div className="calc-save-banner-text" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <Check size={18} />
-                <span>Data pengujian <strong>{lastSavedId || testConfig.code}</strong> berhasil disimpan ke Dashboard!</span>
-              </div>
-            </div>
-          )}
-
-          {/* Action Footer */}
-          <div className="calc-actions-footer" style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
-            <button
-              type="button"
-              className="btn-save-to-dashboard"
-              onClick={onSave}
-              disabled={isInputInvalid || hasNegativeInput}
-              style={{ display: 'flex', alignItems: 'center', gap: '6px', background: '#059669', color: '#fff', border: 'none', padding: '0.6rem 1.1rem', borderRadius: '6px', cursor: (isInputInvalid || hasNegativeInput) ? 'not-allowed' : 'pointer', fontWeight: 600, fontSize: '0.85rem' }}
-            >
-              <Save size={16} />
-              <span>Simpan Hasil ke Dashboard</span>
-            </button>
-            <button
-              type="button"
-              className="btn-open-table-direct"
-              onClick={onBack}
-              style={{ display: 'flex', alignItems: 'center', gap: '6px', background: '#F8FAFC', color: '#334155', border: '1px solid #CBD5E1', padding: '0.6rem 1rem', borderRadius: '6px', cursor: 'pointer', fontWeight: 500, fontSize: '0.85rem' }}
-            >
-              <ArrowLeft size={16} />
-              <span>Ke Dashboard Utama</span>
-            </button>
-          </div>
         </div>
       </div>
     </div>
@@ -10186,26 +8532,14 @@ function DynamicMultiSampleSection({
 
 
 function DynamicFlashPointSection({
-  testConfig,
   inputs,
   calcOutput,
   currentFlashSamples,
   onSampleChange,
   onAddSample,
   onRemoveSample,
-  onResetSamples,
-  onClearSamples,
   onUnitPressureChange,
   onInputChange,
-  isInputInvalid,
-  hasNegativeInput,
-  hasExceededInput,
-  onSave,
-  onBack,
-  savedNotification,
-  lastSavedId,
-  getVerdictClass,
-  getVerdictLabel,
   handleKeyDown,
 }) {
   const pressureUnit = inputs.tekananKUnit || 'mmHg'
@@ -10603,58 +8937,6 @@ function DynamicFlashPointSection({
           </div>
         )}
       </div>
-
-      {/* 6. Footer Navigasi Bawah */}
-      <div className="calc-footer-nav" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1.5rem', paddingTop: '1rem', borderTop: '1px solid #E2E8F0', flexWrap: 'wrap', gap: '0.75rem' }}>
-        <button
-          type="button"
-          className="btn-back-footer"
-          onClick={onBack}
-        >
-          <ArrowLeft size={16} />
-          <span>Kembali ke Dashboard</span>
-        </button>
-
-        <div className="calc-footer-right-actions" style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-          <button
-            type="button"
-            className="btn-open-table-direct"
-            onClick={onResetSamples}
-            title="Kembalikan data ke 3 sampel default laporan praktikum"
-          >
-            <RotateCcw size={15} style={{ marginRight: '6px' }} />
-            <span>Reset Contoh</span>
-          </button>
-
-          <button
-            type="button"
-            className="btn-open-table-direct"
-            onClick={onClearSamples}
-            title="Kosongkan seluruh nilai suhu pembacaan sampel"
-            style={{ color: '#DC2626' }}
-          >
-            <Trash2 size={15} style={{ marginRight: '6px' }} />
-            <span>Kosongkan Input</span>
-          </button>
-
-          <button
-            type="button"
-            className="btn-verdict-save"
-            onClick={onSave}
-            disabled={isInputInvalid || hasNegativeInput || hasExceededInput || isZeroSamples}
-            title={
-              isZeroSamples
-                ? 'Minimal harus ada 1 sampel terdaftar'
-                : isInputInvalid || hasNegativeInput || hasExceededInput
-                ? 'Perbaiki nilai parameter agar bernilai valid sebelum menyimpan'
-                : 'Simpan hasil pengujian titik nyala dan titik bakar ke riwayat dashboard'
-            }
-          >
-            <Save size={16} />
-            <span>{savedNotification ? 'Tersimpan!' : 'Simpan Pengujian'}</span>
-          </button>
-        </div>
-      </div>
     </div>
   )
 }
@@ -10663,24 +8945,14 @@ function DynamicFlashPointSection({
 // SECTION DINAMIS: JOB MIX FORMULA (JMF) & MIX DESIGN LASTON AC-WC (BP-8-1)
 // =========================================================================
 function DynamicJmfMixSection({
-  testConfig,
   inputs,
   calcOutput,
   currentJmfSieves,
   onSieveRetWeightChange,
-  onResetToLaprak,
   jmfChartTab,
   setJmfChartTab,
   onInputChange,
-  isInputInvalid,
   hasNegativeInput,
-  hasExceededInput,
-  onSave,
-  onBack,
-  savedNotification,
-  lastSavedId,
-  getVerdictClass,
-  getVerdictLabel,
   handleKeyDown,
 }) {
   const [showFormulaSteps, setShowFormulaSteps] = useState(true)
@@ -10690,11 +8962,12 @@ function DynamicJmfMixSection({
   const kConst = Number(inputs.k ?? 0.75)
   const wAspalRencana = calcOutput.wAspalRencana ?? Number(((pbRencana / 100) * wTotal).toFixed(1))
   const wAgregatRencana = calcOutput.wAgregatRencana ?? Number((wTotal - wAspalRencana).toFixed(1))
+  const mixType = String(inputs.jenisCampuran || 'ac-wc').toUpperCase()
 
   const computedSieves = calcOutput.computedSieves || currentJmfSieves || []
   const sumRetWeight = computedSieves.reduce((acc, s) => acc + (Number(s.retWeight) || 0), 0)
   const weightDiff = Number((sumRetWeight - wAgregatRencana).toFixed(2))
-  const isWeightMatch = Math.abs(weightDiff) < 0.1
+  const isWeightMatch = calcOutput.massMismatch === false
 
   const ca = calcOutput.ca ?? 39.0
   const fa = calcOutput.fa ?? 54.5
@@ -10703,14 +8976,16 @@ function DynamicJmfMixSection({
 
   const kaaMurni = calcOutput.kaaMurni ?? 5.74
   const pb0 = calcOutput.pb0 ?? 6.0
-  const passNo4 = calcOutput.passNo4 ?? 61.0
-  const passNo200 = calcOutput.passNo200 ?? 6.5
+  const passNo4 = calcOutput.passNo4
+  const passNo200 = calcOutput.passNo200
+  const hasFractionChart = Number.isFinite(passNo4) && Number.isFinite(passNo200)
 
   const mixDesignTable = calcOutput.mixDesignTable || []
-  const gradasiChartData = calcOutput.gradasiChartData || []
+  const gradasiChartData = (calcOutput.gradasiChartData || []).filter((row) => Number(row.size) > 0)
+    .map((row) => ({ ...row, size: Number(row.size) })).sort((a, b) => a.size - b.size)
   const jmfRows = calcOutput.jmfTable?.rows || []
   const formulaSteps = calcOutput.formulaSteps || []
-  const allSpecOk = calcOutput.allSpecOk ?? true
+  const allSpecOk = calcOutput.allSpecOk === true && isWeightMatch
 
   return (
     <div className="calc-content-wrap">
@@ -10806,19 +9081,9 @@ function DynamicJmfMixSection({
               1. Parameter Umum & Pengaturan Awal Briket Marshall
             </h3>
             <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.8rem', color: '#64748B' }}>
-              Bina Marga 2018 Divisi 6 - Campuran Aspal Panas Laston Lapis Aus (AC-WC)
+              Bina Marga 2018 Revisi 2 Divisi 6 • Laston {mixType}
             </p>
           </div>
-          <button
-            type="button"
-            className="btn-open-table-direct"
-            onClick={onResetToLaprak}
-            title="Reset seluruh parameter & saringan ke default data laporan praktikum"
-            style={{ fontSize: '0.8rem', padding: '0.35rem 0.75rem' }}
-          >
-            <RotateCcw size={14} style={{ marginRight: '6px' }} />
-            <span>Reset ke Default Laprak</span>
-          </button>
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
@@ -10827,13 +9092,14 @@ function DynamicJmfMixSection({
             <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, color: '#475569', marginBottom: '0.35rem' }}>
               Jenis Campuran Aspal
             </label>
-            <input
-              type="text"
-              readOnly
-              value="Laston AC-WC (Bina Marga 2018)"
+            <select
+              aria-label="Jenis campuran Laston"
+              value={inputs.jenisCampuran ?? 'ac-wc'}
+              onChange={(e) => onInputChange('jenisCampuran', e.target.value)}
               className="calc-input-field"
-              style={{ background: '#F8FAFC', color: '#334155', cursor: 'not-allowed', fontWeight: 600 }}
-            />
+            >
+              {Object.keys(LASTON_MARSHALL).map((type) => <option key={type} value={type}>Laston {type.toUpperCase()}</option>)}
+            </select>
           </div>
 
           {/* Field: Total Berat Briket (W_total) */}
@@ -10964,15 +9230,15 @@ function DynamicJmfMixSection({
                 <th style={{ padding: '0.65rem 0.5rem', fontWeight: 600 }}>Kum. Tertahan (g)</th>
                 <th style={{ padding: '0.65rem 0.5rem', fontWeight: 600 }}>Kum. Tertahan (%)</th>
                 <th style={{ padding: '0.65rem 0.5rem', fontWeight: 600, color: '#10B981' }}>Kum. Lolos (%)</th>
-                <th style={{ padding: '0.65rem 0.5rem', fontWeight: 600 }}>Amplop Spek AC-WC</th>
+                <th style={{ padding: '0.65rem 0.5rem', fontWeight: 600 }}>Amplop {mixType}</th>
                 <th style={{ padding: '0.65rem 0.5rem', fontWeight: 600 }}>Status</th>
               </tr>
             </thead>
             <tbody>
               {computedSieves.map((sieve, idx) => {
-                const isPan = Boolean(sieve.isPan || sieve.isFiller || sieve.id === 12 || sieve.name === 'Pan')
-                const isCA = Boolean(sieve.isCA || (sieve.id !== undefined && sieve.id <= 5))
-                const isFA = Boolean(sieve.isFA || (sieve.id !== undefined && sieve.id >= 6 && sieve.id <= 11))
+                const sieveSize = Number(sieve.size)
+                const isPan = sieveSize === 0
+                const isFA = sieveSize >= 0.075 && sieveSize < 4.75
 
                 let fractionBadgeBg = '#E0F2FE'
                 let fractionBadgeColor = '#0369A1'
@@ -11051,12 +9317,12 @@ function DynamicJmfMixSection({
                       {sieve.cumPassPct !== undefined ? `${Number(sieve.cumPassPct).toFixed(2)}%` : '-'}
                     </td>
                     <td style={{ padding: '0.55rem 0.5rem', color: '#64748B', fontSize: '0.78rem' }}>
-                      {sieve.specMin !== '-' && sieve.specMax !== '-'
+                      {sieve.specMin != null && sieve.specMax != null
                         ? `${sieve.specMin}% - ${sieve.specMax}%`
                         : '-'}
                     </td>
                     <td style={{ padding: '0.55rem 0.5rem' }}>
-                      {sieve.specMin === '-' ? (
+                      {sieve.specMin == null ? (
                         <span style={{ color: '#94A3B8', fontSize: '0.75rem' }}>-</span>
                       ) : sieve.isOk ? (
                         <span style={{
@@ -11149,25 +9415,25 @@ function DynamicJmfMixSection({
               <div style={{ marginBottom: '0.5rem', paddingBottom: '0.5rem', borderBottom: '1px dashed #BAE6FD' }}>
                 <span style={{ color: '#0369A1', fontWeight: 600 }}>• Agregat Kasar (CA):</span> Tertahan No. 4 (4.75 mm)<br />
                 <span style={{ fontSize: '0.78rem', color: '#64748B' }}>
-                  W_CA = 56.10 + 129.03 + 252.45 = <strong>437.58 g</strong>
+                  Massa CA = <strong>{(ca * sumRetWeight / 100).toFixed(2)} g</strong>
                 </span><br />
-                <strong>%CA = (437.58 / {wAgregatRencana.toFixed(1)}) × 100% = {ca.toFixed(1)}%</strong>
+                <strong>Fraksi CA = {ca.toFixed(1)}% dari massa agregat</strong>
               </div>
 
               <div style={{ marginBottom: '0.5rem', paddingBottom: '0.5rem', borderBottom: '1px dashed #BAE6FD' }}>
                 <span style={{ color: '#92400E', fontWeight: 600 }}>• Agregat Halus (FA):</span> Lolos No. 4 & Tertahan No. 200<br />
                 <span style={{ fontSize: '0.78rem', color: '#64748B' }}>
-                  W_FA = 201.96 + 140.25 + 95.37 + 72.93 + 56.10 + 44.88 = <strong>611.49 g</strong>
+                  Massa FA = <strong>{(fa * sumRetWeight / 100).toFixed(2)} g</strong>
                 </span><br />
-                <strong>%FA = (611.49 / {wAgregatRencana.toFixed(1)}) × 100% = {fa.toFixed(1)}%</strong>
+                <strong>Fraksi FA = {fa.toFixed(1)}% dari massa agregat</strong>
               </div>
 
               <div>
                 <span style={{ color: '#6B21A8', fontWeight: 600 }}>• Bahan Pengisi (Filler):</span> Lolos No. 200 (Pan)<br />
                 <span style={{ fontSize: '0.78rem', color: '#64748B' }}>
-                  W_Filler = <strong>72.93 g</strong>
+                  Massa filler = <strong>{(filler * sumRetWeight / 100).toFixed(2)} g</strong>
                 </span><br />
-                <strong>%Filler = (72.93 / {wAgregatRencana.toFixed(1)}) × 100% = {filler.toFixed(1)}%</strong>
+                <strong>Fraksi filler = {filler.toFixed(1)}% dari massa agregat</strong>
               </div>
             </div>
           </div>
@@ -11186,7 +9452,7 @@ function DynamicJmfMixSection({
               <strong style={{ fontSize: '0.9rem', color: '#15803D' }}>Metode Grafik (Gambar 11.19)</strong>
             </div>
 
-            <div style={{ fontSize: '0.82rem', color: '#334155', lineHeight: 1.6 }}>
+            {!hasFractionChart ? <p>Perlu pembacaan pada ayakan No. 4 dan No. 200.</p> : <div style={{ fontSize: '0.82rem', color: '#334155', lineHeight: 1.6 }}>
               <div style={{ marginBottom: '0.5rem', paddingBottom: '0.5rem', borderBottom: '1px dashed #BBF7D0' }}>
                 <span style={{ color: '#15803D', fontWeight: 600 }}>• Pembacaan Kumulatif Lolos:</span><br />
                 - %Lolos Saringan No. 4 = <strong>{passNo4.toFixed(1)}%</strong><br />
@@ -11203,7 +9469,7 @@ function DynamicJmfMixSection({
                 %FA = %Lolos No. 4 - %Lolos No. 200 = {passNo4.toFixed(1)}% - {passNo200.toFixed(1)}% = <strong>{(passNo4 - passNo200).toFixed(1)}%</strong><br />
                 <span style={{ color: '#6B21A8', fontWeight: 600 }}>• Fraksi Filler (%FF):</span> %Lolos No. 200 = <strong>{passNo200.toFixed(1)}%</strong>
               </div>
-            </div>
+            </div>}
           </div>
         </div>
 
@@ -11273,22 +9539,23 @@ function DynamicJmfMixSection({
                 boxShadow: jmfChartTab === 'amplop' ? '0 1px 2px rgba(0,0,0,0.05)' : 'none',
               }}
             >
-              Amplop Spesifikasi AC-WC 2018
+              Amplop {mixType} 2018 Revisi 2
             </button>
           </div>
         </div>
 
         {/* Tab 1: Gambar 11.19 */}
-        {jmfChartTab === 'gambar1119' && (
+        {jmfChartTab === 'gambar1119' && !hasFractionChart && <p>Perlu ayakan No. 4 dan No. 200 untuk membagi fraksi pada grafik.</p>}
+        {jmfChartTab === 'gambar1119' && hasFractionChart && (
           <div>
             <div style={{ width: '100%', minHeight: 380 }}>
               <ResponsiveContainer width="100%" height={380}>
                 <LineChart data={gradasiChartData} margin={{ top: 25, right: 35, left: 15, bottom: 25 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
-                  <XAxis dataKey="sieve" tick={{ fontSize: 11, fill: '#475569' }}>
-                    <Label value="Ukuran Saringan ASTM (1'' s.d. Pan)" offset={-15} position="insideBottom" style={{ fontSize: 12, fill: '#475569', fontWeight: 500 }} />
+                  <XAxis dataKey="size" type="number" scale="log" domain={['dataMin', 'dataMax']} tick={{ fontSize: 11, fill: '#475569' }}>
+                    <Label value="Bukaan ayakan (mm) — logaritmik" offset={-15} position="insideBottom" style={{ fontSize: 12, fill: '#475569', fontWeight: 500 }} />
                   </XAxis>
-                  <YAxis domain={[0, 120]} ticks={[0, 20, 40, 60, 80, 100, 120]} tick={{ fontSize: 11, fill: '#475569' }}>
+                  <YAxis domain={[0, 100]} ticks={[0, 20, 40, 60, 80, 100]} tick={{ fontSize: 11, fill: '#475569' }}>
                     <Label value="Persen Kumulatif Lolos (%)" angle={-90} position="insideLeft" style={{ fontSize: 12, fill: '#475569', fontWeight: 500 }} />
                   </YAxis>
                   <Tooltip
@@ -11299,7 +9566,7 @@ function DynamicJmfMixSection({
 
                   {/* Garis Batas Vertikal Saringan No. 4 */}
                   <ReferenceLine
-                    x="No. 4"
+                    x={4.75}
                     stroke="#0F172A"
                     strokeWidth={2}
                     strokeDasharray="4 4"
@@ -11308,7 +9575,7 @@ function DynamicJmfMixSection({
 
                   {/* Garis Batas Vertikal Saringan No. 200 */}
                   <ReferenceLine
-                    x="No. 200"
+                    x={0.075}
                     stroke="#0F172A"
                     strokeWidth={2}
                     strokeDasharray="4 4"
@@ -11382,8 +9649,8 @@ function DynamicJmfMixSection({
               <ResponsiveContainer width="100%" height={380}>
                 <LineChart data={gradasiChartData} margin={{ top: 25, right: 35, left: 15, bottom: 25 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
-                  <XAxis dataKey="sieve" tick={{ fontSize: 11, fill: '#475569' }}>
-                    <Label value="Ukuran Saringan ASTM" offset={-15} position="insideBottom" style={{ fontSize: 12, fill: '#475569', fontWeight: 500 }} />
+                  <XAxis dataKey="size" type="number" scale="log" domain={['dataMin', 'dataMax']} tick={{ fontSize: 11, fill: '#475569' }}>
+                    <Label value="Bukaan ayakan (mm) — logaritmik" offset={-15} position="insideBottom" style={{ fontSize: 12, fill: '#475569', fontWeight: 500 }} />
                   </XAxis>
                   <YAxis domain={[0, 105]} ticks={[0, 20, 40, 60, 80, 100]} tick={{ fontSize: 11, fill: '#475569' }}>
                     <Label value="Persen Kumulatif Lolos (%)" angle={-90} position="insideLeft" style={{ fontSize: 12, fill: '#475569', fontWeight: 500 }} />
@@ -11397,7 +9664,8 @@ function DynamicJmfMixSection({
                   <Line
                     type="monotone"
                     dataKey="specMax"
-                    name="Batas Atas Amplop AC-WC (Maks)"
+                    name="Batas atas"
+                    connectNulls
                     stroke="#EF4444"
                     strokeWidth={1.5}
                     strokeDasharray="4 4"
@@ -11417,7 +9685,8 @@ function DynamicJmfMixSection({
                   <Line
                     type="monotone"
                     dataKey="specMin"
-                    name="Batas Bawah Amplop AC-WC (Min)"
+                    name="Batas bawah"
+                    connectNulls
                     stroke="#DC2626"
                     strokeWidth={1.5}
                     strokeDasharray="4 4"
@@ -11436,16 +9705,16 @@ function DynamicJmfMixSection({
               fontSize: '0.82rem',
               color: '#334155',
             }}>
-              <strong>Keterangan Amplop Gradasi Laston AC-WC (Bina Marga 2018):</strong>
+              <strong>Amplop gradasi Laston {mixType} (Bina Marga 2018 Revisi 2)</strong>
               <p style={{ margin: '0.25rem 0 0 0', lineHeight: 1.5 }}>
-                Kurva biru merepresentasikan persen lolos kumulatif dari gradasi campuran agregat rencana. Garis merah putus-putus batas atas dan batas bawah merupakan daerah toleransi amplop spesifikasi AC-WC.
+                Kurva biru menunjukkan persen lolos kumulatif campuran. Garis putus-putus menunjukkan batas pada ayakan acuan.
                 {allSpecOk ? (
                   <span style={{ color: '#059669', fontWeight: 600, display: 'block', marginTop: '0.25rem' }}>
                     ✓ Seluruh titik ayakan berada di dalam rentang batas spesifikasi teknis Bina Marga 2018.
                   </span>
                 ) : (
                   <span style={{ color: '#DC2626', fontWeight: 600, display: 'block', marginTop: '0.25rem' }}>
-                    ⚠ Terdapat titik ayakan yang keluar dari batas spesifikasi teknis.
+                    ⚠ Periksa hasil ayakan dan neraca massa.
                   </span>
                 )}
               </p>
@@ -11667,45 +9936,6 @@ function DynamicJmfMixSection({
           </div>
         </div>
       </div>
-
-      {/* 10. Footer Navigasi Bawah */}
-      <div className="calc-footer-nav" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1.5rem', paddingTop: '1rem', borderTop: '1px solid #E2E8F0', flexWrap: 'wrap', gap: '0.75rem' }}>
-        <button
-          type="button"
-          className="btn-back-footer"
-          onClick={onBack}
-        >
-          <ArrowLeft size={16} />
-          <span>Kembali ke Dashboard</span>
-        </button>
-
-        <div className="calc-footer-right-actions" style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-          <button
-            type="button"
-            className="btn-open-table-direct"
-            onClick={onResetToLaprak}
-            title="Reset seluruh parameter & saringan ke default data laporan praktikum"
-          >
-            <RotateCcw size={15} style={{ marginRight: '6px' }} />
-            <span>Reset Data Laprak</span>
-          </button>
-
-          <button
-            type="button"
-            className="btn-verdict-save"
-            onClick={onSave}
-            disabled={isInputInvalid || hasNegativeInput || hasExceededInput}
-            title={
-              isInputInvalid || hasNegativeInput || hasExceededInput
-                ? 'Perbaiki nilai parameter agar bernilai valid sebelum menyimpan'
-                : 'Simpan hasil perhitungan mix design JMF ke riwayat dashboard'
-            }
-          >
-            <Save size={16} />
-            <span>{savedNotification ? 'Tersimpan!' : 'Simpan Pengujian'}</span>
-          </button>
-        </div>
-      </div>
     </div>
   )
 }
@@ -11714,7 +9944,6 @@ function DynamicJmfMixSection({
 // SECTION DINAMIS: UJI KARAKTERISTIK MARSHALL (BAB 9 BP-9-1 / MAR-01)
 // =========================================================================
 function DynamicMarshallSection({
-  testConfig,
   inputs,
   calcOutput,
   currentMarshallSpecimens,
@@ -11728,22 +9957,15 @@ function DynamicMarshallSection({
   onRemoveSpecimen,
   onSurfaceAreaChange,
   onHeightChange,
-  onResetToLaprak,
   onInputChange,
-  isInputInvalid,
   hasNegativeInput,
-  hasExceededInput,
-  onSave,
-  onBack,
-  savedNotification,
-  lastSavedId,
-  getVerdictClass,
-  getVerdictLabel,
   handleKeyDown,
 }) {
   const [showFormulaSteps, setShowFormulaSteps] = useState(true)
 
-  const repSpec = calcOutput.repSpec || currentMarshallSpecimens[0] || {}
+  const display = (value, decimals, suffix = '') => Number.isFinite(value) ? value.toFixed(decimals) + suffix : '—'
+  const repSpec = calcOutput.repSpec || calcOutput.marshallValues || {}
+  const chartLimits = LASTON_MARSHALL[inputs.jenisCampuran || 'ac-wc']
   const totalLp = calcOutput.totalLp || 10.15
   const computedSpecimens = calcOutput.computedSpecimens || currentMarshallSpecimens || []
   const sortedSpecs = calcOutput.sortedSpecs || computedSpecimens
@@ -11759,7 +9981,8 @@ function DynamicMarshallSection({
   const densityFit = calcOutput.densityFit || { equation: '-' }
 
   const formulaStepsBySpecimen = calcOutput.formulaStepsBySpecimen || {}
-  const activeSteps = formulaStepsBySpecimen[selectedSpecimenStepId] || calcOutput.formulaSteps || []
+  const selectedSpecimen = computedSpecimens.find((s) => s.id === selectedSpecimenStepId) ?? computedSpecimens[0]
+  const activeSteps = formulaStepsBySpecimen[selectedSpecimen?.id] || calcOutput.formulaSteps || []
 
   const d = Number(inputs.diameter) || 10.2
   const r = d / 2
@@ -11778,12 +10001,13 @@ function DynamicMarshallSection({
       <div className="calc-bento-grid">
         {/* Kartu 1: Rekomendasi KAO */}
         <div className="calc-bento-card highlight" style={{ borderLeft: '4px solid #2563EB' }}>
-          <div className="calc-bento-label">Kadar Aspal Optimum (KAO)</div>
+          <div className="calc-bento-label">Kadar Aspal Benda Uji Acuan</div>
           <div className="calc-bento-value" style={{ color: '#0284C7', fontSize: '1.45rem' }}>
-            6.5%
+
+            {repSpec.pa == null ? '—' : repSpec.pa.toFixed(1) + '%'}
           </div>
           <div className="calc-bento-sub">
-            Rekomendasi Analisis Volumetrik & Mekanik
+            KAO memerlukan evaluasi rentang kadar dan data pelengkap
           </div>
         </div>
 
@@ -11791,21 +10015,22 @@ function DynamicMarshallSection({
         <div className="calc-bento-card" style={{ borderLeft: '4px solid #10B981' }}>
           <div className="calc-bento-label">Stabilitas Marshall (S')</div>
           <div className="calc-bento-value" style={{ color: '#10B981', fontSize: '1.35rem' }}>
-            {repSpec.stabilitas ? `${repSpec.stabilitas.toFixed(1)} kg` : '-'}
+            {display(repSpec.stabilitas, 1, ' kgf')}
           </div>
           <div className="calc-bento-sub">
-            Syarat Bina Marga: ≥ 800 kg (Memenuhi)
+            {calcOutput.marshallChecklist?.items.find(({ param }) => param === 'Stabilitas Marshall')?.syarat ?? 'Lihat batas jenis campuran'} kgf
           </div>
         </div>
 
-        {/* Kartu 3: VFA & VMA pada KAO */}
+        {/* Kartu 3: Rongga Briket Acuan */}
         <div className="calc-bento-card" style={{ borderLeft: '4px solid #6366F1' }}>
-          <div className="calc-bento-label">VFA & VMA pada KAO</div>
+          <div className="calc-bento-label">Rongga Briket Acuan</div>
           <div className="calc-bento-value" style={{ color: '#4F46E5', fontSize: '1.25rem' }}>
-            VFA: {repSpec.vfa ? `${repSpec.vfa.toFixed(1)}%` : '-'}
+            {repSpec.massValid === false ? 'Periksa penimbangan' : `VFA ${display(repSpec.vfa, 1, '%')}`}
           </div>
           <div className="calc-bento-sub">
-            VMA: {repSpec.vma ? `${repSpec.vma.toFixed(1)}%` : '-'} (≥ 15%) | VIM: {repSpec.vim ? `${repSpec.vim.toFixed(2)}%` : '-'}
+            VMA {display(repSpec.vma, 1, '%')} | VIM {display(repSpec.vim, 2, '%')}
+            {repSpec.massValid && !repSpec.hasMeasuredGmm && ' (VIM/VFA estimasi)'}
           </div>
         </div>
 
@@ -11813,7 +10038,7 @@ function DynamicMarshallSection({
         <div className="calc-bento-card highlight" style={{ borderLeft: '4px solid #F59E0B' }}>
           <div className="calc-bento-label">Tebal Selimut Aspal</div>
           <div className="calc-bento-value" style={{ color: '#D97706', fontSize: '1.35rem' }}>
-            {repSpec.tebalSelimut ? `${repSpec.tebalSelimut.toFixed(2)} µm` : '-'}
+            {display(repSpec.tebalSelimut, 2, ' µm')}
           </div>
           <div className="calc-bento-sub">
             Total Luas Permukaan Agregat: {totalLp} m²/kg
@@ -11846,16 +10071,6 @@ function DynamicMarshallSection({
               Pilih tab di bawah untuk mengatur geometri alat, luas permukaan agregat (FLP), atau data pengujian multi-kadar aspal.
             </p>
           </div>
-          <button
-            type="button"
-            className="btn-open-table-direct"
-            onClick={onResetToLaprak}
-            title="Kembalikan seluruh parameter dan data benda uji ke default laporan praktikum"
-            style={{ fontSize: '0.8rem', padding: '0.35rem 0.75rem' }}
-          >
-            <RotateCcw size={14} style={{ marginRight: '6px' }} />
-            <span>Reset ke Default Laprak</span>
-          </button>
         </div>
 
         {/* Tab Switcher Input */}
@@ -11921,13 +10136,14 @@ function DynamicMarshallSection({
                 <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, color: '#475569', marginBottom: '0.35rem' }}>
                   Jenis Campuran Beraspal
                 </label>
-                <input
-                  type="text"
-                  readOnly
-                  value="Laston AC-WC (Bina Marga 2018)"
+                <select
+                  aria-label="Jenis campuran Laston"
+                  value={inputs.jenisCampuran ?? 'ac-wc'}
+                  onChange={(e) => onInputChange('jenisCampuran', e.target.value)}
                   className="calc-input-field"
-                  style={{ background: '#F8FAFC', color: '#334155', cursor: 'not-allowed', fontWeight: 600 }}
-                />
+                >
+                  {Object.keys(LASTON_MARSHALL).map((type) => <option key={type} value={type}>Laston {type.toUpperCase()}</option>)}
+                </select>
               </div>
 
               <div>
@@ -12205,7 +10421,7 @@ function DynamicMarshallSection({
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem', flexWrap: 'wrap', gap: '0.5rem' }}>
               <p style={{ margin: 0, fontSize: '0.8rem', color: '#64748B' }}>
-                Masukkan data penimbangan berat dan bacaan arloji alat Marshall. Anda dapat menambah atau menghapus benda uji.
+                Masukkan kadar aspal terhadap total campuran. Isi Gmm hasil uji pada kadar yang sama untuk evaluasi VIM dan VFA.
               </p>
               <button
                 type="button"
@@ -12231,6 +10447,7 @@ function DynamicMarshallSection({
                     <th style={{ padding: '0.6rem 0.5rem', fontWeight: 600 }}>Bacaan Stab (div)</th>
                     <th style={{ padding: '0.6rem 0.5rem', fontWeight: 600 }}>Flow (mm)</th>
                     <th style={{ padding: '0.6rem 0.5rem', fontWeight: 600 }}>Angka Korelasi</th>
+                    <th style={{ padding: '0.6rem 0.5rem' }}>Gmm hasil uji</th>
                     <th style={{ padding: '0.6rem 0.5rem', fontWeight: 600 }}>Aksi</th>
                   </tr>
                 </thead>
@@ -12324,6 +10541,16 @@ function DynamicMarshallSection({
                         />
                       </td>
                       <td style={{ padding: '0.35rem 0.5rem' }}>
+                        <input type="number" min="0.001" step="any"
+                          aria-label={`Gmm hasil uji benda ${s.no || idx + 1}`}
+                          value={s.gmmMeasured ?? ''}
+                          onChange={(event) => onSpecimenChange(s.id, 'gmmMeasured', event.target.value)}
+                          onKeyDown={handleKeyDown}
+                          className="calc-input-field"
+                          style={{ width: '90px', padding: '0.3rem' }}
+                        />
+                      </td>
+                      <td style={{ padding: '0.35rem 0.5rem' }}>
                         <button
                           type="button"
                           onClick={() => onRemoveSpecimen(s.id)}
@@ -12355,17 +10582,18 @@ function DynamicMarshallSection({
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem', flexWrap: 'wrap', gap: '0.5rem' }}>
           <div>
             <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 600, color: '#1E293B' }}>
-              Bagian A: Rincian 16 Langkah Rumus Perhitungan Analisis Data (Subbab 12.7)
+              Bagian A: Rincian Perhitungan per Benda Uji
             </h3>
             <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.8rem', color: '#64748B' }}>
-              Pilih benda uji untuk menampilkan kalkulasi langkah demi langkah dari volume spesimen hingga tebal selimut aspal.
+              {currentMarshallSpecimens.length} benda uji. Pilih benda uji untuk melihat rincian hitung atau menghapusnya.
             </p>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
             <select
-              value={selectedSpecimenStepId}
-              onChange={(e) => setSelectedSpecimenStepId(Number(e.target.value))}
+              aria-label="Pilih benda uji Marshall"
+              value={selectedSpecimen?.id ?? ''}
+              onChange={(e) => setSelectedSpecimenStepId(computedSpecimens.find((s) => String(s.id) === e.target.value)?.id)}
               style={{
                 fontSize: '0.82rem',
                 padding: '0.35rem 0.65rem',
@@ -12378,11 +10606,18 @@ function DynamicMarshallSection({
             >
               {computedSpecimens.map((s) => (
                 <option key={s.id} value={s.id}>
-                  Benda Uji {s.no} (Kadar Aspal: {s.pa}%)
+                  Benda Uji {s.no} ({display(s.pa, 1, '%')})
                 </option>
               ))}
             </select>
 
+            <button type="button" className="btn-add-table-row" onClick={onAddSpecimen}>
+              <Plus size={14} /> Tambah Benda Uji
+            </button>
+            <button type="button" className="btn-action-outline" disabled={currentMarshallSpecimens.length <= 1}
+              onClick={() => onRemoveSpecimen(selectedSpecimen?.id)}>
+              <Trash2 size={14} /> Hapus Benda Uji Terpilih
+            </button>
             <button
               type="button"
               className="btn-open-table-direct"
@@ -12465,30 +10700,30 @@ function DynamicMarshallSection({
                     }}
                   >
                     <td style={{ padding: '0.5rem 0.4rem', fontWeight: 600 }}>{s.no || idx + 1}</td>
-                    <td style={{ padding: '0.5rem 0.4rem', fontWeight: 700, color: '#0284C7' }}>{s.pa.toFixed(1)}%</td>
-                    <td style={{ padding: '0.5rem 0.4rem' }}>{Number(s.beratSsd).toFixed(1)}</td>
-                    <td style={{ padding: '0.5rem 0.4rem' }}>{Number(s.beratAir).toFixed(1)}</td>
-                    <td style={{ padding: '0.5rem 0.4rem' }}>{Number(s.beratKering).toFixed(1)}</td>
-                    <td style={{ padding: '0.5rem 0.4rem', fontWeight: 500 }}>{s.v.toFixed(1)}</td>
-                    <td style={{ padding: '0.5rem 0.4rem', fontWeight: 600 }}>{s.gmb.toFixed(3)}</td>
+                    <td style={{ padding: '0.5rem 0.4rem', fontWeight: 700, color: '#0284C7' }}>{display(s.pa, 1, '%')}</td>
+                    <td style={{ padding: '0.5rem 0.4rem' }}>{display(s.beratSsd, 1)}</td>
+                    <td style={{ padding: '0.5rem 0.4rem' }}>{display(s.beratAir, 1)}</td>
+                    <td style={{ padding: '0.5rem 0.4rem' }}>{display(s.beratKering, 1)}</td>
+                    <td style={{ padding: '0.5rem 0.4rem', fontWeight: 500 }}>{display(s.v, 1)}</td>
+                    <td style={{ padding: '0.5rem 0.4rem', fontWeight: 600 }}>{s.massValid ? display(s.gmb, 3) : 'Periksa penimbangan'}</td>
                     <td style={{ padding: '0.5rem 0.4rem' }}>{gsb.toFixed(3)}</td>
                     <td style={{ padding: '0.5rem 0.4rem' }}>{gse.toFixed(3)}</td>
-                    <td style={{ padding: '0.5rem 0.4rem', fontWeight: 600 }}>{s.gmm.toFixed(3)}</td>
+                    <td style={{ padding: '0.5rem 0.4rem', fontWeight: 600 }}>{display(s.gmm, 3)}{Number.isFinite(s.gmm) && !s.hasMeasuredGmm && ' (estimasi)'}</td>
                     <td style={{ padding: '0.5rem 0.4rem' }}>{gsa.toFixed(3)}</td>
                     <td style={{ padding: '0.5rem 0.4rem' }}>{s.pab.toFixed(2)}%</td>
-                    <td style={{ padding: '0.5rem 0.4rem' }}>{s.pae.toFixed(3)}%</td>
+                    <td style={{ padding: '0.5rem 0.4rem' }}>{display(s.pae, 3, '%')}</td>
                     <td style={{ padding: '0.5rem 0.4rem', fontWeight: 600, color: s.isVmaOk ? '#059669' : '#DC2626' }}>
-                      {s.vma.toFixed(2)}%
+                      {display(s.vma, 2, '%')}
                     </td>
                     <td style={{ padding: '0.5rem 0.4rem', fontWeight: 600, color: s.isVimOk ? '#059669' : '#D97706' }}>
-                      {s.vim.toFixed(2)}%
+                      {display(s.vim, 2, '%')}
                     </td>
                     <td style={{ padding: '0.5rem 0.4rem', fontWeight: 600, color: s.isVfaOk ? '#059669' : '#DC2626' }}>
-                      {s.vfa.toFixed(2)}%
+                      {display(s.vfa, 2, '%')}
                     </td>
-                    <td style={{ padding: '0.5rem 0.4rem' }}>{s.density.toFixed(3)}</td>
+                    <td style={{ padding: '0.5rem 0.4rem' }}>{display(s.density, 3)}</td>
                     <td style={{ padding: '0.5rem 0.4rem', fontWeight: 600, color: '#D97706' }}>
-                      {s.tebalSelimut.toFixed(2)} µm
+                      {display(s.tebalSelimut, 2, ' µm')}
                     </td>
                   </tr>
                 ))}
@@ -12530,17 +10765,17 @@ function DynamicMarshallSection({
                     }}
                   >
                     <td style={{ padding: '0.55rem 0.5rem', fontWeight: 600 }}>Benda Uji {s.no || idx + 1}</td>
-                    <td style={{ padding: '0.55rem 0.5rem', fontWeight: 700, color: '#0284C7' }}>{s.pa.toFixed(1)}%</td>
+                    <td style={{ padding: '0.55rem 0.5rem', fontWeight: 700, color: '#0284C7' }}>{display(s.pa, 1, '%')}</td>
                     <td style={{ padding: '0.55rem 0.5rem' }}>{Number(s.bacaanStab).toFixed(0)}</td>
                     <td style={{ padding: '0.55rem 0.5rem' }}>{Number(s.angkaKorelasi || kKor).toFixed(3)}</td>
                     <td style={{ padding: '0.55rem 0.5rem', fontWeight: 700, color: s.isStabOk ? '#059669' : '#DC2626' }}>
-                      {s.stabilitas.toFixed(2)} kg
+                      {display(s.stabilitas, 2, ' kgf')}
                     </td>
                     <td style={{ padding: '0.55rem 0.5rem', fontWeight: 600, color: s.isFlowOk ? '#059669' : '#DC2626' }}>
-                      {s.flow.toFixed(2)} mm
+                      {display(s.flow, 2, ' mm')}
                     </td>
-                    <td style={{ padding: '0.55rem 0.5rem', fontWeight: 700, color: s.isMqOk ? '#059669' : '#DC2626' }}>
-                      {s.mq.toFixed(2)} kg/mm
+                    <td style={{ padding: '0.55rem 0.5rem', fontWeight: 700, color: '#475569' }}>
+                      {display(s.mq, 2, ' kgf/mm')}
                     </td>
                   </tr>
                 ))}
@@ -12564,7 +10799,7 @@ function DynamicMarshallSection({
                   <th style={{ padding: '0.65rem 0.5rem', fontWeight: 600 }}>Spesifikasi Bina Marga 2018</th>
                   {sortedSpecs.map((s) => (
                     <th key={s.id} style={{ padding: '0.65rem 0.5rem', fontWeight: 700, color: '#0284C7' }}>
-                      {s.pa.toFixed(1)}%
+                      {display(s.pa, 1, '%')}
                     </th>
                   ))}
                   <th style={{ padding: '0.65rem 0.75rem', fontWeight: 600, textAlign: 'left' }}>Keterangan & Evaluasi</th>
@@ -12595,10 +10830,10 @@ function DynamicMarshallSection({
                           padding: '0.12rem 0.4rem',
                           borderRadius: '4px',
                           fontWeight: 600,
-                          background: v.passed ? '#DEF7EC' : '#FDE8E8',
-                          color: v.passed ? '#03543F' : '#9B1C1C',
+                          background: v.pending ? '#FEF3C7' : v.passed === null ? '#F1F5F9' : v.passed ? '#DEF7EC' : '#FDE8E8',
+                          color: v.pending ? '#92400E' : v.passed === null ? '#475569' : v.passed ? '#03543F' : '#9B1C1C',
                         }}>
-                          {v.passed ? 'Memenuhi' : 'Tidak Memenuhi'}
+                          {v.pending ? 'Perlu data sah' : v.passed === null ? 'Dilaporkan' : v.passed ? 'Memenuhi' : 'Tidak Memenuhi'}
                         </span>
                       </td>
                     ))}
@@ -12645,14 +10880,14 @@ function DynamicMarshallSection({
               <ResponsiveContainer width="100%" height={260}>
                 <LineChart data={chartPoints} margin={{ top: 15, right: 25, left: 10, bottom: 20 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" />
-                  <XAxis dataKey="pa" tick={{ fontSize: 10, fill: '#64748B' }}>
+                  <XAxis dataKey="paNum" type="number" domain={['dataMin', 'dataMax']} tickFormatter={(value) => value + '%'} tick={{ fontSize: 10, fill: '#64748B' }}>
                     <Label value="Kadar Aspal (%)" offset={-12} position="insideBottom" style={{ fontSize: 10, fill: '#64748B' }} />
                   </XAxis>
                   <YAxis domain={[0, 3200]} tick={{ fontSize: 10, fill: '#64748B' }}>
                     <Label value="Stabilitas (kg)" angle={-90} position="insideLeft" style={{ fontSize: 10, fill: '#64748B' }} />
                   </YAxis>
                   <Tooltip formatter={(val) => [`${Number(val).toFixed(1)} kg`, 'Stabilitas']} />
-                  <ReferenceLine y={800} stroke="#DC2626" strokeDasharray="4 4" strokeWidth={1.5} label={{ value: 'Min 800 kg', position: 'insideBottomRight', fill: '#DC2626', fontSize: 10 }} />
+                  <ReferenceLine y={chartLimits?.stabilitas[0]} stroke="#DC2626" strokeDasharray="4 4" strokeWidth={1.5} label={{ value: 'Min ' + chartLimits?.stabilitas[0] + ' kgf', position: 'insideBottomRight', fill: '#DC2626', fontSize: 10 }} />
                   <Line type="monotone" dataKey="stabilitas" name="Stabilitas" stroke="#0284C7" strokeWidth={2.5} dot={{ r: 4, fill: '#0284C7' }} />
                 </LineChart>
               </ResponsiveContainer>
@@ -12676,15 +10911,15 @@ function DynamicMarshallSection({
               <ResponsiveContainer width="100%" height={260}>
                 <LineChart data={chartPoints} margin={{ top: 15, right: 25, left: 10, bottom: 20 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" />
-                  <XAxis dataKey="pa" tick={{ fontSize: 10, fill: '#64748B' }}>
+                  <XAxis dataKey="paNum" type="number" domain={['dataMin', 'dataMax']} tickFormatter={(value) => value + '%'} tick={{ fontSize: 10, fill: '#64748B' }}>
                     <Label value="Kadar Aspal (%)" offset={-12} position="insideBottom" style={{ fontSize: 10, fill: '#64748B' }} />
                   </XAxis>
                   <YAxis domain={[0, 5]} tick={{ fontSize: 10, fill: '#64748B' }}>
                     <Label value="Flow (mm)" angle={-90} position="insideLeft" style={{ fontSize: 10, fill: '#64748B' }} />
                   </YAxis>
                   <Tooltip formatter={(val) => [`${Number(val).toFixed(2)} mm`, 'Flow']} />
-                  <ReferenceLine y={2.0} stroke="#DC2626" strokeDasharray="4 4" strokeWidth={1.5} label={{ value: 'Min 2.0 mm', position: 'insideBottomRight', fill: '#DC2626', fontSize: 10 }} />
-                  <ReferenceLine y={4.0} stroke="#DC2626" strokeDasharray="4 4" strokeWidth={1.5} label={{ value: 'Maks 4.0 mm', position: 'insideTopRight', fill: '#DC2626', fontSize: 10 }} />
+                  <ReferenceLine y={chartLimits?.flow[0]} stroke="#DC2626" strokeDasharray="4 4" strokeWidth={1.5} label={{ value: 'Min ' + chartLimits?.flow[0] + ' mm', position: 'insideBottomRight', fill: '#DC2626', fontSize: 10 }} />
+                  <ReferenceLine y={chartLimits?.flow[1]} stroke="#DC2626" strokeDasharray="4 4" strokeWidth={1.5} label={{ value: 'Maks ' + chartLimits?.flow[1] + ' mm', position: 'insideTopRight', fill: '#DC2626', fontSize: 10 }} />
                   <Line type="monotone" dataKey="flow" name="Flow" stroke="#10B981" strokeWidth={2.5} dot={{ r: 4, fill: '#10B981' }} />
                 </LineChart>
               </ResponsiveContainer>
@@ -12708,14 +10943,13 @@ function DynamicMarshallSection({
               <ResponsiveContainer width="100%" height={260}>
                 <LineChart data={chartPoints} margin={{ top: 15, right: 25, left: 10, bottom: 20 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" />
-                  <XAxis dataKey="pa" tick={{ fontSize: 10, fill: '#64748B' }}>
+                  <XAxis dataKey="paNum" type="number" domain={['dataMin', 'dataMax']} tickFormatter={(value) => value + '%'} tick={{ fontSize: 10, fill: '#64748B' }}>
                     <Label value="Kadar Aspal (%)" offset={-12} position="insideBottom" style={{ fontSize: 10, fill: '#64748B' }} />
                   </XAxis>
                   <YAxis domain={[0, 3000]} tick={{ fontSize: 10, fill: '#64748B' }}>
                     <Label value="MQ (kg/mm)" angle={-90} position="insideLeft" style={{ fontSize: 10, fill: '#64748B' }} />
                   </YAxis>
                   <Tooltip formatter={(val) => [`${Number(val).toFixed(1)} kg/mm`, 'MQ']} />
-                  <ReferenceLine y={250} stroke="#DC2626" strokeDasharray="4 4" strokeWidth={1.5} label={{ value: 'Min 250 kg/mm', position: 'insideBottomRight', fill: '#DC2626', fontSize: 10 }} />
                   <Line type="monotone" dataKey="mq" name="MQ" stroke="#8B5CF6" strokeWidth={2.5} dot={{ r: 4, fill: '#8B5CF6' }} />
                 </LineChart>
               </ResponsiveContainer>
@@ -12739,14 +10973,14 @@ function DynamicMarshallSection({
               <ResponsiveContainer width="100%" height={260}>
                 <LineChart data={chartPoints} margin={{ top: 15, right: 25, left: 10, bottom: 20 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" />
-                  <XAxis dataKey="pa" tick={{ fontSize: 10, fill: '#64748B' }}>
+                  <XAxis dataKey="paNum" type="number" domain={['dataMin', 'dataMax']} tickFormatter={(value) => value + '%'} tick={{ fontSize: 10, fill: '#64748B' }}>
                     <Label value="Kadar Aspal (%)" offset={-12} position="insideBottom" style={{ fontSize: 10, fill: '#64748B' }} />
                   </XAxis>
                   <YAxis domain={[12, 22]} tick={{ fontSize: 10, fill: '#64748B' }}>
                     <Label value="VMA (%)" angle={-90} position="insideLeft" style={{ fontSize: 10, fill: '#64748B' }} />
                   </YAxis>
                   <Tooltip formatter={(val) => [`${Number(val).toFixed(2)}%`, 'VMA']} />
-                  <ReferenceLine y={15.0} stroke="#DC2626" strokeDasharray="4 4" strokeWidth={1.5} label={{ value: 'Min 15.0%', position: 'insideBottomRight', fill: '#DC2626', fontSize: 10 }} />
+                  <ReferenceLine y={chartLimits?.vma[0]} stroke="#DC2626" strokeDasharray="4 4" strokeWidth={1.5} label={{ value: 'Min ' + chartLimits?.vma[0] + '%', position: 'insideBottomRight', fill: '#DC2626', fontSize: 10 }} />
                   <Line type="monotone" dataKey="vma" name="VMA" stroke="#F59E0B" strokeWidth={2.5} dot={{ r: 4, fill: '#F59E0B' }} />
                 </LineChart>
               </ResponsiveContainer>
@@ -12770,15 +11004,15 @@ function DynamicMarshallSection({
               <ResponsiveContainer width="100%" height={260}>
                 <LineChart data={chartPoints} margin={{ top: 15, right: 25, left: 10, bottom: 20 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" />
-                  <XAxis dataKey="pa" tick={{ fontSize: 10, fill: '#64748B' }}>
+                  <XAxis dataKey="paNum" type="number" domain={['dataMin', 'dataMax']} tickFormatter={(value) => value + '%'} tick={{ fontSize: 10, fill: '#64748B' }}>
                     <Label value="Kadar Aspal (%)" offset={-12} position="insideBottom" style={{ fontSize: 10, fill: '#64748B' }} />
                   </XAxis>
                   <YAxis domain={[0, 14]} tick={{ fontSize: 10, fill: '#64748B' }}>
                     <Label value="VIM (%)" angle={-90} position="insideLeft" style={{ fontSize: 10, fill: '#64748B' }} />
                   </YAxis>
                   <Tooltip formatter={(val) => [`${Number(val).toFixed(2)}%`, 'VIM']} />
-                  <ReferenceLine y={3.0} stroke="#DC2626" strokeDasharray="4 4" strokeWidth={1.5} label={{ value: 'Min 3.0%', position: 'insideBottomRight', fill: '#DC2626', fontSize: 10 }} />
-                  <ReferenceLine y={5.0} stroke="#DC2626" strokeDasharray="4 4" strokeWidth={1.5} label={{ value: 'Maks 5.0%', position: 'insideTopRight', fill: '#DC2626', fontSize: 10 }} />
+                  <ReferenceLine y={chartLimits?.vim[0]} stroke="#DC2626" strokeDasharray="4 4" strokeWidth={1.5} label={{ value: 'Min ' + chartLimits?.vim[0] + '%', position: 'insideBottomRight', fill: '#DC2626', fontSize: 10 }} />
+                  <ReferenceLine y={chartLimits?.vim[1]} stroke="#DC2626" strokeDasharray="4 4" strokeWidth={1.5} label={{ value: 'Maks ' + chartLimits?.vim[1] + '%', position: 'insideTopRight', fill: '#DC2626', fontSize: 10 }} />
                   <Line type="monotone" dataKey="vim" name="VIM" stroke="#EF4444" strokeWidth={2.5} dot={{ r: 4, fill: '#EF4444' }} />
                 </LineChart>
               </ResponsiveContainer>
@@ -12802,14 +11036,14 @@ function DynamicMarshallSection({
               <ResponsiveContainer width="100%" height={260}>
                 <LineChart data={chartPoints} margin={{ top: 15, right: 25, left: 10, bottom: 20 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" />
-                  <XAxis dataKey="pa" tick={{ fontSize: 10, fill: '#64748B' }}>
+                  <XAxis dataKey="paNum" type="number" domain={['dataMin', 'dataMax']} tickFormatter={(value) => value + '%'} tick={{ fontSize: 10, fill: '#64748B' }}>
                     <Label value="Kadar Aspal (%)" offset={-12} position="insideBottom" style={{ fontSize: 10, fill: '#64748B' }} />
                   </XAxis>
                   <YAxis domain={[30, 80]} tick={{ fontSize: 10, fill: '#64748B' }}>
                     <Label value="VFA (%)" angle={-90} position="insideLeft" style={{ fontSize: 10, fill: '#64748B' }} />
                   </YAxis>
                   <Tooltip formatter={(val) => [`${Number(val).toFixed(1)}%`, 'VFA']} />
-                  <ReferenceLine y={65.0} stroke="#DC2626" strokeDasharray="4 4" strokeWidth={1.5} label={{ value: 'Min 65.0%', position: 'insideBottomRight', fill: '#DC2626', fontSize: 10 }} />
+                  <ReferenceLine y={chartLimits?.vfa[0]} stroke="#DC2626" strokeDasharray="4 4" strokeWidth={1.5} label={{ value: 'Min ' + chartLimits?.vfa[0] + '%', position: 'insideBottomRight', fill: '#DC2626', fontSize: 10 }} />
                   <Line type="monotone" dataKey="vfa" name="VFA" stroke="#06B6D4" strokeWidth={2.5} dot={{ r: 4, fill: '#06B6D4' }} />
                 </LineChart>
               </ResponsiveContainer>
@@ -12833,7 +11067,7 @@ function DynamicMarshallSection({
               <ResponsiveContainer width="100%" height={260}>
                 <LineChart data={chartPoints} margin={{ top: 15, right: 25, left: 10, bottom: 20 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" />
-                  <XAxis dataKey="pa" tick={{ fontSize: 10, fill: '#64748B' }}>
+                  <XAxis dataKey="paNum" type="number" domain={['dataMin', 'dataMax']} tickFormatter={(value) => value + '%'} tick={{ fontSize: 10, fill: '#64748B' }}>
                     <Label value="Kadar Aspal (%)" offset={-12} position="insideBottom" style={{ fontSize: 10, fill: '#64748B' }} />
                   </XAxis>
                   <YAxis domain={[2.35, 2.45]} tick={{ fontSize: 10, fill: '#64748B' }}>
@@ -12846,141 +11080,11 @@ function DynamicMarshallSection({
             </div>
           </div>
 
-          {/* Grafik 8: Gambar 12.29 Diagram Pita Rentang Penentuan KAO */}
-          <div style={{ border: '1px solid #0284C7', borderRadius: '8px', padding: '1rem', background: '#F0F9FF' }}>
-            <div style={{ marginBottom: '0.75rem' }}>
-              <strong style={{ fontSize: '0.88rem', color: '#0369A1' }}>
-                Gambar 12.29: Diagram Pita Rentang Penentuan Kadar Aspal Optimum (KAO)
-              </strong>
-              <span style={{ display: 'block', fontSize: '0.75rem', color: '#475569', marginTop: '2px' }}>
-                Visualisasi irisan rentang pemenuhan syarat spesifikasi Bina Marga 2018 Laston AC-WC
-              </span>
-            </div>
-
-            {/* Matrix Diagram Pita */}
-            <div style={{ width: '100%', overflowX: 'auto', WebkitOverflowScrolling: 'touch', paddingBottom: '4px' }}>
-              <div style={{ minWidth: '420px', display: 'flex', flexDirection: 'column', gap: '0.45rem', fontSize: '0.75rem' }}>
-                {/* Header Kolom Kadar Aspal */}
-              <div style={{ display: 'grid', gridTemplateColumns: '130px 1fr 1fr 1fr', gap: '0.5rem', fontWeight: 'bold', color: '#334155', textAlign: 'center', paddingBottom: '4px', borderBottom: '1px solid #BAE6FD' }}>
-                <span style={{ textAlign: 'left' }}>Parameter Marshall</span>
-                <span>Pa = 5.0%</span>
-                <span>Pa = 5.5%</span>
-                <span style={{ color: '#0284C7' }}>Pa = 6.5% (Optimum)</span>
-              </div>
-
-              {/* Baris 1: Stabilitas */}
-              <div style={{ display: 'grid', gridTemplateColumns: '130px 1fr 1fr 1fr', gap: '0.5rem', alignItems: 'center', textAlign: 'center' }}>
-                <span style={{ textAlign: 'left', fontWeight: 600 }}>Stabilitas (≥ 800 kg)</span>
-                <div style={{ background: '#DEF7EC', color: '#03543F', padding: '4px', borderRadius: '4px', fontWeight: 600 }}>✓ 2839.9 kg</div>
-                <div style={{ background: '#DEF7EC', color: '#03543F', padding: '4px', borderRadius: '4px', fontWeight: 600 }}>✓ 2616.5 kg</div>
-                <div style={{ background: '#DEF7EC', color: '#03543F', padding: '4px', borderRadius: '4px', fontWeight: 600 }}>✓ 2106.2 kg</div>
-              </div>
-
-              {/* Baris 2: Flow */}
-              <div style={{ display: 'grid', gridTemplateColumns: '130px 1fr 1fr 1fr', gap: '0.5rem', alignItems: 'center', textAlign: 'center' }}>
-                <span style={{ textAlign: 'left', fontWeight: 600 }}>Flow (2.0 - 4.0 mm)</span>
-                <div style={{ background: '#DEF7EC', color: '#03543F', padding: '4px', borderRadius: '4px', fontWeight: 600 }}>✓ 2.04 mm</div>
-                <div style={{ background: '#FEF3C7', color: '#92400E', padding: '4px', borderRadius: '4px' }}>1.10 mm</div>
-                <div style={{ background: '#FEF3C7', color: '#92400E', padding: '4px', borderRadius: '4px' }}>0.92 mm</div>
-              </div>
-
-              {/* Baris 3: MQ */}
-              <div style={{ display: 'grid', gridTemplateColumns: '130px 1fr 1fr 1fr', gap: '0.5rem', alignItems: 'center', textAlign: 'center' }}>
-                <span style={{ textAlign: 'left', fontWeight: 600 }}>MQ (≥ 250 kg/mm)</span>
-                <div style={{ background: '#DEF7EC', color: '#03543F', padding: '4px', borderRadius: '4px', fontWeight: 600 }}>✓ 1392.1</div>
-                <div style={{ background: '#DEF7EC', color: '#03543F', padding: '4px', borderRadius: '4px', fontWeight: 600 }}>✓ 2378.6</div>
-                <div style={{ background: '#DEF7EC', color: '#03543F', padding: '4px', borderRadius: '4px', fontWeight: 600 }}>✓ 2289.3</div>
-              </div>
-
-              {/* Baris 4: VMA */}
-              <div style={{ display: 'grid', gridTemplateColumns: '130px 1fr 1fr 1fr', gap: '0.5rem', alignItems: 'center', textAlign: 'center' }}>
-                <span style={{ textAlign: 'left', fontWeight: 600 }}>VMA (≥ 15.0%)</span>
-                <div style={{ background: '#DEF7EC', color: '#03543F', padding: '4px', borderRadius: '4px', fontWeight: 600 }}>✓ 18.88%</div>
-                <div style={{ background: '#DEF7EC', color: '#03543F', padding: '4px', borderRadius: '4px', fontWeight: 600 }}>✓ 16.94%</div>
-                <div style={{ background: '#DEF7EC', color: '#03543F', padding: '4px', borderRadius: '4px', fontWeight: 600 }}>✓ 16.45%</div>
-              </div>
-
-              {/* Baris 5: VIM */}
-              <div style={{ display: 'grid', gridTemplateColumns: '130px 1fr 1fr 1fr', gap: '0.5rem', alignItems: 'center', textAlign: 'center' }}>
-                <span style={{ textAlign: 'left', fontWeight: 600 }}>VIM (3.0% - 5.0%)</span>
-                <div style={{ background: '#FDE8E8', color: '#9B1C1C', padding: '4px', borderRadius: '4px' }}>11.47%</div>
-                <div style={{ background: '#FDE8E8', color: '#9B1C1C', padding: '4px', borderRadius: '4px' }}>8.28%</div>
-                <div style={{ background: '#FEF3C7', color: '#92400E', padding: '4px', borderRadius: '4px', fontWeight: 600 }}>5.56% (Mendekati)</div>
-              </div>
-
-              {/* Baris 6: VFA */}
-              <div style={{ display: 'grid', gridTemplateColumns: '130px 1fr 1fr 1fr', gap: '0.5rem', alignItems: 'center', textAlign: 'center' }}>
-                <span style={{ textAlign: 'left', fontWeight: 600 }}>VFA (≥ 65.0%)</span>
-                <div style={{ background: '#FDE8E8', color: '#9B1C1C', padding: '4px', borderRadius: '4px' }}>39.25%</div>
-                <div style={{ background: '#FDE8E8', color: '#9B1C1C', padding: '4px', borderRadius: '4px' }}>51.12%</div>
-                <div style={{ background: '#DEF7EC', color: '#03543F', padding: '4px', borderRadius: '4px', fontWeight: 600 }}>✓ 66.20%</div>
-              </div>
-
-                {/* Daerah Irisan Rekomendasi KAO */}
-                <div style={{ marginTop: '0.5rem', padding: '0.6rem 0.75rem', background: '#0284C7', color: '#FFFFFF', borderRadius: '6px', textAlign: 'center', fontWeight: 'bold', fontSize: '0.85rem' }}>
-                  ★ KADAR ASPAL OPTIMUM (KAO) TERPILIH = 6.5% ★
-                </div>
-              </div>
-            </div>
-          </div>
         </div>
 
-        {/* Ringkasan Pembahasan & Kesimpulan Otomatis */}
-        <div style={{
-          marginTop: '1.25rem',
-          padding: '1rem',
-          borderRadius: '6px',
-          background: '#F8FAFC',
-          border: '1px solid #E2E8F0',
-          fontSize: '0.82rem',
-          color: '#334155',
-          lineHeight: 1.6,
-        }}>
-          <strong style={{ color: '#0F172A', display: 'block', marginBottom: '0.35rem' }}>
-            Ringkasan Pembahasan Hasil Pengujian Marshall (Laporan Praktikum Universitas Tidar):
-          </strong>
-          <p style={{ margin: 0 }}>
-            Dari hasil pengujian dan analisis data karakteristik Marshall campuran Laston AC-WC (Bina Marga 2018), diperoleh bahwa pada kadar aspal 5.0% dan 5.5%, nilai rongga dalam campuran (VIM) masih relatif tinggi di atas batas maksimum 5.0% dan nilai rongga terisi aspal (VFA) berada di bawah batas minimum 65.0%. Peningkatan kadar aspal ke <strong>6.5%</strong> berhasil menurunkan VIM hingga mendekati rentang spesifikasi serta menaikkan VFA menjadi <strong>66.20% (≥ 65.0%)</strong> dengan stabilitas yang tetap sangat kokoh sebesar <strong>2106.16 kg (≥ 800 kg)</strong> dan nilai Marshall Quotient <strong>2289.30 kg/mm (≥ 250 kg/mm)</strong>. Oleh karena itu, kadar aspal acuan rencana yang direkomendasikan sebagai <strong>Kadar Aspal Optimum (KAO) adalah 6.5%</strong>.
-          </p>
-        </div>
-      </div>
-
-      {/* 7. Footer Navigasi Bawah */}
-      <div className="calc-footer-nav" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1.5rem', paddingTop: '1rem', borderTop: '1px solid #E2E8F0', flexWrap: 'wrap', gap: '0.75rem' }}>
-        <button
-          type="button"
-          className="btn-back-footer"
-          onClick={onBack}
-        >
-          <ArrowLeft size={16} />
-          <span>Kembali ke Dashboard</span>
-        </button>
-
-        <div className="calc-footer-right-actions" style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-          <button
-            type="button"
-            className="btn-open-table-direct"
-            onClick={onResetToLaprak}
-            title="Kembalikan data ke parameter dan spesimen default laporan praktikum"
-          >
-            <RotateCcw size={15} style={{ marginRight: '6px' }} />
-            <span>Reset Data Laprak</span>
-          </button>
-
-          <button
-            type="button"
-            className="btn-verdict-save"
-            onClick={onSave}
-            disabled={isInputInvalid || hasNegativeInput || hasExceededInput}
-            title={
-              isInputInvalid || hasNegativeInput || hasExceededInput
-                ? 'Perbaiki nilai parameter agar bernilai valid sebelum menyimpan'
-                : 'Simpan hasil pengujian karakteristik Marshall ke riwayat dashboard'
-            }
-          >
-            <Save size={16} />
-            <span>{savedNotification ? 'Tersimpan!' : 'Simpan Pengujian'}</span>
-          </button>
+        <div className="calc-card-box" style={{ marginTop: '1rem', padding: '1rem' }}>
+          <h4 className="calc-card-title">Evaluasi Marshall</h4>
+          <p>{calcOutput.conclusion}</p>
         </div>
       </div>
     </div>

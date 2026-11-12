@@ -409,10 +409,30 @@
    2. HERO SECTION
    ========================================================================== */
 .hero-section {
+  position: relative;
+  isolation: isolate;
+  overflow: clip;
   padding: 5rem 0 3.5rem;
   /* Background radial-gradient biru sangat tipis (opacity 8%) */
   background: radial-gradient(ellipse 70% 60% at 50% -10%, rgba(36, 120, 212, 0.08), #FFFFFF 80%);
   text-align: center;
+}
+
+.hero-section::before {
+  content: '';
+  position: absolute;
+  inset: -20px;
+  z-index: -1;
+  pointer-events: none;
+  color: var(--accent-primary);
+  opacity: 0.055;
+  background-image:
+    linear-gradient(90deg, currentColor 1px, transparent 1px),
+    linear-gradient(currentColor 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, currentColor 50%, transparent) 1px, transparent 1px),
+    linear-gradient(color-mix(in srgb, currentColor 50%, transparent) 1px, transparent 1px);
+  background-size: 128px 128px, 128px 128px, 32px 32px, 32px 32px;
+  mask-image: radial-gradient(ellipse at 50% 25%, #000 10%, transparent 74%);
 }
 
 .hero-container {
@@ -439,16 +459,16 @@
   box-shadow: 0 2px 10px rgba(59, 130, 246, 0.08);
 }
 
-.hero-rotating-gradient-line,
-.absolute.w-\[300\%\].aspect-square {
+.hero-rotating-gradient-line {
   position: absolute;
   top: 50%;
   left: 50%;
   width: 300%;
   aspect-ratio: 1 / 1;
+  background: conic-gradient(transparent 70%, #3b82f6);
   pointer-events: none;
   border-radius: 50%;
-  will-change: transform;
+  transform: translate(-50%, -50%);
 }
 
 .hero-badge-content,
@@ -489,22 +509,6 @@
 .aspect-square { aspect-ratio: 1 / 1; }
 .bg-blue-50 { background-color: #eff6ff; }
 .z-10 { z-index: 10; }
-
-/* animate-pulse for pill dot */
-.animate-pulse {
-  animation: pulse-dot 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-}
-
-@keyframes pulse-dot {
-  0%, 100% {
-    opacity: 1;
-    transform: scale(1);
-  }
-  50% {
-    opacity: 0.35;
-    transform: scale(0.85);
-  }
-}
 
 /* Legacy pill-badge fallback */
 .pill-badge {
@@ -561,7 +565,7 @@
   font-size: 1rem;
   padding: 0.85rem 1.75rem;
   border-radius: var(--radius-md);
-  transition: all 0.2s ease;
+  transition: transform var(--transition-normal), background-color var(--transition-normal), box-shadow var(--transition-normal);
   box-shadow: 0 4px 14px rgba(36, 120, 212, 0.28);
   border: none;
   cursor: pointer;
@@ -569,8 +573,12 @@
 
 .btn-primary-solid:hover {
   background-color: var(--accent-hover);
-  transform: translateY(-2px);
   box-shadow: 0 6px 20px rgba(36, 120, 212, 0.38);
+}
+
+.landing-cta-arrow {
+  flex-shrink: 0;
+  transition: transform var(--transition-fast);
 }
 
 .btn-ghost {
@@ -583,14 +591,13 @@
   padding: 0.85rem 1.75rem;
   border: 1px solid #CBD5E1;
   border-radius: var(--radius-md);
-  transition: all 0.2s ease;
+  transition: border-color var(--transition-normal), background-color var(--transition-normal);
   text-decoration: none;
 }
 
 .btn-ghost:hover {
   border-color: var(--text-heading);
   background-color: rgba(18, 52, 90, 0.03);
-  transform: translateY(-2px);
 }
 
 .btn-ghost-white {
@@ -633,7 +640,6 @@
   border-radius: var(--radius-xl);
   box-shadow: var(--shadow-mockup);
   overflow: hidden;
-  transition: transform 0.3s ease;
   cursor: default;
   display: flex;
   flex-direction: column;
@@ -1314,9 +1320,8 @@
 }
 
 .std-badge-pill {
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  display: grid;
+  place-items: center;
   min-width: 0;
   max-width: 100%;
   padding: 6px 8px;
@@ -1328,7 +1333,7 @@
   border: 1px solid #BFDBFE;
   border-radius: var(--radius-sm);
   text-align: center;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
   letter-spacing: -0.01em;
   box-sizing: border-box;
   transition: all 150ms cubic-bezier(0.4, 0, 0.2, 1);
@@ -1623,11 +1628,10 @@
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+  transition: translate 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
 }
 
 .feature-card:hover {
-  transform: translateY(-4px);
   border-color: #BFDBFE;
   box-shadow: 0 14px 30px rgba(18, 52, 90, 0.08);
 }
@@ -1722,12 +1726,15 @@
   font-size: 0.85rem;
   font-weight: 600;
   color: var(--accent-primary);
-  transition: gap 0.2s ease, color 0.2s ease;
+  transition: color var(--transition-normal);
+}
+
+.card-action-bar svg {
+  transition: transform var(--transition-fast);
 }
 
 .feature-card:hover .card-action-bar {
   color: var(--accent-hover);
-  gap: 0.7rem;
 }
 
 /* ==========================================================================
@@ -2140,6 +2147,79 @@
   font-weight: 500;
 }
 
+/* Keep controls visible if keyboard focus reaches them mid-entrance. */
+.landing-reveal:focus-within {
+  opacity: 1 !important;
+  transform: none !important;
+}
+
+@keyframes hero-blueprint-drift {
+  to { transform: translate(12px, 8px); }
+}
+
+@keyframes hero-badge-orbit {
+  to { transform: translate(-50%, -50%) rotate(1turn); }
+}
+
+@keyframes dashboard-preview-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .hero-section::before {
+    animation: hero-blueprint-drift 36s ease-in-out infinite alternate;
+  }
+
+  .hero-rotating-gradient-line {
+    animation: hero-badge-orbit 16s linear infinite;
+  }
+
+  .mockup-window {
+    animation: dashboard-preview-float 5.6s ease-in-out infinite;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) and (hover: hover) and (pointer: fine) {
+  .btn-primary-solid:hover {
+    transform: translateY(-2px) scale(1.015);
+  }
+
+  .btn-primary-solid:hover .landing-cta-arrow {
+    transform: translateX(3px);
+  }
+
+  .feature-card:hover {
+    translate: 0 -3px;
+  }
+
+  .feature-card:hover .card-action-bar svg {
+    transform: translateX(0.25rem);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .btn-primary-solid:active {
+    transform: scale(0.985);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html:has(.page-wrapper) {
+    scroll-behavior: auto;
+  }
+
+  .landing-reveal {
+    opacity: 1 !important;
+    transform: none !important;
+  }
+
+  .page-wrapper :is(.navbar-logo:hover .logo-img, .banner-point-card:hover, .step-item:hover .step-circle,
+    .category-pill-tab:hover, .footer-logo-img:hover, .footer-link:hover) {
+    transform: none;
+  }
+}
+
 /* ==========================================================================
    RESPONSIVITAS (MEDIA QUERIES)
    ========================================================================== */
@@ -2413,7 +2493,6 @@
   .std-badge-pill {
     font-size: 11px !important;
     padding: 6px 4px !important;
-    word-break: break-word !important;
     text-align: center !important;
   }
 
@@ -2500,13 +2579,6 @@
   justify-content: space-between;
   padding: 1.25rem 1rem;
   flex-shrink: 0;
-  position: sticky;
-  top: 0;
-  height: 100vh;
-  height: 100dvh;
-  max-height: 100vh;
-  max-height: 100dvh;
-  overflow-y: auto;
   border-right: 1px solid #E2E8F0;
   scrollbar-width: thin;
   scrollbar-color: #CBD5E1 transparent;
@@ -3535,11 +3607,6 @@
   color: var(--text-muted);
 }
 
-.table-empty-state svg {
-  margin-bottom: 0.75rem;
-  color: #94A3B8;
-}
-
 .table-empty-state p {
   font-size: 0.9rem;
   margin-bottom: 1rem;
@@ -3968,6 +4035,7 @@
     height: 100vh !important;
     height: 100dvh !important;
     max-height: 100dvh !important;
+    overflow-y: auto;
     z-index: 999 !important;
     transform: translateX(-100%) !important;
     transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
@@ -4125,7 +4193,6 @@
     gap: 0.75rem !important;
   }
 
-  .btn-save-to-dashboard,
   .btn-open-table-direct {
     width: 100% !important;
     min-height: 44px !important;
@@ -4144,12 +4211,6 @@
     justify-content: space-between !important;
     align-items: center !important;
     gap: 0.5rem !important;
-  }
-
-  .btn-back-to-dash {
-    font-size: 0.75rem !important;
-    padding: 0.4rem 0.8rem !important;
-    min-height: 40px !important;
   }
 
   .calc-verdict-badge {
@@ -4272,25 +4333,10 @@
   gap: 1rem;
 }
 
-.btn-back-to-dash {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.45rem;
-  padding: 0.45rem 0.95rem;
-  background-color: #F1F5F9;
-  border: 1px solid #CBD5E1;
-  border-radius: var(--radius-full);
-  font-size: 0.8rem;
-  font-weight: 700;
-  color: #334155;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.btn-back-to-dash:hover {
-  background-color: #E2E8F0;
-  color: #0F172A;
-  transform: translateX(-2px);
+.calc-input-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
 }
 
 .btn-export-excel-action {
@@ -4615,33 +4661,6 @@
   background-color: #FFFFFF;
   box-shadow: 0 0 0 3px rgba(36, 120, 212, 0.15);
   color: var(--text-heading);
-}
-
-.calc-input-actions {
-  display: flex;
-  justify-content: flex-end;
-  padding-top: 0.5rem;
-  border-top: 1px dashed var(--border-light);
-}
-
-.btn-calc-reset {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  padding: 0.45rem 0.85rem;
-  background-color: #F1F5F9;
-  border: 1px solid #CBD5E1;
-  border-radius: var(--radius-sm);
-  font-size: 0.8rem;
-  font-weight: 600;
-  color: #475569;
-  cursor: pointer;
-  transition: all 0.15s ease;
-}
-
-.btn-calc-reset:hover {
-  background-color: #E2E8F0;
-  color: #0F172A;
 }
 
 /* Hasil Output Metrik Grid */
@@ -5057,68 +5076,37 @@ select.calc-numeric-input.calc-select-input:hover {
   flex-shrink: 0;
 }
 
-.btn-view-dash-shortcut {
-  padding: 0.4rem 0.85rem;
-  background-color: #FFFFFF;
-  border: 1px solid #86EFAC;
-  border-radius: var(--radius-sm);
-  color: #15803D;
-  font-size: 0.78rem;
-  font-weight: 700;
-  cursor: pointer;
-  transition: all 0.15s ease;
-  white-space: nowrap;
-}
-
-.btn-view-dash-shortcut:hover {
-  background-color: #F0FDF4;
-  border-color: #4ADE80;
+.calc-result-actions {
+  border-top: 1px solid var(--border-light);
+  padding-top: 1rem;
 }
 
 /* Tombol Aksi Bawah */
 .calc-actions-footer {
   display: flex;
-  align-items: center;
+  flex-wrap: wrap;
   gap: 0.85rem;
-  padding-top: 0.5rem;
 }
 
-.btn-save-to-dashboard {
-  flex: 1;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.55rem;
-  padding: 0.85rem 1.5rem;
-  background-color: var(--accent-primary);
-  border: none;
-  border-radius: var(--radius-sm);
-  color: #FFFFFF;
-  font-size: 0.9rem;
-  font-weight: 700;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  box-shadow: 0 4px 12px rgba(36, 120, 212, 0.3);
+.calc-actions-footer > button {
+  min-height: 44px;
+  line-height: 1.3;
+  white-space: normal;
 }
 
-.btn-save-to-dashboard:hover {
-  background-color: var(--accent-hover);
-  transform: translateY(-1px);
-  box-shadow: 0 6px 16px rgba(36, 120, 212, 0.4);
+.calc-actions-footer > .btn-action-primary {
+  flex: 1 1 auto;
 }
 
-.btn-save-to-dashboard:disabled {
-  opacity: 0.55;
-  cursor: not-allowed;
-  filter: grayscale(0.5);
-  box-shadow: none;
-  transform: none;
+.calc-result-actions .calc-save-banner,
+.calc-result-actions .calc-error-banner,
+.calc-save-hint {
+  margin-top: 0.75rem;
 }
 
-.btn-save-to-dashboard:disabled:hover {
-  background-color: var(--accent-primary);
-  transform: none;
-  box-shadow: none;
+.calc-save-hint {
+  color: #475569;
+  font-size: 0.85rem;
 }
 
 .btn-open-table-direct {
@@ -6457,25 +6445,6 @@ select.calc-numeric-input.calc-select-input:hover {
   background-color: #1D4ED8;
 }
 
-.btn-cpt-reset-sample {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  background-color: #F8FAFC;
-  color: #475569;
-  border: 1px solid #CBD5E1;
-  border-radius: var(--radius-sm, 0.5rem);
-  padding: 0.45rem 0.75rem;
-  font-size: 0.75rem;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.btn-cpt-reset-sample:hover {
-  background-color: #F1F5F9;
-  color: #1E293B;
-}
-
 .cpt-invalid-alert-banner {
   display: flex;
   align-items: center;
@@ -6685,6 +6654,37 @@ select.calc-numeric-input.calc-select-input:hover {
     gap: 1.25rem;
   }
 }
+
+.cpt-dynamic-container {
+  min-width: 0;
+  display: grid;
+  gap: 1.25rem;
+}
+
+.cpt-calibration {
+  min-width: 0;
+  margin: 0 0 1rem;
+  padding: 0.75rem 1rem 1rem;
+  border: 1px solid #CBD5E1;
+  border-radius: 0.5rem;
+}
+
+.cpt-calibration legend { padding: 0 0.35rem; font-weight: 700; }
+.cpt-calibration p { margin: 0 0 0.65rem; color: #475569; font-size: 0.825rem; }
+.cpt-calibration-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 140px), 1fr));
+  gap: 0.75rem;
+}
+.cpt-calibration-fields label { display: grid; gap: 0.25rem; font-size: 0.8rem; }
+.cpt-profile-tooltip {
+  background: #0F172A;
+  color: #F8FAFC;
+  border-radius: 0.5rem;
+  padding: 0.6rem 0.8rem;
+  font-size: 0.8rem;
+}
+.cpt-formula-list { margin: 0.75rem 0 0; padding-inline-start: 1.25rem; line-height: 1.7; }
 
 .cpt-triplet-item {
   background-color: #FFFFFF;
@@ -7725,6 +7725,16 @@ select.calc-numeric-input.calc-select-input:hover {
 
 .direct-shear-table tr:hover td {
   background-color: #F8FAFC;
+}
+
+.direct-shear-point-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.direct-shear-point-actions .btn-remove-table-row {
+  flex-shrink: 0;
 }
 
 .direct-shear-badge-calc {
@@ -9376,103 +9386,7 @@ select.calc-numeric-input.calc-select-input:hover {
   box-shadow: none;
 }
 
-/* =========================================================================
-   ACTION BAR ATAS (RESET CONTOH, KOSONGKAN INPUT, SIMPAN PENGUJIAN)
-   ========================================================================= */
-.calc-panel-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  margin-bottom: 1.25rem;
-  flex-wrap: wrap;
-}
-
-.calc-header-left {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  flex-wrap: wrap;
-}
-
-.btn-back-header {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.45rem;
-  padding: 0.5rem 0.85rem;
-  background: #FFFFFF;
-  border: 1px solid #CBD5E1;
-  border-radius: 8px;
-  color: #334155;
-  font-size: 0.82rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.15s ease;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
-}
-
-.btn-back-header:hover {
-  background: #F8FAFC;
-  border-color: #94A3B8;
-  color: #0F172A;
-}
-
-.calc-title-box {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-}
-
-.calc-category-badge {
-  font-size: 0.72rem;
-  font-weight: 700;
-  color: #2563EB;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-}
-
-.calc-title-text {
-  font-size: 1.25rem;
-  font-weight: 800;
-  color: #0F172A;
-  margin: 0;
-  line-height: 1.25;
-}
-
-.calc-standard-badge {
-  display: flex;
-  align-items: center;
-  gap: 0.45rem;
-  font-size: 0.72rem;
-  color: #64748B;
-  font-weight: 500;
-}
-
-.calc-standard-badge .badge-code {
-  background: #EFF6FF;
-  color: #1D4ED8;
-  padding: 0.15rem 0.45rem;
-  border-radius: 4px;
-  font-weight: 700;
-}
-
-/* Action Bar Container Persis Sesuai Permintaan User:
-   background: #FFFFFF, border: 1px solid #E2E8F0, border-radius: 12px,
-   padding: 10px 16px, display: flex, align-items: center, gap: 12px,
-   box-shadow: 0 1px 2px rgba(0,0,0,0.04) */
-.calc-header-actions,
-.calc-top-action-bar {
-  background: #FFFFFF;
-  border: 1px solid #E2E8F0;
-  border-radius: 12px;
-  padding: 10px 16px;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
-  flex-wrap: wrap;
-}
-
+/* Tombol kalkulator */
 .btn-action-outline {
   display: inline-flex;
   align-items: center;
@@ -9515,8 +9429,8 @@ select.calc-numeric-input.calc-select-input:hover {
   justify-content: center;
   gap: 0.5rem;
   padding: 0.5rem 1.1rem;
-  background: #059669;
-  border: 1px solid #059669;
+  background: #047857;
+  border: 1px solid #047857;
   border-radius: 8px;
   color: #FFFFFF !important;
   font-size: 0.82rem;
@@ -9529,8 +9443,8 @@ select.calc-numeric-input.calc-select-input:hover {
 }
 
 .btn-action-primary:hover:not(:disabled) {
-  background: #047857;
-  border-color: #047857;
+  background: #065F46;
+  border-color: #065F46;
 }
 
 .btn-action-primary:disabled {
@@ -9541,30 +9455,16 @@ select.calc-numeric-input.calc-select-input:hover {
   box-shadow: none;
 }
 
-.btn-action-primary.btn-saved {
-  background: #10B981;
-  border-color: #10B981;
-}
-
 @media (max-width: 768px) {
-  .calc-panel-header {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 0.75rem;
-  }
-  .calc-header-actions,
-  .calc-top-action-bar {
-    width: 100%;
-    justify-content: flex-start;
-    padding: 8px 12px;
-    gap: 8px;
-    overflow-x: auto;
-  }
   .btn-action-outline,
   .btn-action-primary {
     padding: 0.45rem 0.75rem;
     font-size: 0.78rem;
     flex-shrink: 0;
+  }
+
+  .calc-input-toolbar > button {
+    min-height: 44px;
   }
 }
 

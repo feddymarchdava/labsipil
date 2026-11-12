@@ -6,6 +6,7 @@ import './App.css'
 import { sidebarGroups, calculatorRegistry, formatScientificInText } from './testCalculatorsData'
 import TestCalculatorPanel from './TestCalculatorPanel'
 import ExcelExportModal from './components/ExcelExportModal'
+import { resolveRecordConfig } from './utils/excelReportData'
 
 // Error Boundary untuk mencegah white screen jika terjadi error runtime pada modul kalkulator
 class ModuleErrorBoundary extends Component {
@@ -1238,6 +1239,13 @@ const initialSavedTests = [
   },
 ]
 
+const savedTestsKey = 'labsipil_saved_tests'
+
+function readSavedTests() {
+  const stored = JSON.parse(localStorage.getItem(savedTestsKey))
+  return Array.isArray(stored) ? stored : initialSavedTests
+}
+
 /**
  * Mengaktifkan scroll horizontal pada semua `.table-scroll-wrapper`:
  *  - Mouse wheel (Shift tidak wajib) menggulir tabel ke kiri/kanan jika konten melebar
@@ -1322,6 +1330,24 @@ function useTableHorizontalScroll() {
 }
 
 
+const landingEntranceEase = [0.22, 1, 0.36, 1]
+
+const heroEntrance = {
+  hidden: { opacity: 0, y: 12 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.44, ease: landingEntranceEase } },
+}
+
+const heroSequence = {
+  visible: { transition: { staggerChildren: 0.08 } },
+}
+
+const revealOnScroll = {
+  initial: { opacity: 0, y: 18 },
+  whileInView: { opacity: 1, y: 0 },
+  viewport: { once: true, margin: '0px 0px -24px 0px' },
+  transition: { duration: 0.46, ease: landingEntranceEase },
+}
+
 export default function App() {
   // Scroll horizontal (mouse wheel & middle-click drag) untuk semua tabel perhitungan
   useTableHorizontalScroll()
@@ -1375,40 +1401,24 @@ export default function App() {
   // State penyimpanan riwayat uji praktikum dengan persistensi localStorage
   const [savedTests, setSavedTests] = useState(() => {
     try {
-      const stored = localStorage.getItem('labsipil_saved_tests')
-      if (stored !== null) {
-        const parsed = JSON.parse(stored)
-        if (Array.isArray(parsed)) {
-          return parsed
-        }
-      }
+      return readSavedTests()
     } catch (err) {
       console.error('Gagal membaca data labsipil_saved_tests dari localStorage:', err)
+      return initialSavedTests
     }
-    return initialSavedTests
   })
 
-  // Simpan otomatis ke localStorage setiap ada perubahan pada data uji
-  useEffect(() => {
-    try {
-      localStorage.setItem('labsipil_saved_tests', JSON.stringify(savedTests))
-    } catch (err) {
-      console.error('Gagal menyimpan data ke localStorage:', err)
-    }
-  }, [savedTests])
+  const persistSavedTests = (records) => {
+    localStorage.setItem(savedTestsKey, JSON.stringify(records))
+    setSavedTests(records)
+  }
 
   // Sinkronisasi otomatis antar-tab atau perubahan eksternal pada localStorage
   useEffect(() => {
     const handleStorageChange = (e) => {
-      if (!e.key || e.key === 'labsipil_saved_tests') {
+      if (!e.key || e.key === savedTestsKey) {
         try {
-          const stored = localStorage.getItem('labsipil_saved_tests')
-          if (stored !== null) {
-            const parsed = JSON.parse(stored)
-            if (Array.isArray(parsed)) {
-              setSavedTests(parsed)
-            }
-          }
+          setSavedTests(readSavedTests())
         } catch (err) {
           console.error('Gagal membaca pembaruan localStorage:', err)
         }
@@ -1843,7 +1853,7 @@ export default function App() {
         ...prev,
         [testId]: {
           ...currentTestInputs,
-          [fieldKey]: value,
+          [fieldKey]: typeof value === 'function' ? value(currentTestInputs[fieldKey]) : value,
         },
       }
     })
@@ -1874,6 +1884,7 @@ export default function App() {
 
   // Auto-Increment ID saat data disimpan ke Dashboard (contoh: BJ-01, BJ-02, KA-01, dst)
   const handleSaveRecordFromCalculator = (recordData) => {
+    const currentRecords = readSavedTests()
     const baseCode = recordData.baseCode || recordData.code || 'UJ-01'
     const prefixMatch = baseCode.match(/^([A-Za-z]+)-/)
     const prefix = (recordData.codePrefix || (prefixMatch ? prefixMatch[1] : baseCode.split('-')[0]) || 'UJ').toUpperCase()
@@ -1882,17 +1893,12 @@ export default function App() {
     const prefixRegex = new RegExp(`^${prefix}-(\\d+)$`, 'i')
     let maxSeq = 0
 
-    savedTests.forEach((t) => {
-      if (t && t.id) {
-        const match = t.id.match(prefixRegex)
-        if (match) {
-          const num = parseInt(match[1], 10)
-          if (!isNaN(num) && num > maxSeq) {
-            maxSeq = num
-          }
-        }
+    for (const test of currentRecords) {
+      const match = String(test?.id ?? '').match(prefixRegex)
+      if (match) {
+        maxSeq = Math.max(maxSeq, Number(match[1]))
       }
-    })
+    }
 
     const nextSeq = maxSeq + 1
     const generatedId = `${prefix}-${String(nextSeq).padStart(2, '0')}`
@@ -1902,7 +1908,11 @@ export default function App() {
       id: generatedId,
     }
 
-    setSavedTests((prev) => [finalRecord, ...prev])
+    persistSavedTests([finalRecord, ...currentRecords])
+    if (!matchesRecordFilters(finalRecord)) {
+      setSearchQuery('')
+      setTableLabFilter('all')
+    }
     return finalRecord
   }
 
@@ -1910,12 +1920,12 @@ export default function App() {
   const handleOpenCalculatorFromRecord = (record) => {
     if (!record) return
 
-    let targetTestId = record.testId
-    if (!targetTestId || !calculatorRegistry[targetTestId]) {
+    let targetTestId = resolveRecordConfig(record, calculatorRegistry)?.id
+    if (!targetTestId || !Object.hasOwn(calculatorRegistry, targetTestId)) {
+      const recPrefix = String(record.id ?? '').split('-')[0].toUpperCase()
       const matchKey = Object.keys(calculatorRegistry).find((k) => {
         const reg = calculatorRegistry[k]
         const prefix = reg.code.split('-')[0].toUpperCase()
-        const recPrefix = (record.id || '').split('-')[0].toUpperCase()
         return (
           reg.id === record.id ||
           reg.code === record.id ||
@@ -2020,13 +2030,24 @@ export default function App() {
       notes: newTestData.notes.trim() || 'Data pengujian dicatat melalui form pengisian mandiri.',
     }
 
-    setSavedTests([newEntry, ...savedTests])
-    setIsAddModalOpen(false)
+    try {
+      persistSavedTests([newEntry, ...readSavedTests()])
+      setIsAddModalOpen(false)
+    } catch (err) {
+      console.error('Gagal menyimpan data pengujian:', err)
+      alert('Data pengujian belum tersimpan. Periksa penyimpanan browser, lalu coba lagi.')
+    }
   }
 
   const handleDeleteTest = (idToDelete) => {
     if (window.confirm(`Yakin ingin menghapus data pengujian ${idToDelete}?`)) {
-      setSavedTests((prev) => prev.filter((item) => item.id !== idToDelete))
+      try {
+        persistSavedTests(readSavedTests().filter((item) => item.id !== idToDelete))
+      } catch (err) {
+        console.error('Gagal menghapus data pengujian:', err)
+        alert('Data pengujian belum terhapus. Periksa penyimpanan browser, lalu coba lagi.')
+        return
+      }
       if (selectedTestDetail && selectedTestDetail.id === idToDelete) {
         setSelectedTestDetail(null)
       }
@@ -2035,13 +2056,14 @@ export default function App() {
 
   const handleResetSampleData = () => {
     if (window.confirm('Apakah Anda yakin ingin menghapus seluruh data pengujian tersimpan? Semua riwayat data uji dan data perhitungan akan dikosongkan total.')) {
-      setSavedTests([])
-      setSelectedTestDetail(null)
       try {
-        localStorage.setItem('labsipil_saved_tests', JSON.stringify([]))
+        persistSavedTests([])
       } catch (err) {
         console.error('Gagal mengosongkan labsipil_saved_tests di localStorage:', err)
+        alert('Riwayat pengujian belum terhapus. Periksa penyimpanan browser, lalu coba lagi.')
+        return
       }
+      setSelectedTestDetail(null)
 
       // Bersihkan juga cache data input perhitungan tersimpan
       setModuleInputs({})
@@ -2059,22 +2081,14 @@ export default function App() {
   }
 
   // Filter Data untuk Ditampilkan di Tabel
-  const filteredTests = savedTests.filter((test) => {
+  const matchesRecordFilters = (test) => {
     if (tableLabFilter !== 'all' && test.lab !== tableLabFilter) return false
 
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase()
-      return (
-        test.id.toLowerCase().includes(q) ||
-        test.name.toLowerCase().includes(q) ||
-        test.standard.toLowerCase().includes(q) ||
-        test.category.toLowerCase().includes(q) ||
-        test.summary.toLowerCase().includes(q)
-      )
-    }
-
-    return true
-  })
+    const query = searchQuery.trim().toLowerCase()
+    return !query || [test.id, test.name, test.standard, test.category, test.summary]
+      .some((value) => String(value ?? '').toLowerCase().includes(query))
+  }
+  const filteredTests = savedTests.filter(matchesRecordFilters)
 
   // Metrik Ringkasan untuk Kartu Bento & Mockup Preview (Auto-Sync)
   const totalSavedCount = savedTests.length
@@ -2501,11 +2515,6 @@ export default function App() {
                       <tr>
                         <td colSpan="7">
                           <div className="table-empty-state">
-                            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                              <circle cx="12" cy="12" r="10" />
-                              <line x1="12" y1="8" x2="12" y2="12" />
-                              <line x1="12" y1="16" x2="12.01" y2="16" />
-                            </svg>
                             <p>Tidak ada data pengujian yang sesuai dengan filter pencarian.</p>
                             <button
                               type="button"
@@ -2773,7 +2782,6 @@ export default function App() {
               onClose={() => setIsExcelExportModalOpen(false)}
               savedTests={savedTests}
               calculatorRegistry={calculatorRegistry}
-              allModuleInputs={moduleInputs}
             />
           </div>
         )}
@@ -2844,7 +2852,8 @@ export default function App() {
                   handleOpenApp()
                 }}
               >
-                <span>Mulai Hitung Sekarang →</span>
+                <span>Mulai Hitung Sekarang</span>
+                <span className="landing-cta-arrow" aria-hidden="true">→</span>
               </button>
             </div>
           </>
@@ -2854,42 +2863,31 @@ export default function App() {
       <main>
         {/* ================= 2. HERO SECTION ================= */}
         <section id="beranda" className="hero-section">
-          <div className="container hero-container">
+          <motion.div className="container hero-container" initial="hidden" animate="visible" variants={heroSequence}>
             {/* Rotating Gradient Border Badge */}
-            <div className="relative overflow-hidden rounded-full p-[1.5px] inline-flex hero-badge-rotating-container">
-              <motion.div
-                className="absolute w-[300%] aspect-square hero-rotating-gradient-line"
-                style={{
-                  background: 'conic-gradient(from 0deg, transparent 0%, transparent 70%, #3b82f6 100%)',
-                  top: '50%',
-                  left: '50%',
-                  x: '-50%',
-                  y: '-50%',
-                }}
-                animate={{ rotate: 360 }}
-                transition={{ repeat: Infinity, duration: 3, ease: 'linear' }}
-              />
+            <motion.div className="hero-badge-rotating-container landing-reveal" variants={heroEntrance}>
+              <div className="hero-rotating-gradient-line" aria-hidden="true" />
               <div className="bg-blue-50 rounded-full relative z-10 hero-badge-content">
-                <span className="pill-dot animate-pulse"></span>
+                <span className="pill-dot" aria-hidden="true" />
                 <span>Sistem Informasi Laboratorium Teknik Sipil</span>
               </div>
-            </div>
+            </motion.div>
 
             {/* Judul H1 Ekstra Tebal Responsif */}
-            <h1 className="hero-h1">
+            <motion.h1 className="hero-h1 landing-reveal" variants={heroEntrance}>
               Selesaikan Hitungan Lab dan Laporan Praktikum Tanpa Ribet Rumus Manual.
-            </h1>
+            </motion.h1>
 
             {/* Deskripsi Singkat */}
-            <p className="hero-desc">
+            <motion.p className="hero-desc landing-reveal" variants={heroEntrance}>
               Platform hitung otomatis praktikum Teknik Sipil. Mencakup uji Bahan Bangunan, Mekanika Tanah, Mekanika Fluida, hingga Bahan Perkerasan sesuai standar SNI, ASTM, & Bina Marga 2018.
-            </p>
+            </motion.p>
 
             {/* Tombol Aksi Utama (Tumpuk di Mobile) */}
-            <div className="hero-cta-row">
+            <motion.div className="hero-cta-row landing-reveal" variants={heroEntrance}>
               <button type="button" className="btn-primary-solid btn-lg" onClick={handleOpenApp}>
                 <span>Mulai Hitung Sekarang</span>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <svg className="landing-cta-arrow" aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                   <line x1="5" y1="12" x2="19" y2="12" />
                   <polyline points="12 5 19 12 12 19" />
                 </svg>
@@ -2897,13 +2895,13 @@ export default function App() {
               <a href="#standar" className="btn-ghost btn-lg">
                 Pelajari Standar SNI
               </a>
-            </div>
-          </div>
+            </motion.div>
+          </motion.div>
         </section>
 
         {/* ================= 3. DASHBOARD PREVIEW SCREENSHOT ================= */}
         <section className="preview-section">
-          <div className="container">
+          <motion.div className="container landing-reveal" {...revealOnScroll}>
             <div className="mockup-window h-auto overflow-hidden rounded-2xl shadow-2xl flex flex-col border border-slate-200/80 bg-white" aria-label="Mockup Preview Dasbor LabSipil">
               {/* Window Title Bar (Macbook style) */}
               <div className="mockup-header h-[45px] shrink-0">
@@ -2931,18 +2929,20 @@ export default function App() {
                   src="/dashboard-preview.png" 
                   alt="Preview Dasbor Aplikasi LabSipil" 
                   className="mockup-preview-img"
+                  width={1518}
+                  height={674}
                   loading="eager"
                 />
               </div>
             </div>
-          </div>
+          </motion.div>
         </section>
 
         {/* ================= 4. BARIS 4 KEUNGGULAN SINGKAT & DARK FEATURE BANNER ================= */}
         <section className="keunggulan-section">
           <div className="container">
             {/* Baris 4 Keunggulan Singkat */}
-            <div className="keunggulan-grid">
+            <motion.div className="keunggulan-grid landing-reveal" {...revealOnScroll}>
               <div className="keunggulan-item">
                 <div className="keunggulan-icon-box">
                   <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#2478D4" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
@@ -2995,10 +2995,10 @@ export default function App() {
                   Seluruh riwayat hitungan praktikum tersimpan rapi dan terstruktur.
                 </p>
               </div>
-            </div>
+            </motion.div>
 
             {/* Dark Feature Banner (Target Scroll Anchor 'Standar SNI/ASTM') */}
-            <div id="standar" className="dark-feature-banner">
+            <motion.div id="standar" className="dark-feature-banner landing-reveal" {...revealOnScroll}>
               <div className="dark-banner-left">
                 <div className="banner-badge">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#60A5FA" strokeWidth="2.5">
@@ -3049,13 +3049,13 @@ export default function App() {
                   </div>
                 ))}
               </div>
-            </div>
+            </motion.div>
           </div>
         </section>
 
         {/* ================= 5. SECTION ALUR PRAKTIKUM (5-STEP HORIZONTAL STEPPER) ================= */}
         <section id="cara-kerja" className="stepper-section">
-          <div className="container">
+          <motion.div className="container landing-reveal" {...revealOnScroll}>
             <div className="section-title-wrap">
               <span className="section-kicker">SISTEM KERJA LABORATORIUM</span>
               <h2 className="section-heading">Alur Pengolahan Data Praktikum Digital</h2>
@@ -3118,19 +3118,19 @@ export default function App() {
                 </div>
               </div>
             </div>
-          </div>
+          </motion.div>
         </section>
 
         {/* ================= 6. SECTION GRID KARTU FITUR / MODUL UJI ================= */}
         <section id="modul-uji" className="feature-grid-section">
           <div className="container">
-            <div className="section-title-wrap">
+            <motion.div className="section-title-wrap landing-reveal" {...revealOnScroll}>
               <span className="section-kicker">MODUL</span>
               <h2 className="section-heading">Modul Praktikum Siap Pakai</h2>
               <p className="section-subtext">
                 Katalog komputasi resmi Praktikum Bahan Bangunan, Mekanika Tanah, Mekanika Fluida, dan Bahan Perkerasan Teknik Sipil.
               </p>
-            </div>
+            </motion.div>
 
             {/* Segmented Switcher Utama (Tingkat 1) */}
             <div className="lab-segmented-switcher-container">
@@ -3211,10 +3211,12 @@ export default function App() {
 
             {/* Grid Kartu Modul */}
             <div className="six-cards-grid">
-              {(labModulesData[selectedLab]?.[activeCategoryTab] || []).map((item) => (
-                <div 
-                  key={item.id} 
-                  className="feature-card" 
+              {(labModulesData[selectedLab]?.[activeCategoryTab] || []).map((item, index) => (
+                <motion.div
+                  key={item.id}
+                  className="feature-card landing-reveal"
+                  {...revealOnScroll}
+                  transition={{ ...revealOnScroll.transition, delay: index * 0.06 }}
                   onClick={(e) => handleOpenModuleCalculator(item, e)} 
                   style={{ cursor: 'pointer' }} 
                   title={`Buka ${item.title}`}
@@ -3235,7 +3237,7 @@ export default function App() {
                       <polyline points="12 5 19 12 12 19" />
                     </svg>
                   </div>
-                </div>
+                </motion.div>
               ))}
             </div>
           </div>
@@ -3244,20 +3246,21 @@ export default function App() {
         {/* ================= CALL TO ACTION SECTION ================= */}
         <section className="cta-section">
           <div className="container">
-            <div className="cta-box">
+            <motion.div className="cta-box landing-reveal" {...revealOnScroll}>
               <h2 className="cta-title">Siap Menyelesaikan Laporan Praktikum Tanpa Rumus Manual?</h2>
               <p className="cta-desc">
                 Otomasi kalkulasi uji bahan, kurva gradasi, serta parameter mekanika tanah, kayu, dan baja dengan kepatuhan penuh terhadap standar SNI & ASTM.
               </p>
               <div className="cta-actions">
                 <button type="button" className="btn-primary-solid btn-lg" onClick={handleOpenApp}>
-                  Mulai Hitung Sekarang →
+                  <span>Mulai Hitung Sekarang</span>
+                  <span className="landing-cta-arrow" aria-hidden="true">→</span>
                 </button>
                 <a href="#standar" className="btn-ghost-white btn-lg">
                   Pelajari Standar SNI
                 </a>
               </div>
-            </div>
+            </motion.div>
           </div>
         </section>
       </main>
