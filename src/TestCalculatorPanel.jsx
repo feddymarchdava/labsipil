@@ -3558,7 +3558,7 @@ function MarshallChecklistCard({ data }) {
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '0.75rem', marginTop: '0.75rem' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))', gap: '0.75rem', marginTop: '0.75rem' }}>
         {data.items.map((item, idx) => (
           <div
             key={idx}
@@ -7642,7 +7642,7 @@ function DynamicViscositySection({
           </div>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.25rem' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))', gap: '1.25rem' }}>
           {/* Kolom 1: Acuan Preset Target Suhu Kerja */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
             <label style={{ fontSize: '0.8rem', fontWeight: 700, color: '#334155' }}>
@@ -7676,7 +7676,7 @@ function DynamicViscositySection({
             </div>
 
             {/* Input Nilai Target Viskositas */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginTop: '0.25rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 12rem), 1fr))', gap: '0.75rem', marginTop: '0.25rem' }}>
               <div style={{ background: '#F8FAFC', padding: '0.6rem 0.75rem', borderRadius: '0.5rem', border: '1px solid #E2E8F0' }}>
                 <span style={{ fontSize: '0.7rem', fontWeight: 700, color: '#0369A1', display: 'block', marginBottom: '0.35rem' }}>
                   Target Mixing (cSt):
@@ -7778,7 +7778,7 @@ function DynamicViscositySection({
       </div>
 
       {/* 3. Bento Summary Cards Hasil Perhitungan (4 Cards) */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1rem', marginBottom: '1.25rem' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))', gap: '1rem', marginBottom: '1.25rem' }}>
         {/* Card 1: Rentang Suhu Pencampuran */}
         <div className="viscosity-summary-bento-card" style={{ borderLeft: '4px solid #F59E0B' }}>
           <span className="bento-label" style={{ color: '#B45309' }}>Rentang Suhu Pencampuran (Mixing)</span>
@@ -8800,7 +8800,7 @@ function DynamicFlashPointSection({
           Parameter Tekanan Barometer & Syarat Spesifikasi
         </h3>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.25rem' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))', gap: '1.25rem' }}>
           {/* Input Tekanan Barometer Udara dengan Unit Switcher */}
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
@@ -9396,7 +9396,7 @@ function DynamicJmfMixSection({
           </p>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1rem' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 320px), 1fr))', gap: '1rem' }}>
           {/* Box Kiri: Metode Analitis */}
           <div style={{
             padding: '1rem',
@@ -9624,7 +9624,7 @@ function DynamicJmfMixSection({
               color: '#334155',
             }}>
               <strong style={{ color: '#0F172A' }}>Panduan Interpretasi Grafik Gambar 11.19 (Laporan Praktikum):</strong>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '0.75rem', marginTop: '0.5rem' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))', gap: '0.75rem', marginTop: '0.5rem' }}>
                 <div style={{ borderLeft: '3px solid #0284C7', paddingLeft: '0.5rem' }}>
                   <strong style={{ color: '#0284C7' }}>🟦 Daerah Atas (&gt; {passNo4.toFixed(1)}%):</strong><br />
                   100% - {passNo4.toFixed(1)}% = <strong>{(100 - passNo4).toFixed(1)}%</strong> adalah Fraksi Agregat Kasar (CA)

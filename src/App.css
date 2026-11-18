@@ -4115,17 +4115,18 @@
 
   .dashboard-heading {
     font-size: 1.05rem !important;
-    white-space: nowrap !important;
-    overflow: hidden !important;
-    text-overflow: ellipsis !important;
+    white-space: normal;
+    overflow-wrap: anywhere;
   }
 
   .dashboard-content-area {
-    padding: 1.25rem 1rem 5.5rem 1rem !important;
+    padding: 0.85rem 0.75rem 2rem !important;
+    gap: 0.85rem;
   }
 
   .calc-panel-wrapper {
-    padding: 1.25rem 0.85rem 4rem !important;
+    padding: 0.85rem 0.75rem 2rem !important;
+    gap: 0.9rem;
   }
 
   /* Kontrol panel riwayat pengujian */
@@ -4232,8 +4233,8 @@
   .table-scroll-wrapper table th:first-child,
   .table-scroll-wrapper table td:first-child {
     max-width: 140px !important;
-    min-width: 110px !important;
-    width: 130px !important;
+    min-width: 0;
+    width: auto;
     white-space: normal !important;
     word-break: break-word !important;
     font-size: 11.5px !important;
@@ -4276,12 +4277,12 @@
 
 @media (max-width: 480px) {
   .bento-metrics-container {
-    grid-template-columns: 1fr !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
     gap: 0.75rem !important;
   }
 
   .calc-bento-grid {
-    grid-template-columns: 1fr !important;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 9rem), 1fr)) !important;
     gap: 0.65rem !important;
   }
 
@@ -7186,7 +7187,7 @@ select.calc-numeric-input.calc-select-input:hover {
 
 @media (max-width: 1100px) {
   .soil-sieve-layout-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 
@@ -7486,7 +7487,7 @@ select.calc-numeric-input.calc-select-input:hover {
 
 @media (max-width: 1100px) {
   .oedometer-layout-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 
@@ -8294,7 +8295,7 @@ select.calc-numeric-input.calc-select-input:hover {
 
 .penetration-points-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr));
   gap: 0.75rem;
   margin-bottom: 1rem;
 }
@@ -9468,5 +9469,131 @@ select.calc-numeric-input.calc-select-input:hover {
   }
 }
 
+@media (max-width: 640px) {
+  .keunggulan-section,
+  .stepper-section,
+  .feature-grid-section,
+  .cta-section {
+    padding-block: 2.5rem;
+  }
 
+  .section-title-wrap,
+  .keunggulan-grid {
+    margin-bottom: 1.5rem;
+  }
 
+  .section-heading {
+    font-size: clamp(1.45rem, 6vw, 1.85rem);
+  }
+
+  .six-cards-grid {
+    gap: 0.75rem;
+  }
+
+  .feature-card,
+  .calc-card-box,
+  .records-panel {
+    padding: 0.9rem;
+    gap: 0.85rem;
+  }
+
+  .card-top-row {
+    margin-bottom: 0;
+  }
+
+  .category-pill-tab,
+  .lab-segment-btn {
+    min-height: 44px;
+    max-width: 100%;
+    white-space: normal;
+  }
+
+  .bento-card {
+    gap: 0.2rem;
+    padding: 0.7rem;
+  }
+
+  .bento-card:first-child {
+    grid-column: 1 / -1;
+  }
+
+  .bento-card-top,
+  .calc-card-header {
+    flex-wrap: wrap;
+  }
+
+  .bento-card-tag.neutral {
+    display: none;
+  }
+
+  .bento-card-number {
+    font-size: 1.45rem;
+  }
+
+  .records-panel-controls {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .records-panel-controls .btn-floating-export {
+    position: static;
+    grid-column: 1 / -1;
+    justify-content: center;
+    min-height: 44px;
+    border-radius: var(--radius-sm);
+    box-shadow: none;
+    z-index: auto;
+  }
+
+  .full-dashboard-sidebar:not(.drawer-open) {
+    box-shadow: none !important;
+    visibility: hidden;
+  }
+
+  .penetration-point-row {
+    flex-wrap: wrap;
+  }
+
+  .penetration-point-input {
+    flex-basis: 4.5rem;
+  }
+
+  .penetration-point-row .penetration-btn-del-point {
+    min-width: 40px;
+    min-height: 40px;
+    margin-inline-start: auto;
+  }
+
+  .records-search-input,
+  .records-filter-select {
+    grid-column: 1 / -1;
+  }
+
+  .btn-add-record,
+  .btn-reset-sample {
+    justify-content: center;
+  }
+
+  .calc-card-header > div:has(.calc-card-title) {
+    flex: 1 1 11rem;
+    min-width: 0;
+  }
+
+  .nominal-dropdown-group,
+  .nominal-select-dropdown,
+  .calc-panel-wrapper input,
+  .calc-panel-wrapper select {
+    max-width: 100%;
+  }
+
+  .calc-card-header-icon {
+    width: 32px;
+    height: 32px;
+  }
+
+  .excel-export-modal-card {
+    width: 100%;
+    padding: 1rem;
+    max-height: 90dvh;
+  }
+}

@@ -1,4 +1,4 @@
-import { useState, useEffect, Component } from 'react'
+import { useState, useEffect, useRef, Component } from 'react'
 import * as XLSX from 'xlsx'
 import { FileSpreadsheet, Plus, AlertTriangle, RotateCcw, ArrowLeft } from 'lucide-react'
 import { motion } from 'framer-motion'
@@ -1363,6 +1363,10 @@ export default function App() {
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false)
   const [activeTab, setActiveTab] = useState('dashboard') // 'dashboard' | 'calculator'
   const [activeTestId, setActiveTestId] = useState('bb-1-1')
+  const dashboardMain = useRef(null)
+  useEffect(() => {
+    dashboardMain.current?.scrollTo({ top: 0, behavior: 'instant' })
+  }, [activeTab, activeTestId])
   const [openChapters, setOpenChapters] = useState({
     'bb-bab1': true,
     'bb-bab2': false,
@@ -2266,7 +2270,7 @@ export default function App() {
         </aside>
 
         {/* Konten Utama Dasbor */}
-        <div className="full-dashboard-main">
+        <div className="full-dashboard-main" ref={dashboardMain}>
           {/* Topbar Dasbor */}
           <header className="dashboard-topbar">
             <div className="topbar-title-group">
@@ -2438,6 +2442,15 @@ export default function App() {
                       <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
                     </svg>
                     <span>Reset</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="btn-floating-export"
+                    onClick={handleExportToExcel}
+                    title="Export blangko pengujian laboratorium ke file Microsoft Excel (.xlsx)"
+                  >
+                    <FileSpreadsheet size={19} className="btn-floating-export-icon" />
+                    <span>Export ke Excel</span>
                   </button>
                 </div>
               </div>
@@ -2764,17 +2777,6 @@ export default function App() {
                 </div>
               </div>
             )}
-
-            {/* Tombol Floating CTA: Export ke Excel */}
-            <button
-              type="button"
-              className="btn-floating-export fixed bottom-8 right-8 z-50 bg-emerald-600 hover:bg-emerald-700 text-white rounded-full shadow-lg"
-              onClick={handleExportToExcel}
-              title="Export blangko pengujian laboratorium ke file Microsoft Excel (.xlsx)"
-            >
-              <FileSpreadsheet size={19} className="btn-floating-export-icon" />
-              <span>Export ke Excel</span>
-            </button>
 
             {/* Modal Dialog Export Excel Blangko Laboratorium */}
             <ExcelExportModal
